@@ -1452,9 +1452,19 @@ function renderSettings() {
       <h3>Export pour Anki ${isPro ? '' : '🔒'}</h3>
       ${isPro ? `
         <p style="font-size:13px; color:var(--muted); line-height:1.6;">
-          Génère un fichier texte avec tout ton vocabulaire, prêt à
-          importer dans Anki : ouvre Anki → Fichier → Importer, choisis ce
-          fichier. Anki détecte automatiquement les colonnes.
+          Génère un fichier avec tout ton vocabulaire, à importer dans
+          l'app Anki (gratuite, sur ordinateur ou mobile).
+        </p>
+        <ol style="font-size:13px; color:var(--muted); line-height:1.8; padding-left:18px; margin:8px 0;">
+          <li>Clique sur le bouton ci-dessous : un fichier <code>.txt</code> est téléchargé.</li>
+          <li>Ouvre l'app Anki (pas installée ? <a href="https://apps.ankiweb.net/" target="_blank" rel="noopener" style="color:var(--accent);">télécharge-la ici</a>, c'est gratuit).</li>
+          <li>Dans Anki : menu <strong>Fichier → Importer</strong>, puis choisis le fichier téléchargé.</li>
+          <li>Anki propose automatiquement les bonnes colonnes (mot / lecture+sens / tags) et un type de note "Basique" — tu n'as rien à changer, clique juste sur <strong>Importer</strong>.</li>
+        </ol>
+        <p style="font-size:12px; color:var(--muted-dim); line-height:1.6;">
+          Dans le fichier : le mot japonais devient le recto de la carte, la
+          lecture et le sens le verso, et le semestre/semaine un tag
+          (pratique pour filtrer dans Anki).
         </p>
         <button class="secondary" id="btnExportAnki">Exporter pour Anki (.txt)</button>
       ` : `
