@@ -147,6 +147,28 @@ html, body {
   line-height: 1.8;
 }
 
+.sidebar-legal {
+  font-size: 9px;
+  color: var(--label-dim);
+  padding: 2px 4px 0;
+  opacity: 0.7;
+}
+
+/* ---------- Pied de page légal ---------- */
+/* Sous le .app (qui occupe 100vh) : visible en descendant la page, jamais
+   écrasé par app.js (contrairement au contenu placeholder des sections
+   .view, remplacé au chargement) — sert de mention légale réellement
+   présente pour tout visiteur ou robot qui lit le HTML. */
+.site-footer {
+  max-width: 780px;
+  margin: 0 auto;
+  padding: 24px 20px 40px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+  text-align: center;
+}
+
 /* ---------- Content ---------- */
 .content {
   flex: 1;
@@ -848,6 +870,7 @@ code {
     padding: 8px 12px;
   }
   .sidebar-footer { display: none; }
+  .sidebar-legal { display: none; }
   .content {
     padding: 16px 14px calc(24px + env(safe-area-inset-bottom, 0px));
   }
