@@ -9,9 +9,8 @@ let DB = null;
 let currentView = 'dashboard';
 let quizSession = null;     // { semesterId, week, queue, index, submitted, lastAnswer, lastResult, totals }
 let importPreview = null;   // { rows, errors } — résultat de l'analyse avant import
-let browsingWeek = null;    // { semesterId, week } — semaine affichée dans l'onglet Vocabulaire
-let learnImportPreview = null; // { rows, errors } — résultat de l'analyse avant import des fiches Apprendre
-let learnBrowsingWeek = null;  // { semesterId, week } — semaine affichée dans l'onglet Apprendre
+let browsingWeek = null;    // { semesterId, week } — semaine affichée dans l'onglet Vocabulaire (fusionné : mots + fiches)
+let learnImportPreview = null; // { rows, errors } — résultat de l'analyse avant import des fiches (anciennement onglet Apprendre, fusionné dans Vocabulaire)
 let dashboardMode = 'cursus';  // 'cursus' (S0-S6) ou 'jlpt' (modules JLPT) — bascule en haut à droite de l'Accueil
 
 const $ = (sel, root) => (root || document).querySelector(sel);
@@ -102,7 +101,7 @@ function getScoreEntry(semesterId, week) {
 // semaines suivantes "moins visibles" QUE sur le tableau de bord — pas les
 // rendre injoignables partout. Sans ça, du vocabulaire déjà importé (ou des
 // scores déjà obtenus) au-delà du nouveau réglage disparaissait des menus
-// de Vocabulaire / Apprendre / Statistiques, alors qu'il existe toujours.
+// de Vocabulaire / Statistiques, alors qu'il existe toujours.
 function getMaxRelevantWeek(sem) {
   let max = sem.weeks;
   DB.kanjiGroups.forEach(g => {
@@ -510,7 +509,6 @@ function switchView(view) {
 function renderCurrentView() {
   if (currentView === 'dashboard') renderDashboard();
   else if (currentView === 'manage') renderVocab();
-  else if (currentView === 'learn') renderLearn();
   else if (currentView === 'review') renderReview();
   else if (currentView === 'stats') renderStats();
   else if (currentView === 'download') renderDownload();
@@ -702,6 +700,32 @@ function renderVocab() {
   const browseHtml = groups.length === 0 ? '<div class="empty-state">Aucun vocabulaire importé pour cette semaine.</div>' :
     groups.map(g => {
       const vocabList = getVocabForGroup(g.id);
+      const learnInfo = hasLearnInfo(g) ? `
+          <div class="learn-readings">
+            ${g.onyomi ? `<div class="learn-pill onyomi"><span>ON</span>${escapeHtml(g.onyomi)}</div>` : ''}
+            ${g.kunyomi ? `<div class="learn-pill kunyomi"><span>KUN</span>${escapeHtml(g.kunyomi)}</div>` : ''}
+            ${g.bushu ? `<div class="learn-pill bushu"><span>RADICAL</span>${escapeHtml(g.bushu)}</div>` : ''}
+          </div>
+          ${g.phrase ? `
+            <div class="learn-section">
+              <h4>Phrase d'exemple</h4>
+              <p class="learn-phrase">${escapeHtml(g.phrase)}</p>
+              ${g.traduction ? `<p class="learn-traduction">${escapeHtml(g.traduction)}</p>` : ''}
+            </div>
+          ` : ''}
+          ${g.memo ? `
+            <div class="learn-section">
+              <h4>Mémo</h4>
+              <p>${escapeHtml(g.memo)}</p>
+            </div>
+          ` : ''}
+          ${g.attention ? `
+            <div class="learn-section learn-attention">
+              <h4>Attention</h4>
+              <p>${escapeHtml(g.attention)}</p>
+            </div>
+          ` : ''}
+        ` : '';
       return `
         <div class="kanji-block">
           <div class="kanji-block-head">
@@ -709,6 +733,7 @@ function renderVocab() {
             <strong>${escapeHtml(g.titre || '')}</strong>
             <button class="secondary small btn-del-group" data-group="${g.id}">Supprimer ce kanji</button>
           </div>
+          ${learnInfo}
           <table>
             <thead><tr><th>Mot</th><th>Lecture</th><th>Sens</th><th></th></tr></thead>
             <tbody>
@@ -729,10 +754,10 @@ function renderVocab() {
   $('#view-manage').innerHTML = `
     <h2>Vocabulaire</h2>
     <p style="font-size:13px; color:var(--muted); margin-top:-8px;">
-      Les mots testés pendant les révisions. C'est le seul import obligatoire — l'onglet Apprendre (fiches annexes) est optionnel et indépendant.
+      Les mots testés pendant les révisions, avec les fiches d'aide optionnelles (lectures, radical, phrase d'exemple, mémo, attention) pour étudier avant de te tester. Les fiches ne sont jamais utilisées pendant Réviser, qui reste un vrai test à l'aveugle — l'import des mots reste le seul obligatoire, celui des fiches est facultatif et indépendant.
     </p>
     <div class="card">
-      <h3>Importer en masse</h3>
+      <h3>Importer des mots en masse</h3>
       <p style="font-size:13px; color:var(--muted); line-height:1.6;">
         Une ligne par mot, colonnes séparées par point-virgule (ou tabulation si tu colles depuis Excel/Numbers) :<br/>
         <code>Semestre;Semaine;Kanji;Titre;Mot;Lecture;Sens</code><br/>
@@ -747,7 +772,21 @@ function renderVocab() {
     </div>
 
     <div class="card">
-      <h3>Parcourir le vocabulaire existant</h3>
+      <h3>Importer des fiches en masse (optionnel)</h3>
+      <p style="font-size:13px; color:var(--muted); line-height:1.6;">
+        Une ligne par kanji (pas par mot), colonnes séparées par point-virgule (ou tabulation).<br/>
+        <code>Semestre;Semaine;Kanji;Onyomi;Kunyomi;Bushu;Phrase;Traduction;Memo;Attention</code>
+      </p>
+      <textarea id="learnImportText" rows="8" style="width:100%; font-family:monospace; font-size:13px; padding:10px; border:1px solid var(--border); border-radius:8px;" placeholder="S3;1;水;スイ;みず;みず;水を飲む。;Boire de l'eau.;Dessin d'une rivière;"></textarea>
+      <div class="form-row" style="margin-top:10px;">
+        <button class="secondary" id="btnParseLearnImport">Analyser</button>
+        <button class="primary" id="btnCommitLearnImport" disabled>Importer</button>
+      </div>
+      <div id="learnImportPreviewBox"></div>
+    </div>
+
+    <div class="card">
+      <h3>Parcourir le vocabulaire et les fiches</h3>
       <select id="browseWeekPicker" style="margin-bottom:14px;">${selectHtml}</select>
       ${browseHtml}
     </div>
@@ -766,6 +805,20 @@ function renderVocab() {
     await persist();
     showToast(`${addedVocab} mot(s) importé(s) (${addedGroups} nouveau(x) kanji)`);
     importPreview = null;
+    renderVocab();
+  });
+
+  $('#btnParseLearnImport').addEventListener('click', () => {
+    learnImportPreview = parseLearnImportText($('#learnImportText').value);
+    renderLearnImportPreview();
+  });
+
+  $('#btnCommitLearnImport').addEventListener('click', async () => {
+    if (!learnImportPreview || learnImportPreview.rows.length === 0) return;
+    const { updated, created } = commitLearnImport(learnImportPreview.rows);
+    await persist();
+    showToast(`${updated} fiche(s) mise(s) à jour${created ? ` (${created} nouveau(x) kanji créé(s))` : ''}`);
+    learnImportPreview = null;
     renderVocab();
   });
 
@@ -812,127 +865,11 @@ function renderImportPreview() {
 }
 
 // ============================================================
-// Apprendre : fiches annexes par kanji (onyomi/kunyomi, radical, exemple,
-// mémo, attention) — jamais utilisé pendant Réviser, uniquement pour étudier
-// avant de se tester.
+// Fiches (anciennement onglet "Apprendre") : infos annexes par kanji
+// (onyomi/kunyomi, radical, exemple, mémo, attention) — jamais utilisées
+// pendant Réviser, affichées dans l'onglet Vocabulaire pour étudier avant
+// de se tester.
 // ============================================================
-function renderLearn() {
-  const semesters = DB.settings.semesters;
-  if (!learnBrowsingWeek) learnBrowsingWeek = { semesterId: semesters[0].id, week: 1 };
-
-  const selectHtml = semesters.map(sem => {
-    const opts = [];
-    for (let w = 1; w <= getMaxRelevantWeek(sem); w++) {
-      opts.push(`<option value="${sem.id}|${w}" ${learnBrowsingWeek.semesterId === sem.id && learnBrowsingWeek.week === w ? 'selected' : ''}>${sem.label} — Semaine ${w}${w > sem.weeks ? ' (hors réglage)' : ''}</option>`);
-    }
-    return opts.join('');
-  }).join('');
-
-  const groups = getKanjiGroupsForWeek(learnBrowsingWeek.semesterId, learnBrowsingWeek.week);
-  const browseHtml = groups.length === 0 ? '<div class="empty-state">Aucun kanji importé pour cette semaine.</div>' :
-    groups.map(g => {
-      const vocabList = getVocabForGroup(g.id);
-      if (!hasLearnInfo(g)) {
-        return `
-          <div class="learn-card">
-            <div class="learn-card-head">
-              <span class="kj">${escapeHtml(g.kanji)}</span>
-              <strong>${escapeHtml(g.titre || '')}</strong>
-            </div>
-            <p class="empty-state" style="padding:10px 0;">Pas encore de fiche pour ce kanji — importe ses infos ci-dessus.</p>
-          </div>
-        `;
-      }
-      return `
-        <div class="learn-card">
-          <div class="learn-card-head">
-            <span class="kj">${escapeHtml(g.kanji)}</span>
-            <strong>${escapeHtml(g.titre || '')}</strong>
-          </div>
-          <div class="learn-readings">
-            ${g.onyomi ? `<div class="learn-pill onyomi"><span>ON</span>${escapeHtml(g.onyomi)}</div>` : ''}
-            ${g.kunyomi ? `<div class="learn-pill kunyomi"><span>KUN</span>${escapeHtml(g.kunyomi)}</div>` : ''}
-            ${g.bushu ? `<div class="learn-pill bushu"><span>RADICAL</span>${escapeHtml(g.bushu)}</div>` : ''}
-          </div>
-          ${g.phrase ? `
-            <div class="learn-section">
-              <h4>Phrase d'exemple</h4>
-              <p class="learn-phrase">${escapeHtml(g.phrase)}</p>
-              ${g.traduction ? `<p class="learn-traduction">${escapeHtml(g.traduction)}</p>` : ''}
-            </div>
-          ` : ''}
-          ${g.memo ? `
-            <div class="learn-section">
-              <h4>Mémo</h4>
-              <p>${escapeHtml(g.memo)}</p>
-            </div>
-          ` : ''}
-          ${g.attention ? `
-            <div class="learn-section learn-attention">
-              <h4>Attention</h4>
-              <p>${escapeHtml(g.attention)}</p>
-            </div>
-          ` : ''}
-          ${vocabList.length ? `
-            <div class="learn-section">
-              <h4>Vocabulaire de ce kanji</h4>
-              <table>
-                <tbody>
-                  ${vocabList.map(v => `<tr><td>${escapeHtml(v.mot)}</td><td>${escapeHtml(v.lecture)}</td><td>${escapeHtml(v.sens)}</td></tr>`).join('')}
-                </tbody>
-              </table>
-            </div>
-          ` : ''}
-        </div>
-      `;
-    }).join('');
-
-  $('#view-learn').innerHTML = `
-    <h2>Apprendre</h2>
-    <p style="font-size:13px; color:var(--muted); margin-top:-8px;">
-      Fiches annexes facultatives (lectures, radical, exemple, mémo) pour étudier avant de te tester — jamais utilisées pendant Réviser, qui reste un vrai test à l'aveugle. Totalement indépendant de l'onglet Vocabulaire : pas besoin d'y avoir importé quoi que ce soit avant.
-    </p>
-    <div class="card">
-      <h3>Importer des fiches en masse</h3>
-      <p style="font-size:13px; color:var(--muted); line-height:1.6;">
-        Une ligne par kanji (pas par mot), colonnes séparées par point-virgule (ou tabulation).<br/>
-        <code>Semestre;Semaine;Kanji;Onyomi;Kunyomi;Bushu;Phrase;Traduction;Memo;Attention</code>
-      </p>
-      <textarea id="learnImportText" rows="8" style="width:100%; font-family:monospace; font-size:13px; padding:10px; border:1px solid var(--border); border-radius:8px;" placeholder="S3;1;水;スイ;みず;みず;水を飲む。;Boire de l'eau.;Dessin d'une rivière;"></textarea>
-      <div class="form-row" style="margin-top:10px;">
-        <button class="secondary" id="btnParseLearnImport">Analyser</button>
-        <button class="primary" id="btnCommitLearnImport" disabled>Importer</button>
-      </div>
-      <div id="learnImportPreviewBox"></div>
-    </div>
-
-    <div class="card">
-      <h3>Parcourir les fiches</h3>
-      <select id="learnBrowseWeekPicker" style="margin-bottom:14px;">${selectHtml}</select>
-      ${browseHtml}
-    </div>
-  `;
-
-  $('#btnParseLearnImport').addEventListener('click', () => {
-    learnImportPreview = parseLearnImportText($('#learnImportText').value);
-    renderLearnImportPreview();
-  });
-
-  $('#btnCommitLearnImport').addEventListener('click', async () => {
-    if (!learnImportPreview || learnImportPreview.rows.length === 0) return;
-    const { updated, created } = commitLearnImport(learnImportPreview.rows);
-    await persist();
-    showToast(`${updated} fiche(s) mise(s) à jour${created ? ` (${created} nouveau(x) kanji créé(s))` : ''}`);
-    learnImportPreview = null;
-    renderLearn();
-  });
-
-  $('#learnBrowseWeekPicker').addEventListener('change', (e) => {
-    const [sem, w] = e.target.value.split('|');
-    learnBrowsingWeek = { semesterId: sem, week: parseInt(w, 10) };
-    renderLearn();
-  });
-}
 
 function renderLearnImportPreview() {
   const box = $('#learnImportPreviewBox');
