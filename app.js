@@ -1354,6 +1354,15 @@ function renderDownload() {
         quand même" dans la fenêtre SmartScreen.
       </p>
       <p style="font-size:12px; color:var(--muted); line-height:1.6; margin-top:8px;">
+        Sur Mac (puces M1/M2/M3/M4), il arrive que le clic droit → Ouvrir ne suffise
+        pas et que macOS affiche à la place "l'app est endommagée et ne peut pas être
+        ouverte" — ce n'est pas un fichier corrompu, juste Gatekeeper qui bloque une
+        app non signée. Solution : ouvre Terminal (Applications → Utilitaires), tape
+        <code>xattr -cr </code> (avec l'espace après), glisse l'app "Kanji Vocab
+        Trainer" dans la fenêtre du Terminal pour compléter le chemin, puis appuie
+        sur Entrée. Relance ensuite l'app normalement.
+      </p>
+      <p style="font-size:12px; color:var(--muted); line-height:1.6; margin-top:8px;">
         Ces versions bureau sont indépendantes de ton compte web : tes données
         (vocabulaire, scores) restent stockées localement sur chaque appareil, pas
         liées à ce compte en ligne.
