@@ -1,0 +1,5 @@
+.DS_Store
+.netlify/
+*.log
+downloads/*.dmg
+downloads/*.exe
