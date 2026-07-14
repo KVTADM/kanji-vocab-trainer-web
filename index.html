@@ -38,7 +38,31 @@
       <div class="sidebar-footer" id="weekBadge"></div>
     </nav>
     <main class="content">
-      <section id="view-dashboard" class="view active"></section>
+      <section id="view-dashboard" class="view active">
+        <!-- Contenu statique de secours : visible uniquement le temps que app.js charge et
+             remplace ce bloc par le vrai tableau de bord (remplacement immédiat côté navigateur,
+             voir renderDashboard() dans app.js). Sert aussi de contenu réel, présent dans le HTML
+             brut sans JavaScript, pour les robots qui ne l'exécutent pas (dont le contrôle de
+             conformité Google AdSense — cf. correction "Ads served on screens without publisher
+             content" du 14/07/2026). -->
+        <h1>KVT — Kanji Vocab Trainer</h1>
+        <p>
+          KVT est une application gratuite de révision de vocabulaire japonais organisée autour
+          des kanji. Elle permet de réviser, semaine après semaine, le vocabulaire associé aux
+          kanji étudiés en cours de japonais (niveaux L0 à L3, semestres S1 à S12), ainsi que les
+          modules JLPT N5 et N4 en autonomie. Le quiz fait taper la lecture en hiragana ou
+          katakana et note chaque réponse selon sa ressemblance avec la bonne solution (distance
+          de Levenshtein), pour un apprentissage progressif plutôt que du tout-ou-rien.
+        </p>
+        <p>
+          L'application fonctionne directement dans le navigateur, sur ordinateur comme sur
+          mobile (installable comme PWA), ou en version de bureau téléchargeable pour Mac et
+          Windows pour une utilisation entièrement hors connexion. Un compte gratuit permet de
+          suivre sa progression, de comparer son score avec celui de sa classe sur un classement,
+          et de sauvegarder ses données dans le cloud. Un abonnement Pro optionnel donne accès à
+          des statistiques avancées, l'export vers Anki, et des thèmes visuels supplémentaires.
+        </p>
+      </section>
       <section id="view-manage" class="view"></section>
       <section id="view-review" class="view"></section>
       <section id="view-stats" class="view"></section>
