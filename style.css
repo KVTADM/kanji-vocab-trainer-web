@@ -168,6 +168,7 @@ html, body {
   line-height: 1.6;
   text-align: center;
 }
+.site-footer a { color: var(--accent-bright); text-decoration: none; }
 
 /* ---------- Content ---------- */
 .content {
@@ -920,3 +921,138 @@ code {
   overflow: hidden;
 }
 .ad-slot:empty { display: none; }
+
+/* ============================================================
+   Pages éditoriales statiques (À propos, FAQ, Blog) — pages
+   indépendantes de l'app SPA, chacune avec sa propre route serveur
+   (voir netlify.toml). Design réutilisant la palette de l'app mais
+   en mise en page "article" classique plutôt qu'en sidebar+contenu.
+   ============================================================ */
+.editorial-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  max-width: 780px;
+  margin: 0 auto;
+  padding: 22px 20px 0;
+}
+.editorial-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+}
+.editorial-brand .brand-kanji { font-size: 26px; color: var(--cream); font-weight: bold; }
+.editorial-brand .brand-text { font-size: 13px; color: var(--muted); letter-spacing: 0.5px; }
+.editorial-nav {
+  display: flex;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+.editorial-nav a {
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 600;
+}
+.editorial-nav a:hover, .editorial-nav a.active { color: var(--accent-bright); }
+
+.editorial-main {
+  max-width: 780px;
+  margin: 0 auto;
+  padding: 28px 20px 20px;
+  line-height: 1.7;
+  font-size: 15px;
+}
+.editorial-main h1 {
+  font-size: 26px;
+  color: var(--cream);
+  margin: 0 0 6px;
+}
+.editorial-eyebrow {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--muted-dim);
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+.editorial-main h2 {
+  font-size: 19px;
+  color: var(--cream);
+  font-weight: 700;
+  margin: 32px 0 10px;
+}
+.editorial-main h3 {
+  font-size: 16px;
+  color: var(--accent-bright);
+  text-transform: none;
+  letter-spacing: 0;
+  margin: 22px 0 8px;
+}
+.editorial-main p { margin: 0 0 14px; color: var(--ink); }
+.editorial-main strong { color: var(--cream); }
+.editorial-main a { color: var(--accent-bright); }
+.editorial-main ol, .editorial-main ul { margin: 0 0 14px; padding-left: 22px; color: var(--ink); }
+.editorial-main li { margin-bottom: 6px; }
+.editorial-main code {
+  background: var(--panel-alt);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-size: 13px;
+}
+
+.editorial-faq-item {
+  border-bottom: 1px solid var(--border);
+  padding: 16px 0;
+}
+.editorial-faq-item:last-child { border-bottom: none; }
+.editorial-faq-item h3 { margin: 0 0 8px; }
+.editorial-faq-item p { margin: 0; color: var(--muted); }
+
+.editorial-blog-list { list-style: none; margin: 0; padding: 0; }
+.editorial-blog-card {
+  display: block;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 18px;
+  margin-bottom: 12px;
+  text-decoration: none;
+  transition: border-color 0.15s ease;
+}
+.editorial-blog-card:hover { border-color: var(--accent-bright); }
+.editorial-blog-card h3 { margin: 0 0 6px; color: var(--cream); }
+.editorial-blog-card p { margin: 0; color: var(--muted); font-size: 13.5px; }
+
+.editorial-back {
+  display: inline-block;
+  margin-top: 24px;
+  font-size: 13px;
+  color: var(--muted);
+  text-decoration: none;
+}
+.editorial-back:hover { color: var(--accent-bright); }
+
+.editorial-cta {
+  margin-top: 32px;
+  padding: 18px 20px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  text-align: center;
+}
+.editorial-cta a {
+  display: inline-block;
+  margin-top: 8px;
+  background: var(--accent);
+  color: #fff;
+  padding: 9px 18px;
+  border-radius: 8px;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 13px;
+}
