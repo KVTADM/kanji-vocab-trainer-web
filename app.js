@@ -790,9 +790,7 @@ function renderVocab() {
       <select id="browseWeekPicker" style="margin-bottom:14px;">${selectHtml}</select>
       ${browseHtml}
     </div>
-    ${kvtAdSlotHtml('vocab-bottom')}
   `;
-  renderAllAdSlots();
 
   $('#btnParseImport').addEventListener('click', () => {
     importPreview = parseImportText($('#importText').value);
@@ -1302,9 +1300,7 @@ function renderStats() {
         </table>
       `}
     </div>
-    ${kvtAdSlotHtml('stats-bottom')}
   `;
-  renderAllAdSlots();
 }
 
 // ============================================================
