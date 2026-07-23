@@ -1,3 +1,24 @@
+# netlify.toml — KVT web (kanji-vocab-trainer-web)
+# Corrige le bug : avant, "/* -> /index.html 200" avalait AUSSI /downloads/*,
+# donc un binaire manquant renvoyait la page d'accueil (HTML ~2 Ko) au lieu
+# d'une erreur. Un visiteur cliquant "Télécharger" récupérait un faux fichier.
+#
+# Principe Netlify : un fichier statique existant est TOUJOURS servi avant une
+# règle de redirection non forcée. Donc :
+#   - si downloads/KVT-Mac.dmg existe  -> le vrai fichier est servi (téléchargement OK)
+#   - s'il n'existe pas                -> la règle ci-dessous renvoie un vrai 404
+#     (et NON la page d'accueil), ce qui rend le problème visible tout de suite.
+#
+# La règle /downloads/* est placée AVANT le catch-all SPA (première correspondance
+# gagne), pour que les manques de binaires ne retombent plus sur index.html.
+
+# 1) Les téléchargements : servir le vrai fichier, sinon 404 franc (jamais le SPA)
+[[redirects]]
+  from = "/downloads/*"
+  to = "/404.html"
+  status = 404
+
+# 2) Fallback SPA pour toutes les autres routes de l'app
 [[redirects]]
   from = "/*"
   to = "/index.html"

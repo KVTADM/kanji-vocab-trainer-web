@@ -1316,6 +1316,8 @@ function detectPlatform() {
 
 function renderDownload() {
   const detected = detectPlatform();
+  const APP_VERSION = '1.1';
+  const RELEASE_DATE = '23 juillet 2026';
   $('#view-download').innerHTML = `
     <h2>Applications</h2>
     <div class="card">
@@ -1323,20 +1325,29 @@ function renderDownload() {
         En plus de cette version web, KVT existe en version bureau — 100% locale,
         gratuite, sans compte requis. Choisis ton système :
       </p>
+      <p style="font-size:12.5px; color:var(--accent-bright); font-weight:700; margin:10px 0 2px;">
+        Dernière version : ${APP_VERSION} · ${RELEASE_DATE}
+      </p>
+      <p style="font-size:12px; color:var(--muted); margin:0; line-height:1.6;">
+        Nouveau dans la 1.1 : module JLPT N3 (367 kanji, 683 mots). Après installation,
+        la version s'affiche aussi dans l'app (Réglages) pour confirmer que tu as bien la 1.1.
+      </p>
     </div>
     <div class="download-grid">
       <div class="download-card ${detected === 'mac' ? 'recommended' : ''}" id="downloadCardMac">
         <div class="download-icon">🍎</div>
         <h3>macOS</h3>
         <p>Apple Silicon (M1/M2/M3/M4). Fichier .dmg.</p>
-        <a class="primary download-btn" id="btnDownloadMac" href="downloads/KVT-Mac.dmg" download>Télécharger pour Mac</a>
+        <p class="download-version">Version ${APP_VERSION}</p>
+        <a class="primary download-btn" id="btnDownloadMac" href="downloads/KVT-Mac.dmg" download>Télécharger pour Mac · v${APP_VERSION}</a>
         ${detected === 'mac' ? '<div class="download-tag">Recommandé pour ton appareil</div>' : ''}
       </div>
       <div class="download-card ${detected === 'win' ? 'recommended' : ''}" id="downloadCardWin">
         <div class="download-icon">🪟</div>
         <h3>Windows</h3>
         <p>Windows 10/11 (64 bits). Fichier .exe.</p>
-        <a class="primary download-btn" id="btnDownloadWin" href="downloads/KVT-Windows.exe" download>Télécharger pour Windows</a>
+        <p class="download-version">Version ${APP_VERSION}</p>
+        <a class="primary download-btn" id="btnDownloadWin" href="downloads/KVT-Windows.exe" download>Télécharger pour Windows · v${APP_VERSION}</a>
         ${detected === 'win' ? '<div class="download-tag">Recommandé pour ton appareil</div>' : ''}
       </div>
     </div>
