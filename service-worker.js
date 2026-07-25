@@ -2,7 +2,7 @@
 // fois ouverte au moins une fois. Les données de l'utilisateur (vocabulaire,
 // scores) vivent dans IndexedDB (voir webapi.js), pas ici — le cache ne
 // contient que le "coquille" de l'app.
-const CACHE_NAME = 'kanji-vocab-trainer-v27';
+const CACHE_NAME = 'kanji-vocab-trainer-v30';
 const ASSETS = [
   './',
   './index.html',
@@ -35,9 +35,10 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Stratégie "cache d'abord, réseau en secours" : l'app s'ouvre instantanément
-// même hors-ligne, et se met à jour toute seule dès qu'une connexion est
-// disponible et qu'une nouvelle version est déployée.
+// Stratégie "réseau d'abord, cache en secours" : on sert toujours la dernière
+// version en ligne quand il y a du réseau (donc les mises à jour apparaissent
+// immédiatement, sans avoir à forcer le rechargement), et on retombe sur le
+// cache uniquement si le réseau est indisponible (mode hors-ligne préservé).
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
   // Les gros fichiers d'installeurs (DMG/EXE, ~100 Mo) ne doivent jamais
@@ -53,7 +54,9 @@ self.addEventListener('fetch', (event) => {
         }
         return networkResponse;
       }).catch(() => cached);
-      return cached || fetchPromise;
+      // Réseau d'abord : on attend la réponse réseau (qui retombe sur le cache
+      // en cas d'échec). Plus de version figée servie depuis le cache.
+      return fetchPromise;
     })
   );
 });
