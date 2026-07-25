@@ -2,6 +2,74 @@
 
 Version navigateur (PWA installable) du même quiz de vocabulaire japonais que `kanji-vocab-trainer` (édition Mac). Contrairement aux éditions Electron, celle-ci a des comptes utilisateurs, un abonnement Pro payant, un leaderboard de classe, et sert aussi de vitrine de téléchargement pour les deux éditions desktop (Mac + Windows).
 
+## Méthode de travail
+
+Ces règles priment sur la vitesse. Pour une tâche triviale (coquille, one-liner évident), juge par toi-même — l'objectif est d'éviter les erreurs coûteuses sur le travail non trivial, pas de ralentir le reste.
+
+Adapté de [andrej-karpathy-skills](https://github.com/multica-ai/andrej-karpathy-skills) (MIT). Les principes 1 à 3 sont repris de l'original ; le principe 4, bâti sur les tests automatisés dans la version d'origine, est réécrit — KVT n'a pas de suite de tests.
+
+### 1. Réfléchir avant de coder
+
+**Ne pas supposer. Ne pas masquer sa confusion. Exposer les arbitrages.**
+
+- Énoncer ses hypothèses explicitement. En cas de doute, demander.
+- Si plusieurs interprétations existent, les présenter — ne pas trancher en silence.
+- Si une approche plus simple existe, le dire. Contredire quand c'est justifié.
+- Si quelque chose n'est pas clair, s'arrêter. Nommer ce qui bloque. Demander.
+
+### 2. Simplicité d'abord
+
+**Le minimum de code qui résout le problème. Rien de spéculatif.**
+
+- Aucune fonctionnalité au-delà de ce qui est demandé.
+- Aucune abstraction pour du code utilisé une seule fois.
+- Aucune « flexibilité » ou « configurabilité » non demandée.
+- Aucune gestion d'erreur pour des cas impossibles.
+- Si 200 lignes pouvaient en faire 50, réécrire.
+
+*Cas d'école KVT* : l'édition « amis » était un fork complet de 15 000 lignes dont la seule vraie différence était un jeu de données. Remplacée le 25/07/2026 par un fichier d'import de 1 Mo.
+
+### 3. Modifications chirurgicales
+
+**Ne toucher que le nécessaire. Ne nettoyer que ses propres dégâts.**
+
+- Ne pas « améliorer » le code, les commentaires ou le formatage voisins.
+- Ne pas refactorer ce qui n'est pas cassé.
+- Respecter le style existant, même si on ferait autrement.
+- Si on repère du code mort sans rapport : le signaler, ne pas le supprimer.
+- Supprimer les imports/variables/fonctions que **nos** changements ont rendus inutiles — pas le code mort préexistant, sauf demande explicite.
+
+*Le test* : chaque ligne modifiée doit se rattacher directement à la demande.
+
+### 4. Vérifier avant de conclure
+
+**Définir le critère de réussite avant d'agir, et le vérifier vraiment.**
+
+KVT n'a pas de tests automatisés. « Ça devrait marcher » n'est donc pas une conclusion — il faut un contrôle concret, tiré de la nature du changement :
+
+| Changement | Vérification attendue |
+|---|---|
+| Fichier JS modifié | `node --check <fichier>` |
+| Fichier JSON de données | parser le fichier **et** comparer les compteurs (semestres, kanjiGroups, vocab) avant/après |
+| `.dmg` / `.exe` copié | comparer le SHA-256 source/destination, et vérifier l'édition et la version dans le binaire |
+| Site redéployé | recharger la page en ligne, pas le fichier local. Le service worker peut servir une version en cache |
+| Contenu ajouté à un semestre | lancer l'app et le voir apparaître, pas seulement constater que le seed a grossi |
+
+Pour une tâche en plusieurs étapes, annoncer le plan avec sa vérification :
+
+```
+1. [Étape] → vérif : [contrôle]
+2. [Étape] → vérif : [contrôle]
+```
+
+*Pourquoi cette section existe* — les deux vrais incidents du projet étaient des défauts de vérification, pas des bugs de code : le `.dmg` livré sur le site n'était pas signé et personne ne l'a retéléchargé depuis le site avant de conclure (bloqué par macOS pendant des jours) ; et le `.dmg` servi sur la page Applications était celui de l'édition « amis » — le fichier avait le bon nom, personne n'avait ouvert son contenu.
+
+### 5. Écrire ce qui a été fait
+
+Toute session non triviale se termine par une entrée dans `00 - Notes projet/03 - Journal.md` : ce qui a été fait, ce qui a été vérifié, ce qui reste ouvert. Un point laissé en suspens s'écrit comme tel — ne pas cocher à moitié.
+
+---
+
 ## Stack et fichiers
 
 - Site statique (HTML/CSS/JS vanilla, aucun bundler/framework), déployé sur Netlify (projet "kanji-vocab-trainer", id `9d064bfe-ee5c-447c-8f22-e8c4c2d3e0d8`).
