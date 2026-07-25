@@ -129,7 +129,11 @@ const JLPT_N4_SEED = {"kanjiGroups":[{"id":"kg-hu66go90952pa","semesterId":"jlpt
       const db = await openDB();
       let data = await idbGet(db, KEY);
       if (!data) {
-        data = await fetchSeed();
+        // migrate() aussi sur le seed initial : seed-data.json est un fichier
+        // statique régénéré à la main, il retarde toujours d'un module ou deux
+        // (il lui manquait JLPT N3, donc un nouveau visiteur ne le voyait pas
+        // à sa première visite). migrate() reste la seule source de vérité.
+        data = migrate(await fetchSeed());
         if (!data.inProgress || typeof data.inProgress !== 'object') data.inProgress = {};
         data.settings.pointsPerWord = 10;
         await idbSet(db, KEY, data);
