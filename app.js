@@ -1446,27 +1446,27 @@ function renderSettings() {
       </p>
     </div>
     <div class="card">
-      <h3>Thème ${isPro ? '' : '🔒'}</h3>
-      ${isPro ? `
-        <div class="form-row">
-          <label>Palette de couleurs
-            <select id="setTheme">
-              <option value="dark" ${(!s.theme || s.theme === 'dark') ? 'selected' : ''}>Sombre (par défaut)</option>
-              <option value="light" ${s.theme === 'light' ? 'selected' : ''}>Clair</option>
-              <option value="sakura" ${s.theme === 'sakura' ? 'selected' : ''}>Sakura</option>
-            </select>
-          </label>
-        </div>
-      ` : `
+      <h3>Thème</h3>
+      <div class="form-row">
+        <label>Palette de couleurs
+          <select id="setTheme">
+            <option value="dark" ${(!s.theme || s.theme === 'dark') ? 'selected' : ''}>Sombre (par défaut)</option>
+            <option value="light" ${s.theme === 'light' ? 'selected' : ''}>Clair</option>
+            <option value="sakura" ${s.theme === 'sakura' ? 'selected' : ''} ${isPro ? '' : 'disabled'}>Sakura${isPro ? '' : ' 🔒'}</option>
+          </select>
+        </label>
+      </div>
+      ${isPro ? '' : `
         <p style="font-size:13px; color:var(--muted); line-height:1.6;">
-          Réservé à la version Pro : palettes de couleurs alternatives
-          (Clair, Sakura...). Voir l'onglet Compte.
+          Sombre et Clair sont gratuits — le mode clair est une question de
+          confort visuel, pas un supplément. Les palettes décoratives comme
+          Sakura sont réservées au Pro, qui soutient le projet.
         </p>
       `}
     </div>
     <div class="card">
-      <h3>Export pour Anki ${isPro ? '' : '🔒'}</h3>
-      ${isPro ? `
+      <h3>Export pour Anki</h3>
+      ${`
         <p style="font-size:13px; color:var(--muted); line-height:1.6;">
           Génère un fichier avec tout ton vocabulaire, à importer dans
           l'app Anki (gratuite, sur ordinateur ou mobile).
@@ -1483,11 +1483,6 @@ function renderSettings() {
           (pratique pour filtrer dans Anki).
         </p>
         <button class="secondary" id="btnExportAnki">Exporter pour Anki (.txt)</button>
-      ` : `
-        <p style="font-size:13px; color:var(--muted); line-height:1.6;">
-          Réservé à la version Pro : exporte tout ton vocabulaire dans un
-          fichier prêt à importer dans Anki. Voir l'onglet Compte.
-        </p>
       `}
     </div>
     <div class="card">
@@ -1513,18 +1508,21 @@ function renderSettings() {
     showToast(s.spectralMode ? 'Mode spectral activé' : 'Mode spectral désactivé');
   });
 
-  if (isPro) {
-    $('#setTheme').addEventListener('change', async (e) => {
-      s.theme = e.target.value;
-      applyTheme();
-      await persist();
-      showToast('Thème changé');
-    });
-    $('#btnExportAnki').addEventListener('click', () => {
-      exportAnkiTsv();
-      showToast('Export Anki généré');
-    });
-  }
+  // Thème et export Anki sont désormais rendus pour tout le monde : leurs
+  // gestionnaires doivent donc l'être aussi, sinon les contrôles s'affichent
+  // sans rien faire. Le seul verrou Pro restant est l'option Sakura, marquée
+  // `disabled` dans le sélecteur — un utilisateur gratuit ne peut pas la
+  // choisir, et la sécurité réelle du Pro reste côté serveur (RLS).
+  $('#setTheme').addEventListener('change', async (e) => {
+    s.theme = e.target.value;
+    applyTheme();
+    await persist();
+    showToast('Thème changé');
+  });
+  $('#btnExportAnki').addEventListener('click', () => {
+    exportAnkiTsv();
+    showToast('Export Anki généré');
+  });
 
   $('#btnExport').addEventListener('click', async () => {
     const res = await window.api.exportBackup(DB);
