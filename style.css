@@ -1063,3 +1063,33 @@ code {
   font-weight: 600;
   font-size: 13px;
 }
+
+/* ---------- Classement : onglets Meilleurs scores / Progression ---------- */
+.lb-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+}
+.lb-tab {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 14px;
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: color .15s, border-color .15s;
+}
+.lb-tab:hover { color: var(--ink); }
+.lb-tab.is-active {
+  color: var(--accent-bright);
+  border-bottom-color: var(--accent-bright);
+}
+.lb-explain {
+  font-size: 13px;
+  color: var(--muted);
+  margin: 0 0 14px;
+  line-height: 1.5;
+}
