@@ -11,8 +11,16 @@
 # ni de jeton à copier-coller).
 #
 # À lancer depuis un Terminal sur ton Mac, dans ce dossier :
-#   cd "/Users/paulpicavet/Documents/_À trier/ANKI/kanji/kanji-vocab-trainer-web"
+#   cd ~/Developer/KVT-code/kanji-vocab-trainer-web
 #   bash deploy.sh
+#
+# Le dossier a déménagé le 25/07/2026 (Desktop/KVT -> ~/Developer/KVT-code).
+# Le script suit automatiquement grâce à $(dirname "$0"), seul ce rappel de
+# chemin était à corriger.
+#
+# Attention : ce script publie le CONTENU DU DOSSIER, pas le dernier commit
+# git. Vérifier que downloads/ contient bien KVT-Mac.dmg et KVT-Windows.exe
+# (gitignorés, présents uniquement en local) avant de déployer.
 cd "$(dirname "$0")"
 npx netlify-cli status >/dev/null 2>&1 || npx netlify-cli login
 npx netlify-cli deploy --prod --dir=. --site=9d064bfe-ee5c-447c-8f22-e8c4c2d3e0d8
