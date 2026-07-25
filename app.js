@@ -1316,8 +1316,8 @@ function detectPlatform() {
 
 function renderDownload() {
   const detected = detectPlatform();
-  const APP_VERSION = '1.1';
-  const RELEASE_DATE = '23 juillet 2026';
+  const APP_VERSION = '1.1.1';
+  const RELEASE_DATE = '25 juillet 2026';
   $('#view-download').innerHTML = `
     <h2>Applications</h2>
     <div class="card">
