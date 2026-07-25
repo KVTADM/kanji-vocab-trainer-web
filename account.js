@@ -20,6 +20,13 @@
 window.accountUser = null; // { id, email, pseudo } une fois connecté, sinon null
 let kvtSyncedThisSession = false;
 
+// Vrai uniquement pendant une réinitialisation de mot de passe : l'utilisateur
+// arrive depuis le lien reçu par mail, Supabase ouvre une session valide mais
+// il faut lui faire choisir un nouveau mot de passe avant toute autre chose.
+// Sans ce drapeau, renderAccount() afficherait la vue "connecté" habituelle et
+// l'utilisateur n'aurait aucun moyen de définir son mot de passe.
+let kvtPasswordRecovery = false;
+
 // Seul admin autorisé (voir aussi la vraie vérification, côté serveur,
 // dans la Edge Function admin-users — ce flag ici ne sert qu'à
 // afficher/cacher l'onglet, jamais à autoriser quoi que ce soit tout seul).
@@ -156,6 +163,12 @@ window.sb.auth.onAuthStateChange((event, session) => {
   // fois de suite très rapidement (ça arrive avec certains navigateurs).
   const shouldSync = !!session && event === 'SIGNED_IN' && !kvtSyncedThisSession;
   if (shouldSync) kvtSyncedThisSession = true;
+  // Retour depuis le lien de réinitialisation reçu par mail : on bascule sur
+  // l'onglet Compte, qui affichera le formulaire de nouveau mot de passe.
+  if (event === 'PASSWORD_RECOVERY') {
+    kvtPasswordRecovery = true;
+    if (typeof switchView === 'function') switchView('account');
+  }
   (async () => {
     if (session) {
       window.accountUser = await buildAccountUser(session);
@@ -183,6 +196,45 @@ function renderAccount() {
   const el = $('#view-account');
   if (!el) return;
 
+  // Réinitialisation en cours : cet écran passe avant tout le reste, y compris
+  // la vue "connecté" — la session ouverte par le lien de récupération ne sert
+  // qu'à définir un nouveau mot de passe.
+  if (kvtPasswordRecovery) {
+    el.innerHTML = `
+      <h2>Nouveau mot de passe</h2>
+      <div class="card" style="max-width:420px;">
+        <p style="font-size:13px; color:var(--muted); line-height:1.6;">
+          Choisis un nouveau mot de passe pour ton compte. Il te servira aussi
+          bien sur le site que dans l'app Mac ou Windows.
+        </p>
+        <div class="form-row">
+          <label>Nouveau mot de passe <input type="password" id="acctNewPwd" autocomplete="new-password" /></label>
+        </div>
+        <div class="form-row">
+          <label>Confirme <input type="password" id="acctNewPwd2" autocomplete="new-password" /></label>
+        </div>
+        <div class="form-row">
+          <button class="primary" id="btnSetPwd">Enregistrer</button>
+        </div>
+        <div id="acctError" style="color:var(--pink); font-size:13px; margin-top:8px;"></div>
+      </div>`;
+
+    $('#btnSetPwd').addEventListener('click', async () => {
+      const p1 = $('#acctNewPwd').value;
+      const p2 = $('#acctNewPwd2').value;
+      const err = $('#acctError');
+      err.textContent = '';
+      if (p1.length < 6) { err.textContent = 'Six caractères minimum.'; return; }
+      if (p1 !== p2) { err.textContent = 'Les deux mots de passe ne correspondent pas.'; return; }
+      const { error } = await window.sb.auth.updateUser({ password: p1 });
+      if (error) { err.textContent = error.message; return; }
+      kvtPasswordRecovery = false;
+      showToast('Mot de passe enregistré');
+      renderAccount();
+    });
+    return;
+  }
+
   if (!window.accountUser) {
     el.innerHTML = `
       <h2>Compte</h2>
@@ -201,7 +253,11 @@ function renderAccount() {
           <button class="primary" id="btnLogin">Se connecter</button>
           <button class="secondary" id="btnSignup">Créer un compte</button>
         </div>
+        <div class="form-row">
+          <button id="btnForgot" style="background:none; border:none; color:var(--accent-bright); font:inherit; font-size:13px; padding:0; cursor:pointer; text-decoration:underline;">Mot de passe oublié ?</button>
+        </div>
         <div id="acctError" style="color:var(--pink); font-size:13px; margin-top:8px;"></div>
+        <div id="acctInfo" style="color:var(--good-bright); font-size:13px; margin-top:8px;"></div>
         <p style="font-size:12px; color:var(--muted); margin-top:14px;">
           Optionnel — l'app fonctionne très bien sans compte, en local sur
           cet appareil. Un compte sert seulement à synchroniser ta
@@ -219,6 +275,27 @@ function renderAccount() {
       // onAuthStateChange se charge de refreshAccountUser + syncAfterLogin
       // + renderAccount une fois la session pleinement établie.
       showToast('Connecté');
+    });
+
+    $('#btnForgot').addEventListener('click', async () => {
+      const email = $('#acctEmail').value.trim();
+      const err = $('#acctError');
+      const info = $('#acctInfo');
+      err.textContent = '';
+      info.textContent = '';
+      if (!email) { err.textContent = 'Renseigne ton e-mail au-dessus, puis reclique ici.'; return; }
+      const { error } = await window.sb.auth.resetPasswordForEmail(email, {
+        redirectTo: window.location.origin + '/'
+      });
+      // On affiche le même message que l'adresse existe ou non : révéler qu'un
+      // compte existe pour une adresse donnée permettrait à n'importe qui de
+      // tester des e-mails un par un.
+      if (error && !/rate|limit/i.test(error.message)) {
+        err.textContent = error.message;
+        return;
+      }
+      if (error) { err.textContent = 'Trop de demandes. Réessaie dans quelques minutes.'; return; }
+      info.textContent = "Si un compte existe pour cette adresse, un lien de réinitialisation vient d'être envoyé. Pense à regarder dans les indésirables.";
     });
 
     $('#btnSignup').addEventListener('click', async () => {
