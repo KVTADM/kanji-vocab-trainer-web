@@ -339,17 +339,23 @@ function renderAccount() {
       <div class="card pro-card" style="max-width:420px;">
         <span class="pro-badge">✓ Pro actif</span>
         <p style="font-size:13.5px; color:var(--ink); line-height:1.6; margin:0;">
-          Merci pour ton soutien ! Statistiques avancées, export Anki et
-          thèmes de personnalisation sont débloqués sur ce compte.
+          Merci pour ton soutien ! Ce compte n'affiche aucune publicité et
+          a accès aux palettes décoratives. Surtout, il aide KVT à rester
+          gratuit pour tout le monde.
         </p>
       </div>` : `
       <div class="card pro-card" style="max-width:420px;">
         <span class="pro-badge">KVT Pro</span>
         <div class="pro-price">3,99 € <span>/ mois, sans engagement</span></div>
+        <p style="font-size:13px; color:var(--muted); line-height:1.6; margin:0 0 12px;">
+          KVT est gratuit et le restera : tout ce qui sert à apprendre —
+          contenu, statistiques, export Anki, classement — est accessible
+          sans payer. Le Pro sert d'abord à soutenir le projet.
+        </p>
         <ul class="pro-features">
-          <li><span class="pro-check">✓</span><span><strong>Statistiques avancées</strong> — suis ta progression dans le temps et repère les semaines à retravailler en priorité.</span></li>
-          <li><span class="pro-check">✓</span><span><strong>Export vers Anki</strong> — récupère tout ton vocabulaire au format import Anki en un clic.</span></li>
-          <li><span class="pro-check">✓</span><span><strong>Thèmes de personnalisation</strong> — Sombre, Clair ou Sakura, selon ton humeur.</span></li>
+          <li><span class="pro-check">✓</span><span><strong>Aucune publicité</strong> — l'app reste nette, quoi qu'il arrive.</span></li>
+          <li><span class="pro-check">✓</span><span><strong>Palettes décoratives</strong> — Sakura et les thèmes à venir. Sombre et Clair restent gratuits.</span></li>
+          <li><span class="pro-check">✓</span><span><strong>Tu finances la suite</strong> — nouveaux niveaux JLPT, hébergement, temps de développement.</span></li>
         </ul>
         <a class="pro-cta"
            href="https://buy.stripe.com/00w8wRctAeHxdmo4PI2ZO00?client_reference_id=${encodeURIComponent(window.accountUser.id)}"

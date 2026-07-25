@@ -1152,20 +1152,11 @@ function getAllSessionsChronological() {
   return all;
 }
 
+// Gratuit depuis le 25/07/2026. Le Pro se limite désormais à deux choses :
+// pas de publicité, et les palettes décoratives. Tout ce qui touche à
+// l'apprentissage lui-même — statistiques, export Anki, contenu — reste
+// accessible à tout le monde.
 function renderAdvancedStatsCard() {
-  const isPro = !!(window.accountUser && window.accountUser.isPro);
-  if (!isPro) {
-    return `
-      <div class="card">
-        <h3>Statistiques avancées 🔒</h3>
-        <p style="font-size:13px; color:var(--muted); line-height:1.6;">
-          Réservé à la version Pro : progression globale dans le temps
-          (toutes semaines confondues) et classement des semaines à
-          retravailler en priorité. Voir l'onglet Compte.
-        </p>
-      </div>`;
-  }
-
   const recent = getAllSessionsChronological().slice(-30);
   const trendBars = recent.map(h => {
     const cls = h.pct >= 99 ? 'good' : (h.pct >= 60 ? 'mid' : 'bad');
