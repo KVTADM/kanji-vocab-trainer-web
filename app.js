@@ -1469,15 +1469,23 @@ function renderSettings() {
           <select id="setTheme">
             <option value="dark" ${(!s.theme || s.theme === 'dark') ? 'selected' : ''}>Sombre (par défaut)</option>
             <option value="light" ${s.theme === 'light' ? 'selected' : ''}>Clair</option>
-            <option value="sakura" ${s.theme === 'sakura' ? 'selected' : ''} ${isPro ? '' : 'disabled'}>Sakura${isPro ? '' : ' 🔒'}</option>
+            ${[
+              ['sakura', 'Sakura — cerisiers'],
+              ['sumi', 'Sumi — encre et washi'],
+              ['ai', 'Ai — mer et indigo'],
+              ['momiji', 'Momiji — érables d\'automne'],
+              ['take', 'Take — bambou']
+            ].map(([id, nom]) => `
+              <option value="${id}" ${s.theme === id ? 'selected' : ''} ${isPro ? '' : 'disabled'}>${nom}${isPro ? '' : ' 🔒'}</option>
+            `).join('')}
           </select>
         </label>
       </div>
       ${isPro ? '' : `
         <p style="font-size:13px; color:var(--muted); line-height:1.6;">
           Sombre et Clair sont gratuits — le mode clair est une question de
-          confort visuel, pas un supplément. Les palettes décoratives comme
-          Sakura sont réservées au Pro, qui soutient le projet.
+          confort visuel, pas un supplément. Les cinq palettes décoratives
+          sont réservées au Pro, qui soutient le projet.
         </p>
       `}
     </div>

@@ -72,6 +72,112 @@
   --border: #3a2838;
 }
 
+/* ---------- Palettes Pro supplémentaires (27/07/2026) ----------
+   Quatre thèmes réservés aux comptes Pro. Contrastes et lisibilité
+   daltonienne vérifiés par calcul, pas à l'œil :
+   - --ink et --cream tiennent au moins 10:1 sur --bg et --panel (AA
+     demande 4,5:1).
+   - --good, --warn et --bad restent distinguables sous deuteranopie
+     (ΔE ≥ 29 après simulation Viénot). C'est pour ça que le "bon" tire
+     vers le turquoise et le "mauvais" vers le magenta : le canal bleu
+     est intact chez le deutéranope, contrairement à l'opposition
+     vert/rouge classique qui devient illisible.
+   Script de vérification conservé dans le journal du 27/07.
+   ---------------------------------------------------------------- */
+
+/* Sumi — encre et papier washi */
+:root[data-theme="sumi"] {
+  --bg: #f2ede3;
+  --panel: #fcf9f3;
+  --panel-alt: #e7dfd0;
+  --sidebar: #2a251e;
+  --ink: #241f19;
+  --cream: #3a3128;
+  --muted: #6a5f50;
+  --muted-dim: #8b7f6d;
+  --label-dim: #9c9080;
+  --accent: #1f5f80;
+  --accent-bright: #14485f;
+  --pink: #9c2f47;
+  --pink-dim: #7a2438;
+  --good: #066e82;
+  --good-bright: #0a5a6b;
+  --warn: #876107;
+  --warn-bright: #6d4e06;
+  --bad: #931f42;
+  --border: #d5cab6;
+}
+
+/* Ai — mer et indigo */
+:root[data-theme="ai"] {
+  --bg: #0e1728;
+  --panel: #152136;
+  --panel-alt: #0a1220;
+  --sidebar: #070d18;
+  --ink: #dfe7f4;
+  --cream: #f0f4ee;
+  --muted: #8398bb;
+  --muted-dim: #576b8f;
+  --label-dim: #48597a;
+  --accent: #3f8fd0;
+  --accent-bright: #74c0f2;
+  --pink: #e4738f;
+  --pink-dim: #a84c66;
+  --good: #4fd0b8;
+  --good-bright: #7ae4d0;
+  --warn: #d9a53c;
+  --warn-bright: #f0c257;
+  --bad: #cc3a66;
+  --border: #22334f;
+}
+
+/* Momiji — érables d'automne */
+:root[data-theme="momiji"] {
+  --bg: #1f1510;
+  --panel: #2c1e16;
+  --panel-alt: #18100c;
+  --sidebar: #140d0a;
+  --ink: #f2e4d8;
+  --cream: #ffd9b8;
+  --muted: #bb9a85;
+  --muted-dim: #856755;
+  --label-dim: #705545;
+  --accent: #4a94b5;
+  --accent-bright: #7bbdd8;
+  --pink: #e0687e;
+  --pink-dim: #a34156;
+  --good: #4fd0b8;
+  --good-bright: #7ae4d0;
+  --warn: #e09a2e;
+  --warn-bright: #f7bc55;
+  --bad: #cc3a66;
+  --border: #3f2b21;
+}
+
+/* Take — bambou */
+:root[data-theme="take"] {
+  --bg: #0d1712;
+  --panel: #14231b;
+  --panel-alt: #09120d;
+  --sidebar: #060e0a;
+  --ink: #e0ecdf;
+  --cream: #eef3d8;
+  --muted: #8aa895;
+  --muted-dim: #5b7466;
+  --label-dim: #4c6356;
+  --accent: #5aa8c4;
+  --accent-bright: #84cde6;
+  --pink: #df7b96;
+  --pink-dim: #a4526a;
+  --good: #4fd0b8;
+  --good-bright: #7ae4d0;
+  --warn: #d9a53c;
+  --warn-bright: #f2c058;
+  --bad: #cc3a66;
+  --border: #1f3327;
+}
+
+
 * { box-sizing: border-box; }
 
 html, body {
