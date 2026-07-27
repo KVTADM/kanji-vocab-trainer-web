@@ -2,23 +2,25 @@
 // fois ouverte au moins une fois. Les données de l'utilisateur (vocabulaire,
 // scores) vivent dans IndexedDB (voir webapi.js), pas ici — le cache ne
 // contient que le "coquille" de l'app.
-const CACHE_NAME = 'kanji-vocab-trainer-v41';
+const CACHE_NAME = 'kanji-vocab-trainer-v42';
 const ASSETS = [
-  './',
-  './index.html',
-  './style.css',
-  './app.js',
-  './webapi.js',
-  './supabaseClient.js',
-  './account.js',
-  './ads.js',
-  './leaderboard.js',
-  './admin.js',
-  './seed-data.json',
-  './manifest.json',
-  './icons/icon-192.png',
-  './icons/icon-512.png',
-  './icons/apple-touch-icon.png'
+  '/',
+  '/index.html',
+  '/app/',
+  '/app/index.html',
+  '/style.css',
+  '/app.js',
+  '/webapi.js',
+  '/supabaseClient.js',
+  '/account.js',
+  '/ads.js',
+  '/leaderboard.js',
+  '/admin.js',
+  '/seed-data.json',
+  '/manifest.json',
+  '/icons/icon-192.png',
+  '/icons/icon-512.png',
+  '/icons/apple-touch-icon.png'
 ];
 
 self.addEventListener('install', (event) => {

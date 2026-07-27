@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
+<title>KVT — Réviser le vocabulaire japonais</title>
+<meta name="description" content="L'application de révision : quiz par kanji, semestres universitaires et niveaux JLPT N5 à N3." />
+
+<!-- PWA : installable sur iPhone/iPad via Safari > Partager > Sur l'écran d'accueil -->
+<link rel="manifest" href="/manifest.json" />
+<meta name="theme-color" content="#16162a" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="KVT" />
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+<link rel="icon" href="/icons/icon-192.png" />
+
+<link rel="stylesheet" href="/style.css" />
+
+<!-- Google AdSense : vérification de propriété du site -->
+<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8318848112615285"
+     crossorigin="anonymous"></script>
+</head>
+<body>
+  <div class="app">
+    <nav class="sidebar">
+      <div class="brand">
+        <div class="brand-kanji">漢</div>
+        <div class="brand-text">KVT</div>
+      </div>
+      <button class="nav-btn active" data-view="dashboard">Tableau de bord</button>
+      <button class="nav-btn" data-view="manage">Vocabulaire</button>
+      <button class="nav-btn" data-view="stats">Statistiques</button>
+      <button class="nav-btn" data-view="download">Applications</button>
+      <button class="nav-btn" data-view="settings">Réglages</button>
+      <button class="nav-btn" data-view="account">Compte</button>
+      <button class="nav-btn" data-view="leaderboard">Classement</button>
+      <button class="nav-btn" data-view="admin" id="navAdmin" style="display:none;">Admin</button>
+      <!-- Vraie page servie par le serveur, pas une vue de l'app : c'est un
+           lien, pas un bouton. Placé ici parce que le pied de page est sous
+           un conteneur de 100vh et donc invisible sans défiler. -->
+      <a class="nav-btn nav-link" href="/">L'idée du projet</a>
+      <div class="sidebar-footer" id="weekBadge"></div>
+      <div class="sidebar-legal">© 2026 KVT · Tous droits réservés</div>
+    </nav>
+    <main class="content">
+      <section id="view-dashboard" class="view active">
+        <!-- Contenu statique de secours : visible uniquement le temps que app.js charge et
+             remplace ce bloc par le vrai tableau de bord (remplacement immédiat côté navigateur,
+             voir renderDashboard() dans app.js). Sert aussi de contenu réel, présent dans le HTML
+             brut sans JavaScript, pour les robots qui ne l'exécutent pas (dont le contrôle de
+             conformité Google AdSense — cf. correction "Ads served on screens without publisher
+             content" du 14/07/2026). -->
+        <h1>KVT — Kanji Vocab Trainer</h1>
+        <p>
+          KVT est une application gratuite de révision de vocabulaire japonais organisée autour
+          des kanji. Elle permet de réviser, semaine après semaine, le vocabulaire associé aux
+          kanji étudiés en cours de japonais (niveaux L0 à L3, semestres S1 à S12), ainsi que les
+          modules JLPT N5, N4 et N3 en autonomie. Le quiz fait taper la lecture en hiragana ou
+          katakana et note chaque réponse selon sa ressemblance avec la bonne solution (distance
+          de Levenshtein), pour un apprentissage progressif plutôt que du tout-ou-rien.
+        </p>
+        <p>
+          L'application fonctionne directement dans le navigateur, sur ordinateur comme sur
+          mobile (installable comme PWA), ou en version de bureau téléchargeable pour Mac et
+          Windows pour une utilisation entièrement hors connexion. Un compte gratuit permet de
+          suivre sa progression, de comparer son score avec celui de sa classe sur un classement,
+          et de sauvegarder ses données dans le cloud. Un abonnement Pro optionnel donne accès à
+          des statistiques avancées, l'export vers Anki, et des thèmes visuels supplémentaires.
+        </p>
+      </section>
+      <section id="view-manage" class="view"></section>
+      <section id="view-review" class="view"></section>
+      <section id="view-stats" class="view"></section>
+      <section id="view-download" class="view"></section>
+      <section id="view-settings" class="view"></section>
+      <section id="view-account" class="view"></section>
+      <section id="view-leaderboard" class="view"></section>
+      <section id="view-admin" class="view"></section>
+    </main>
+  </div>
+  <footer class="site-footer">
+    <p>
+      <a href="/">L'idée</a> · <a href="/a-propos">À propos</a> · <a href="/faq">FAQ</a> · <a href="/blog">Blog</a>
+    </p>
+    <p>
+      © 2026 KVT (Kanji Vocab Trainer). Tous droits réservés. Le code source, les contenus
+      pédagogiques (kanji, vocabulaire, fiches, modules JLPT) et les textes de ce site sont la
+      propriété de leur auteur et ne peuvent pas être copiés, extraits automatiquement (scraping),
+      republiés ou réutilisés, en tout ou partie, sans autorisation écrite préalable. L'utilisation
+      normale du site (révision, quiz, consultation de son propre compte) reste évidemment libre et
+      gratuite pour tout visiteur.
+    </p>
+  </footer>
+  <div id="toast" class="toast"></div>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <script src="/supabaseClient.js"></script>
+  <script src="/webapi.js"></script>
+  <script src="/app.js"></script>
+  <script src="/account.js"></script>
+  <script src="/ads.js"></script>
+  <script src="/leaderboard.js"></script>
+  <script src="/admin.js"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/service-worker.js').catch(() => {});
+      });
+    }
+  </script>
+</body>
+</html>
