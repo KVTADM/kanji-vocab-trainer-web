@@ -500,7 +500,7 @@ function hasLearnInfo(g) {
 // ============================================================
 function switchView(view) {
   currentView = view;
-  $$('.nav-btn').forEach(b => b.classList.toggle('active', b.dataset.view === view));
+  $$('.nav-btn[data-view]').forEach(b => b.classList.toggle('active', b.dataset.view === view));
   $$('.view').forEach(v => v.classList.remove('active'));
   $('#view-' + view).classList.add('active');
   renderCurrentView();
@@ -1620,7 +1620,10 @@ function applyTheme() {
 async function init() {
   DB = await window.api.loadData();
   applyTheme();
-  $$('.nav-btn').forEach(btn => {
+  // [data-view] uniquement : la barre latérale contient aussi un vrai lien
+  // (« L'idée du projet ») qui n'est pas une vue de l'app. Sans ce filtre, il
+  // recevrait ce gestionnaire et appellerait switchView(undefined).
+  $$('.nav-btn[data-view]').forEach(btn => {
     btn.addEventListener('click', () => switchView(btn.dataset.view));
   });
   switchView('dashboard');

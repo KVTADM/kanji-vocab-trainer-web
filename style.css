@@ -1533,3 +1533,17 @@ code {
 }
 /* Variante compacte du hero, ex-style inline de la maquette. */
 .kvt-landing-a__hero[data-compact="true"]{ min-height:auto; padding-bottom:24px; }
+
+/* Lien de la barre latérale vers une vraie page servie par le serveur
+   (/decouvrir). Il reprend l'allure des .nav-btn tout en restant un <a> :
+   c'est une navigation, pas un changement de vue. */
+.nav-btn.nav-link{
+  box-sizing:border-box;
+  text-decoration:none;
+  color:var(--muted-dim);
+  margin-top:10px;
+  border-top:1px solid var(--border);
+  padding-top:14px;
+  border-radius:0;
+}
+.nav-btn.nav-link:hover{ background:transparent; color:var(--accent-bright); }

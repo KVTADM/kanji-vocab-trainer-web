@@ -35,6 +35,10 @@
       <button class="nav-btn" data-view="account">Compte</button>
       <button class="nav-btn" data-view="leaderboard">Classement</button>
       <button class="nav-btn" data-view="admin" id="navAdmin" style="display:none;">Admin</button>
+      <!-- Vraie page servie par le serveur, pas une vue de l'app : c'est un
+           lien, pas un bouton. Placé ici parce que le pied de page est sous
+           un conteneur de 100vh et donc invisible sans défiler. -->
+      <a class="nav-btn nav-link" href="/decouvrir">L'idée du projet</a>
       <div class="sidebar-footer" id="weekBadge"></div>
       <div class="sidebar-legal">© 2026 KVT · Tous droits réservés</div>
     </nav>
