@@ -1398,45 +1398,130 @@ code {
 }
 
 /* ---------- Page « L'idée » (/decouvrir) ----------
-   Sert deux publics à la fois : le visiteur qui découvre le projet, et le
-   robot AdSense qui a besoin de texte réel dans le HTML (voir l'incident
-   « pages sans contenu d'éditeur » du 16/07). Le contenu est donc statique,
-   pas généré en JavaScript.
-   Aucune couleur figée : tout suit le thème actif, y compris les nouvelles
-   palettes Pro. -------------------------------------------------------- */
-.kvt-land__hero{
-  position:relative; overflow:hidden; text-align:center;
-  padding:72px 24px 56px; margin:0 0 8px;
-  border-bottom:1px solid var(--border);
+   Conçue avec Claude Design (kit v2), texte retravaillé pour vendre l'idée
+   plutôt que le produit. Sert deux publics : le visiteur qui découvre, et le
+   robot AdSense qui a besoin de texte réel dans le HTML — d'où un contenu
+   statique et non généré en JavaScript (voir l'incident du 16/07).
+   ---------------------------------------------------------------- */
+.kvt-tags{display:flex;gap:10px;flex-wrap:wrap}
+.kvt-tag{
+  border:1px solid var(--border);color:var(--muted);font-size:13px;font-weight:600;
+  padding:7px 16px;border-radius:999px;
+  transition:border-color .2s ease, color .2s ease;
 }
-.kvt-land__mark{
-  position:absolute; top:50%; left:50%;
-  transform:translate(-50%,-50%);
-  font-size:clamp(240px,44vw,420px); line-height:1; font-weight:700;
-  color:var(--cream); opacity:.05; user-select:none; pointer-events:none;
-}
-.kvt-land__title{
-  position:relative; font-size:clamp(28px,5vw,44px); line-height:1.15;
-  color:var(--ink); margin:0 0 18px; max-width:16ch; margin-inline:auto;
-}
-.kvt-land__lead{
-  position:relative; font-size:clamp(15px,2vw,18px); line-height:1.65;
-  color:var(--muted); max-width:52ch; margin:0 auto 32px;
-}
-.kvt-land__cta{
-  position:relative; display:inline-flex; align-items:center; justify-content:center;
-  background:var(--accent); color:var(--bg); font-weight:700; font-size:17px;
-  padding:15px 38px; border-radius:var(--radius); text-decoration:none;
+.kvt-tag:hover{border-color:var(--accent-bright);color:var(--ink)}
+.kvt-cta{
+  display:inline-flex;align-items:center;justify-content:center;
+  background:var(--accent);color:var(--cream);font-weight:700;font-size:17px;
+  padding:16px 40px;border-radius:var(--radius);text-decoration:none;
   box-shadow:0 8px 24px rgba(0,0,0,.35);
-  transition:transform .18s ease, box-shadow .18s ease;
+  transition:background .2s ease, transform .2s ease, box-shadow .2s ease;
+  animation:kvtGentleFade .5s ease .2s both;
 }
-.kvt-land__cta:hover{ transform:translateY(-2px); box-shadow:0 12px 30px rgba(0,0,0,.45); }
-.kvt-land__note{
-  position:relative; font-size:13px; color:var(--muted-dim); margin:14px 0 0;
+.kvt-cta:hover{background:var(--accent-bright);color:var(--bg);transform:translateY(-2px);box-shadow:0 12px 28px rgba(0,0,0,.4)}
+.kvt-cta:active{transform:translateY(0)}
+.kvt-cta-note{font-size:13px;color:var(--muted-dim);margin:16px 0 0;animation:kvtGentleFade .5s ease .26s both}
+.kvt-reading{
+  border-radius:0 8px 8px 0;padding:10px 14px;
+  display:flex;align-items:center;justify-content:space-between;
+  background:var(--panel-alt);
 }
-.kvt-land h2{ margin-top:38px; }
-
+.kvt-reading--on{border-left:3px solid var(--accent)}
+.kvt-reading--kun{border-left:3px solid var(--pink)}
+.kvt-reading__label{
+  font-size:11px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;
+  color:var(--label-dim);
+}
+.kvt-reading--on .kvt-reading__value{font-size:16px;color:var(--accent-bright);font-weight:600}
+.kvt-reading--kun .kvt-reading__value{font-size:16px;color:var(--pink);font-weight:600}
+/* ================= Direction A — carte verticale, kanji en filigrane ================= */
+.kvt-landing-a{
+  background:var(--bg);
+  min-height:820px;
+  position:relative;
+  overflow:hidden;
+  display:flex;flex-direction:column;align-items:center;
+}
+.kvt-landing-a__watermark{
+  position:absolute;top:-60px;left:50%;transform:translateX(-50%);
+  font-size:640px;line-height:1;color:var(--cream);opacity:.05;font-weight:700;
+  user-select:none;pointer-events:none;
+}
+.kvt-landing-a__hero{
+  position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;
+  text-align:center;max-width:640px;padding:96px 32px 64px;
+}
+.kvt-landing-a__title{
+  font-size:44px;line-height:1.15;color:var(--ink);font-weight:700;margin:0 0 20px;
+  animation:kvtGentleFade .6s ease .08s both;
+}
+.kvt-landing-a__body{
+  font-size:17px;line-height:1.6;color:var(--muted);margin:0 0 36px;
+  animation:kvtGentleFade .6s ease .14s both;
+}
+.kvt-landing-a__tags{margin-top:36px;animation:kvtGentleFade .6s ease .32s both}
+.kvt-landing-a__card{
+  position:relative;z-index:1;width:100%;max-width:520px;margin:0 32px 88px;
+  background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);
+  padding:28px 30px;box-shadow:0 20px 50px rgba(0,0,0,.35);
+  animation:kvtSoftPop .5s ease .38s both;
+}
+.kvt-landing-a__card-head{display:flex;align-items:baseline;gap:18px;margin-bottom:20px}
+.kvt-landing-a__kanji{font-size:52px;color:var(--cream);font-weight:600}
+.kvt-landing-a__word-label{
+  font-size:11px;letter-spacing:.1em;text-transform:uppercase;font-weight:700;color:var(--label-dim);
+}
+.kvt-landing-a__word-kana{font-size:15px;color:var(--muted);margin-top:2px}
+.kvt-landing-a__readings{display:flex;flex-direction:column;gap:9px}
 @media (prefers-reduced-motion: reduce){
-  .kvt-land__cta{ transition:none; }
-  .kvt-land__cta:hover{ transform:none; }
+.kvt-landing-a__title,.kvt-landing-a__body,.kvt-landing-a__tags,.kvt-landing-a__card,
+  .kvt-landing-b__title,.kvt-landing-b__body,.kvt-landing-b__tags,.kvt-landing-b__card,
+  .kvt-cta,.kvt-cta-note{
+    animation:none !important;opacity:1 !important;transform:none !important;
+  }
 }
+/* ================= Page de présentation (long format) ================= */
+.kvt-pitch{background:var(--bg);color:var(--ink);font-family:-apple-system,"Segoe UI","Hiragino Sans","Noto Sans JP",sans-serif}
+.kvt-pitch__hero{
+  max-width:720px;margin:0 auto;padding:96px 32px 64px;text-align:center;
+  display:flex;flex-direction:column;align-items:center;
+}
+.kvt-pitch__title{
+  font-size:40px;line-height:1.18;color:var(--ink);font-weight:700;margin:0 0 22px;
+  animation:kvtGentleFade .6s ease .05s both;
+}
+.kvt-pitch__hook{
+  font-size:18px;line-height:1.65;color:var(--muted);margin:0 0 32px;max-width:600px;
+  animation:kvtGentleFade .6s ease .12s both;
+}
+.kvt-pitch__sections{max-width:760px;margin:0 auto;padding:0 32px 24px;display:flex;flex-direction:column;gap:2px}
+.kvt-pitch__section{
+  border-left:3px solid var(--accent);background:var(--panel);border-radius:0 var(--radius) var(--radius) 0;
+  padding:28px 32px;margin-bottom:20px;
+  opacity:0;transform:translateY(22px);
+  transition:opacity .7s cubic-bezier(.2,.7,.3,1), transform .7s cubic-bezier(.2,.7,.3,1);
+}
+.kvt-pitch__section.kvt-reveal{opacity:1;transform:translateY(0)}
+.kvt-pitch__section:nth-child(3n+2){border-left-color:var(--pink)}
+.kvt-pitch__section:nth-child(3n){border-left-color:var(--warn-bright)}
+.kvt-pitch__section-title{font-size:19px;font-weight:700;color:var(--cream);margin:0 0 12px}
+.kvt-pitch__section-body{font-size:15px;line-height:1.7;color:var(--muted);margin:0 0 12px}
+.kvt-pitch__section-body:last-child{margin-bottom:0}
+.kvt-pitch__closing{
+  max-width:600px;margin:0 auto;padding:48px 32px 96px;text-align:center;
+  display:flex;flex-direction:column;align-items:center;
+}
+.kvt-pitch__closing-line{
+  font-size:19px;line-height:1.55;color:var(--ink);font-weight:600;margin:0 0 32px;
+  opacity:0;transform:translateY(22px);
+  transition:opacity .7s cubic-bezier(.2,.7,.3,1), transform .7s cubic-bezier(.2,.7,.3,1);
+}
+.kvt-pitch__closing-line.kvt-reveal{opacity:1;transform:translateY(0)}
+@media (prefers-reduced-motion: reduce){
+.kvt-pitch__title,.kvt-pitch__hook{animation:none !important;opacity:1 !important;transform:none !important}
+.kvt-pitch__section,.kvt-pitch__closing-line{transition:none !important;opacity:1 !important;transform:none !important}
+.kvt-cta{transition:none !important}
+.kvt-cta:hover{transform:none !important}
+}
+/* Variante compacte du hero, ex-style inline de la maquette. */
+.kvt-landing-a__hero[data-compact="true"]{ min-height:auto; padding-bottom:24px; }
