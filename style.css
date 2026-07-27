@@ -1443,8 +1443,12 @@ code {
   display:flex;flex-direction:column;align-items:center;
 }
 .kvt-landing-a__watermark{
-  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
-  font-size:clamp(280px,38vw,460px);line-height:1;color:var(--cream);opacity:.05;font-weight:700;
+  /* Assez petit pour se lire comme un caractère, assez pâle pour ne pas
+     concurrencer le texte. À 460px le kanji devenait une texture de
+     rectangles posée derrière le bouton — l'inverse d'un filigrane.
+     Décalé vers le haut pour dégager la zone de lecture. */
+  position:absolute;top:18%;left:50%;transform:translate(-50%,-50%);
+  font-size:clamp(160px,20vw,260px);line-height:1;color:var(--cream);opacity:.035;font-weight:700;
   user-select:none;pointer-events:none;
 }
 .kvt-landing-a__hero{
