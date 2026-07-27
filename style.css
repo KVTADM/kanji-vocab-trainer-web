@@ -1550,3 +1550,33 @@ code {
   border-radius:0;
 }
 .nav-btn.nav-link:hover{ background:transparent; color:var(--accent-bright); }
+
+/* ---------- Transition entre les vues de l'app ----------
+   Les vues basculent en display:none/block, qui ne s'anime pas. On joue donc
+   une animation d'entrée sur la vue qui devient active, déclenchée par
+   switchView() uniquement quand la vue change vraiment.
+   Volontairement courte (240 ms) : une navigation d'app doit rester
+   instantanée au ressenti, l'animation sert à situer le changement, pas à
+   faire un spectacle. ------------------------------------------------- */
+@keyframes kvtViewIn{
+  from{ opacity:0; transform:translateY(10px); }
+  to  { opacity:1; transform:none; }
+}
+.view.view-enter{
+  animation:kvtViewIn .24s cubic-bezier(.2,.7,.3,1) both;
+}
+/* Les cartes du tableau de bord arrivent juste après le conteneur, ce qui
+   donne une impression de profondeur sans multiplier les animations. */
+@keyframes kvtCardIn{
+  from{ opacity:0; transform:translateY(6px); }
+  to  { opacity:1; transform:none; }
+}
+.view.view-enter > .card{
+  animation:kvtCardIn .3s cubic-bezier(.2,.7,.3,1) both;
+  animation-delay:.05s;
+}
+
+@media (prefers-reduced-motion: reduce){
+  .view.view-enter,
+  .view.view-enter > .card{ animation:none; }
+}

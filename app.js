@@ -499,11 +499,23 @@ function hasLearnInfo(g) {
 // Navigation
 // ============================================================
 function switchView(view) {
+  // L'animation d'entrée ne se joue que si on change réellement de vue.
+  // renderCurrentView() est aussi appelé lors d'un simple re-rendu (statut Pro
+  // résolu, connexion...) : rejouer l'animation à ces moments-là donnerait un
+  // clignotement sans raison.
+  const changementReel = currentView !== view;
   currentView = view;
   $$('.nav-btn[data-view]').forEach(b => b.classList.toggle('active', b.dataset.view === view));
-  $$('.view').forEach(v => v.classList.remove('active'));
-  $('#view-' + view).classList.add('active');
+  $$('.view').forEach(v => { v.classList.remove('active', 'view-enter'); });
+  const el = $('#view-' + view);
+  el.classList.add('active');
   renderCurrentView();
+  if (changementReel) {
+    // Forcer un recalcul de style entre le retrait et l'ajout de la classe,
+    // sinon le navigateur regroupe les deux et l'animation ne repart pas.
+    void el.offsetWidth;
+    el.classList.add('view-enter');
+  }
 }
 
 function renderCurrentView() {
