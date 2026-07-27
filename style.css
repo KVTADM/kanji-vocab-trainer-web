@@ -1212,19 +1212,6 @@ code {
    y compris les nuances obtenues via color-mix(). Les ombres
    sont en rgba(0,0,0,α) pour rester neutres sur les 3 thèmes.
    ============================================================ */
-background:var(--bg);
-  min-height:100vh;
-  display:flex;
-  flex-wrap:wrap;
-  gap:28px;
-  justify-content:center;
-  align-items:flex-start;
-  padding:56px 40px;
-  font-family:-apple-system,"Segoe UI","Hiragino Sans","Noto Sans JP",sans-serif;
-}
-  font-size:11px;letter-spacing:.1em;text-transform:uppercase;font-weight:700;
-  color:var(--label-dim);
-}
 
 .kvt-result{
   width:360px;
@@ -1408,4 +1395,48 @@ background:var(--bg);
     opacity:1 !important;
     transform:none !important;
   }
+}
+
+/* ---------- Page « L'idée » (/decouvrir) ----------
+   Sert deux publics à la fois : le visiteur qui découvre le projet, et le
+   robot AdSense qui a besoin de texte réel dans le HTML (voir l'incident
+   « pages sans contenu d'éditeur » du 16/07). Le contenu est donc statique,
+   pas généré en JavaScript.
+   Aucune couleur figée : tout suit le thème actif, y compris les nouvelles
+   palettes Pro. -------------------------------------------------------- */
+.kvt-land__hero{
+  position:relative; overflow:hidden; text-align:center;
+  padding:72px 24px 56px; margin:0 0 8px;
+  border-bottom:1px solid var(--border);
+}
+.kvt-land__mark{
+  position:absolute; top:50%; left:50%;
+  transform:translate(-50%,-50%);
+  font-size:clamp(240px,44vw,420px); line-height:1; font-weight:700;
+  color:var(--cream); opacity:.05; user-select:none; pointer-events:none;
+}
+.kvt-land__title{
+  position:relative; font-size:clamp(28px,5vw,44px); line-height:1.15;
+  color:var(--ink); margin:0 0 18px; max-width:16ch; margin-inline:auto;
+}
+.kvt-land__lead{
+  position:relative; font-size:clamp(15px,2vw,18px); line-height:1.65;
+  color:var(--muted); max-width:52ch; margin:0 auto 32px;
+}
+.kvt-land__cta{
+  position:relative; display:inline-flex; align-items:center; justify-content:center;
+  background:var(--accent); color:var(--bg); font-weight:700; font-size:17px;
+  padding:15px 38px; border-radius:var(--radius); text-decoration:none;
+  box-shadow:0 8px 24px rgba(0,0,0,.35);
+  transition:transform .18s ease, box-shadow .18s ease;
+}
+.kvt-land__cta:hover{ transform:translateY(-2px); box-shadow:0 12px 30px rgba(0,0,0,.45); }
+.kvt-land__note{
+  position:relative; font-size:13px; color:var(--muted-dim); margin:14px 0 0;
+}
+.kvt-land h2{ margin-top:38px; }
+
+@media (prefers-reduced-motion: reduce){
+  .kvt-land__cta{ transition:none; }
+  .kvt-land__cta:hover{ transform:none; }
 }
