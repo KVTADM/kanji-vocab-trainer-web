@@ -1443,8 +1443,8 @@ code {
   display:flex;flex-direction:column;align-items:center;
 }
 .kvt-landing-a__watermark{
-  position:absolute;top:-60px;left:50%;transform:translateX(-50%);
-  font-size:640px;line-height:1;color:var(--cream);opacity:.05;font-weight:700;
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  font-size:clamp(280px,38vw,460px);line-height:1;color:var(--cream);opacity:.05;font-weight:700;
   user-select:none;pointer-events:none;
 }
 .kvt-landing-a__hero{
@@ -1498,9 +1498,12 @@ code {
 .kvt-pitch__section{
   border-left:3px solid var(--accent);background:var(--panel);border-radius:0 var(--radius) var(--radius) 0;
   padding:28px 32px;margin-bottom:20px;
-  opacity:0;transform:translateY(22px);
   transition:opacity .7s cubic-bezier(.2,.7,.3,1), transform .7s cubic-bezier(.2,.7,.3,1);
 }
+/* L'état masqué n'est posé que si le JavaScript s'exécute (classe .kvt-js sur
+   <html>). Sans JS — ou si le script échoue — le texte reste visible : le
+   contenu ne doit jamais dépendre d'une animation pour être lisible. */
+.kvt-js .kvt-pitch__section{ opacity:0; transform:translateY(22px); }
 .kvt-pitch__section.kvt-reveal{opacity:1;transform:translateY(0)}
 .kvt-pitch__section:nth-child(3n+2){border-left-color:var(--pink)}
 .kvt-pitch__section:nth-child(3n){border-left-color:var(--warn-bright)}
@@ -1513,9 +1516,10 @@ code {
 }
 .kvt-pitch__closing-line{
   font-size:19px;line-height:1.55;color:var(--ink);font-weight:600;margin:0 0 32px;
-  opacity:0;transform:translateY(22px);
+  
   transition:opacity .7s cubic-bezier(.2,.7,.3,1), transform .7s cubic-bezier(.2,.7,.3,1);
 }
+.kvt-js .kvt-pitch__closing-line{ opacity:0; transform:translateY(22px); }
 .kvt-pitch__closing-line.kvt-reveal{opacity:1;transform:translateY(0)}
 @media (prefers-reduced-motion: reduce){
 .kvt-pitch__title,.kvt-pitch__hook{animation:none !important;opacity:1 !important;transform:none !important}

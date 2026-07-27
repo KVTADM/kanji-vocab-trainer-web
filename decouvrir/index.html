@@ -117,5 +117,31 @@
       gratuite pour tout visiteur.
     </p>
   </footer>
+
+<script>
+// Apparition des sections au défilement. Le marqueur .kvt-js n'est posé que si
+// ce script s'exécute : sans lui, le CSS laisse tout visible. Une animation ne
+// doit jamais conditionner la lecture du texte.
+(function () {
+  var cibles = document.querySelectorAll('.kvt-pitch__section, .kvt-pitch__closing-line');
+  if (!cibles.length) return;
+  var doux = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (doux || !('IntersectionObserver' in window)) return; // on laisse tout visible
+  document.documentElement.classList.add('kvt-js');
+  var obs = new IntersectionObserver(function (entrees) {
+    entrees.forEach(function (e) {
+      if (!e.isIntersecting) return;
+      e.target.classList.add('kvt-reveal');
+      obs.unobserve(e.target);
+    });
+  }, { rootMargin: '0px 0px -10% 0px' });
+  cibles.forEach(function (c) { obs.observe(c); });
+  // Filet de sécurité : si rien n'a été révélé au bout de 3 s (onglet en
+  // arrière-plan, observateur en défaut), on affiche tout.
+  setTimeout(function () {
+    cibles.forEach(function (c) { c.classList.add('kvt-reveal'); });
+  }, 3000);
+})();
+</script>
 </body>
 </html>
