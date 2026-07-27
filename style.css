@@ -1093,3 +1093,213 @@ code {
   margin: 0 0 14px;
   line-height: 1.5;
 }
+
+/* ============================================================
+   Écran de résultat de fin de session — conçu avec Claude Design
+   (kit v2, prompt 2), intégré le 27/07/2026.
+
+   Trois intensités selon le score : --perfect (100 %), --good
+   (seuil et au-dessus), --low (en dessous). Le seuil vit dans
+   app.js (SEUIL_BON_SCORE), pas ici.
+
+   Aucune couleur figée : tout passe par les variables de thème,
+   y compris les nuances obtenues via color-mix(). Les ombres
+   sont en rgba(0,0,0,α) pour rester neutres sur les 3 thèmes.
+   ============================================================ */
+background:var(--bg);
+  min-height:100vh;
+  display:flex;
+  flex-wrap:wrap;
+  gap:28px;
+  justify-content:center;
+  align-items:flex-start;
+  padding:56px 40px;
+  font-family:-apple-system,"Segoe UI","Hiragino Sans","Noto Sans JP",sans-serif;
+}
+  font-size:11px;letter-spacing:.1em;text-transform:uppercase;font-weight:700;
+  color:var(--label-dim);
+}
+
+.kvt-result{
+  width:360px;
+  min-height:480px;
+  background:var(--panel);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  position:relative;
+  overflow:hidden;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  padding:40px 32px;
+  box-shadow:0 20px 50px rgba(0,0,0,.35);
+  font-family:-apple-system,"Segoe UI","Hiragino Sans","Noto Sans JP",sans-serif;
+}
+
+.kvt-result__burst{
+  position:absolute;
+  top:48px;
+  left:50%;
+  width:0;
+  height:0;
+}
+
+.kvt-ring{
+  position:absolute;
+  left:0; top:0;
+  width:130px; height:130px;
+  margin-left:-65px; margin-top:-65px;
+  border-radius:50%;
+  border:2px solid var(--accent-bright);
+  opacity:0;
+  animation:kvtRingPulse 1.4s ease-out both;
+}
+.kvt-ring:nth-child(2){border-color:var(--pink);animation-delay:.1s}
+.kvt-ring:nth-child(3){border-color:var(--cream);animation-delay:.2s}
+
+.kvt-ray{
+  position:absolute;
+  left:0; top:0;
+  width:4px; height:46px;
+  margin-left:-2px;
+  transform-origin:center 0;
+}
+.kvt-ray__bar{
+  width:100%; height:100%;
+  background:var(--cream);
+  border-radius:2px;
+  transform-origin:center 0;
+  animation:kvtRayGrow .6s ease both;
+}
+.kvt-ray:nth-child(1){transform:rotate(0deg)}
+.kvt-ray:nth-child(2){transform:rotate(36deg)}
+.kvt-ray:nth-child(3){transform:rotate(72deg)}
+.kvt-ray:nth-child(4){transform:rotate(108deg)}
+.kvt-ray:nth-child(5){transform:rotate(144deg)}
+.kvt-ray:nth-child(6){transform:rotate(180deg)}
+.kvt-ray:nth-child(7){transform:rotate(216deg)}
+.kvt-ray:nth-child(8){transform:rotate(252deg)}
+.kvt-ray:nth-child(9){transform:rotate(288deg)}
+.kvt-ray:nth-child(10){transform:rotate(324deg)}
+.kvt-ray:nth-child(3n+1) .kvt-ray__bar{background:var(--cream)}
+.kvt-ray:nth-child(3n+2) .kvt-ray__bar{background:var(--accent-bright)}
+.kvt-ray:nth-child(3n) .kvt-ray__bar{background:var(--pink)}
+.kvt-ray:nth-child(1) .kvt-ray__bar{animation-delay:.15s}
+.kvt-ray:nth-child(2) .kvt-ray__bar{animation-delay:.18s}
+.kvt-ray:nth-child(3) .kvt-ray__bar{animation-delay:.21s}
+.kvt-ray:nth-child(4) .kvt-ray__bar{animation-delay:.24s}
+.kvt-ray:nth-child(5) .kvt-ray__bar{animation-delay:.27s}
+.kvt-ray:nth-child(6) .kvt-ray__bar{animation-delay:.3s}
+.kvt-ray:nth-child(7) .kvt-ray__bar{animation-delay:.33s}
+.kvt-ray:nth-child(8) .kvt-ray__bar{animation-delay:.36s}
+.kvt-ray:nth-child(9) .kvt-ray__bar{animation-delay:.39s}
+.kvt-ray:nth-child(10) .kvt-ray__bar{animation-delay:.42s}
+
+.kvt-result__badge{
+  position:relative; z-index:2;
+  display:inline-flex; align-items:center; gap:6px;
+  font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase;
+  color:var(--bg);
+  background:var(--cream);
+  padding:6px 14px;
+  border-radius:999px;
+  margin-bottom:18px;
+  animation:kvtGentleFade .5s ease .5s both;
+}
+
+.kvt-result__pct{
+  position:relative; z-index:2;
+  font-size:56px;
+  font-weight:700;
+  line-height:1;
+  margin-top:56px;
+}
+.kvt-result--good .kvt-result__pct,
+.kvt-result--low .kvt-result__pct{margin-top:0}
+.kvt-result--perfect .kvt-result__pct{color:var(--good-bright);animation:kvtBadgePop .7s cubic-bezier(.2,.8,.3,1.3) both}
+.kvt-result--good .kvt-result__pct{color:color-mix(in oklch, var(--warn-bright) 30%, var(--good-bright) 70%);animation:kvtSoftPop .5s ease both}
+.kvt-result--low .kvt-result__pct{color:color-mix(in oklch, var(--bad) 20%, var(--warn-bright) 80%);animation:kvtGentleFade .55s ease both}
+
+.kvt-result__points{
+  position:relative; z-index:2;
+  font-size:14px;
+  color:var(--muted);
+  margin-top:8px;
+  animation:kvtGentleFade .5s ease .15s both;
+}
+
+.kvt-result__title{
+  position:relative; z-index:2;
+  font-size:19px;
+  font-weight:700;
+  color:var(--ink);
+  margin-top:18px;
+  animation:kvtGentleFade .5s ease .25s both;
+}
+
+.kvt-result__sub{
+  position:relative; z-index:2;
+  font-size:14px;
+  line-height:1.55;
+  color:var(--muted);
+  text-align:center;
+  max-width:270px;
+  margin-top:10px;
+  animation:kvtGentleFade .5s ease .32s both;
+}
+
+.kvt-result__btn{
+  position:relative; z-index:2;
+  margin-top:28px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  background:var(--panel-alt);
+  border:1px solid var(--border);
+  color:var(--ink);
+  font-weight:600;
+  font-size:14px;
+  padding:11px 30px;
+  border-radius:var(--radius);
+  text-decoration:none;
+  cursor:pointer;
+  animation:kvtGentleFade .5s ease .4s both;
+}
+.kvt-result--low .kvt-result__btn{
+  background:var(--accent);
+  border-color:var(--accent);
+  color:var(--cream);
+}
+
+@keyframes kvtRingPulse{
+  0%{transform:scale(.4);opacity:.9}
+  100%{transform:scale(2.4);opacity:0}
+}
+@keyframes kvtRayGrow{
+  0%{transform:scaleY(0);opacity:0}
+  55%{opacity:1}
+  100%{transform:scaleY(1);opacity:.85}
+}
+@keyframes kvtBadgePop{
+  0%{transform:scale(.4);opacity:0}
+  55%{transform:scale(1.12);opacity:1}
+  100%{transform:scale(1);opacity:1}
+}
+@keyframes kvtSoftPop{
+  0%{transform:scale(.85);opacity:0}
+  100%{transform:scale(1);opacity:1}
+}
+@keyframes kvtGentleFade{
+  0%{transform:translateY(10px);opacity:0}
+  100%{transform:translateY(0);opacity:1}
+}
+
+@media (prefers-reduced-motion: reduce){
+  .kvt-ring,.kvt-ray__bar,.kvt-result__badge,.kvt-result__pct,
+  .kvt-result__points,.kvt-result__title,.kvt-result__sub,.kvt-result__btn{
+    animation:none !important;
+    opacity:1 !important;
+    transform:none !important;
+  }
+}

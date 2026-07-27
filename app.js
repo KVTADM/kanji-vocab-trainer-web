@@ -991,15 +991,41 @@ function renderReview() {
         </table>
       </div>
     ` : '';
+    // Trois intensités d'écran de résultat. Le seuil est ici, et pas dans le
+    // CSS, pour rester ajustable sans toucher au style : le barème est sévère
+    // (distance de Levenshtein — une erreur de kana coûte cher), donc le
+    // niveau "encouragement" doit se déclencher assez bas pour ne pas
+    // sanctionner une session honnête.
+    const SEUIL_BON_SCORE = 70;
+    const etat = pct >= 100 ? 'perfect' : (pct >= SEUIL_BON_SCORE ? 'good' : 'low');
+    const textes = {
+      perfect: { titre: 'Parfait.', sub: 'Chaque lecture, juste. Une révision impeccable.' },
+      good:    { titre: 'Bon travail.', sub: 'La plupart des lectures maîtrisées. Encore quelques-unes à consolider.' },
+      low:     { titre: "Continue à t'entraîner.", sub: "C'est en révisant régulièrement qu'on progresse. Reviens quand tu veux." }
+    }[etat];
+
+    // L'éclat n'apparaît qu'au score parfait : c'est ce qui en fait un moment
+    // rare. L'afficher plus souvent le banaliserait.
+    const burst = etat === 'perfect' ? `
+      <div class="kvt-result__burst" aria-hidden="true">
+        ${'<div class="kvt-ring"></div>'.repeat(3)}
+        ${'<div class="kvt-ray"><div class="kvt-ray__bar"></div></div>'.repeat(10)}
+      </div>` : '';
+
+    const badge = improved
+      ? `<div class="kvt-result__badge">Record — nouveau meilleur score</div>`
+      : (prevBest !== null ? `<div class="kvt-result__badge">Meilleur score : ${prevBest}&nbsp;%</div>` : '');
+
     container.innerHTML = `
-      <h2>Session terminée — ${semLabel} Semaine ${quizSession.week}</h2>
-      <div class="card">
-        <div class="grid-3">
-          <div class="stat-box"><div class="num">${pct}%</div><div class="label">Score de cette session</div></div>
-          <div class="stat-box"><div class="num">${points}/${maxPoints}</div><div class="label">Points</div></div>
-          <div class="stat-box"><div class="num">${improved ? '🎉 Record' : prevBest + '%'}</div><div class="label">${improved ? 'Nouveau meilleur score !' : 'Meilleur score actuel'}</div></div>
-        </div>
-        <button class="primary" id="btnBackReview" style="margin-top:16px;">Retour</button>
+      <h2>Session terminée — ${escapeHtml(semLabel)} Semaine ${quizSession.week}</h2>
+      <div class="kvt-result kvt-result--${etat}">
+        ${burst}
+        ${badge}
+        <div class="kvt-result__pct">${pct}&nbsp;%</div>
+        <div class="kvt-result__points">${points} / ${maxPoints} points</div>
+        <div class="kvt-result__title">${textes.titre}</div>
+        <div class="kvt-result__sub">${textes.sub}</div>
+        <button class="kvt-result__btn" type="button" id="btnBackReview">Retour</button>
       </div>
       ${recap}
     `;
