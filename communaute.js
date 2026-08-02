@@ -1,6 +1,9 @@
 // ============================================================
-// Vue « Communauté » : la même chose que la page d'accueil publique, mais
-// à l'intérieur de l'app, comme n'importe quelle autre catégorie.
+// Vue « Page d'accueil » : le premier écran de l'app. Elle montre ce qui a
+// bougé depuis la dernière session avant de proposer de réviser.
+//
+// L'identifiant interne reste « communaute » : le renommer imposerait de
+// toucher au routage, aux tests et au service worker pour un gain nul.
 //
 // Pourquoi les deux existent : la page publique s'adresse à quelqu'un qui
 // découvre le site et n'a pas de compte ; cette vue-ci s'adresse à quelqu'un
@@ -75,7 +78,7 @@ function renderCommunaute() {
   }
 
   if (commData === null) {
-    el.innerHTML = `<h2>Communauté</h2><div class="card"><p style="color:var(--muted);">Chargement…</p></div>`;
+    el.innerHTML = `<h2>Page d'accueil</h2><div class="card"><p style="color:var(--muted);">Chargement…</p></div>`;
     return;
   }
 
@@ -134,7 +137,7 @@ function renderCommunaute() {
   el.innerHTML = `
     <div class="decks-head">
       <div>
-        <h2>Communauté</h2>
+        <h2>Page d'accueil</h2>
         <p class="decks-sous-titre">Ce qui a bougé depuis ta dernière session : les avis, les decks, ce qui arrive.</p>
       </div>
     </div>

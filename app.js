@@ -6,7 +6,7 @@
 // ============================================================
 
 let DB = null;
-let currentView = 'dashboard';
+let currentView = 'communaute';
 let quizSession = null;     // { semesterId, week, queue, index, submitted, lastAnswer, lastResult, totals }
 let importPreview = null;   // { rows, errors } — résultat de l'analyse avant import
 let browsingWeek = null;    // { semesterId, week } — semaine affichée dans l'onglet Vocabulaire (fusionné : mots + fiches)
@@ -1755,7 +1755,9 @@ async function init() {
   $$('.nav-btn[data-view]').forEach(btn => {
     btn.addEventListener('click', () => switchView(btn.dataset.view));
   });
-  switchView('dashboard');
+  // La page d'accueil est le premier ecran : c'est elle qui dit ce qui a
+  // bouge depuis la derniere session.
+  switchView('communaute');
 }
 
 document.addEventListener('DOMContentLoaded', init);

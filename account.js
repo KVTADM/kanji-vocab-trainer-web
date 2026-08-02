@@ -186,7 +186,7 @@ window.sb.auth.onAuthStateChange((event, session) => {
     // Re-rend aussi Accueil/Vocabulaire/Réglages/Statistiques : leur
     // contenu dépend de isPro (pubs incluses), qui vient tout juste
     // d'être résolu ci-dessus.
-    if (typeof currentView !== 'undefined' && ['dashboard', 'manage', 'account', 'settings', 'stats', 'admin'].includes(currentView)) {
+    if (typeof currentView !== 'undefined' && ['dashboard', 'manage', 'account', 'settings', 'stats', 'admin', 'communaute'].includes(currentView)) {
       renderCurrentView();
     }
   })();
