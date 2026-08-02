@@ -9,6 +9,7 @@ global.$$=(s,r)=>{const src=r&&r.innerHTML?r.innerHTML:''; const m=s.match(/\[da
   return [...src.matchAll(new RegExp('data-'+m[1]+'="([^"]*)"','g'))].map(x=>{const n=faire('a');n.dataset[js]=x[1];return n;});};
 global.escapeHtml=(s)=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 global.currentView='communaute';
+global.getProverbOfDay=()=>({kanji:'七転び八起き',lecture:'ななころびやおき',sens:'Sept chutes, huit relevements.'});
 global.window={accountUser:{id:'moi'},sb:null,kvtProfils:{avatarHtml:()=>'<span></span>',chargerProfils:async()=>{}}};
 const SRC=fs.readFileSync('communaute.js','utf8');
 const cas=[];
@@ -19,6 +20,8 @@ essai("tout vide : la banniere et les avis d'exemple prennent le relais", ()=>{
   renderCommunaute();
   const h=trouve('#view-communaute').innerHTML;
   if(!h.includes('comm-banniere')) throw new Error('banniere absente');
+  if(!h.includes('proverb-card')) throw new Error('proverbe du jour absent');
+  if(!h.includes('七転び八起き')) throw new Error('texte du proverbe absent');
   if(!h.includes("Page d'accueil")) throw new Error('titre absent');
   if((h.match(/est-exemple/g)||[]).length!==2) throw new Error('il faut deux exemples');
   if((h.match(/comm-exemple-marque/g)||[]).length!==2) throw new Error('les exemples ne sont pas marques comme tels');

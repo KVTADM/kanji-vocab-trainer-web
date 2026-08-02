@@ -647,13 +647,7 @@ function renderDashboard() {
         <button class="lien-retour" data-supprimer-cat="${ongletCourant.id}">Supprimer</button>
       </div>` : ''}`;
 
-  const proverb = getProverbOfDay();
-  html += `
-    <div class="card proverb-card">
-      <div class="proverb-kanji">${escapeHtml(proverb.kanji)}</div>
-      <div class="proverb-lecture">${escapeHtml(proverb.lecture)}</div>
-      <div class="proverb-sens">${escapeHtml(proverb.sens)}</div>
-    </div>`;
+  // Le proverbe du jour vit desormais sur la page d'accueil.
 
   // La bannière de reprise privilégie une session interrompue en plein
   // milieu d'une semaine (cas le plus courant : "je dois m'arrêter") ; à

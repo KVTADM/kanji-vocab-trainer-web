@@ -170,6 +170,16 @@ function renderCommunaute() {
 
     ${commErreur ? `<div class="card"><p>Chargement partiel : ${escapeHtml(commErreur)}</p></div>` : ''}
 
+    ${typeof getProverbOfDay === 'function' ? (() => {
+      const p = getProverbOfDay();
+      return `
+      <div class="card proverb-card">
+        <div class="proverb-kanji">${escapeHtml(p.kanji)}</div>
+        <div class="proverb-lecture">${escapeHtml(p.lecture)}</div>
+        <div class="proverb-sens">${escapeHtml(p.sens)}</div>
+      </div>`;
+    })() : ''}
+
     <div class="comm-banniere">
       <span class="comm-banniere-kanji" aria-hidden="true">語</span>
       <div class="comm-banniere-texte">

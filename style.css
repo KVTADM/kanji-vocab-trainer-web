@@ -5,13 +5,13 @@
    espacés.
    ============================================================ */
 :root {
-  --bg: #0b0b18;
-  --panel: #242442;
-  --panel-alt: #16162a;
-  --sidebar: #0b0b18;
-  --ink: #f0f0fa;
+  --bg: #16162a;
+  --panel: #1c1c34;
+  --panel-alt: #12122a;
+  --sidebar: #101020;
+  --ink: #e0e0f0;
   --cream: #f0eadc;
-  --muted: #a8a8cc;
+  --muted: #8383b2;
   --muted-dim: #8181c0;
   --label-dim: #8383b7;
   --accent: #2980b9;
@@ -22,8 +22,8 @@
   --good-bright: #5fae5f;
   --warn: #c07830;
   --warn-bright: #e0a050;
-  --bad: #ff7a8a;
-  --border: #3d4373;
+  --bad: #c04060;
+  --border: #2a2a50;
   --radius: 12px;
   --sur-accent: #ffffff;
 }
@@ -2070,6 +2070,12 @@ code {
    que c'est ce qui donne envie, les decks ensuite parce que c'est ce sur
    quoi on agit. */
 .comm-grille { display: flex; flex-direction: column; gap: 18px; }
+
+/* La page se lit du haut vers le bas sur une colonne etroite : au-dela de
+   720 px une ligne de texte devient penible a suivre, et l'oeil perd le
+   debut de la ligne suivante. */
+#view-communaute { max-width: 720px; }
+#view-communaute .comm-videos { grid-template-columns: 1fr 1fr; }
 .comm-grille .card { margin-bottom: 0; }
 
 .comm-etat-vide {
@@ -2120,7 +2126,6 @@ code {
 .comm-video:hover .comm-video-titre { color: var(--accent-bright); }
 
 @media (max-width: 900px) {
-  .comm-grille { grid-template-columns: 1fr; }
   .comm-videos { grid-template-columns: 1fr; }
 }
 
