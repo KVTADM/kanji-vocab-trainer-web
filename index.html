@@ -3,149 +3,247 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Le kanji d'abord, le mot ensuite — KVT</title>
-<meta name="description" content="On ne quitte pas le japonais parce qu'il est difficile, mais parce qu'on a l'impression de recommencer à zéro chaque semaine. Apprendre par kanji change ce qu'on retient." />
+<title>KVT — Kanji Vocab Trainer : réviser le japonais par les kanji</title>
+<meta name="description" content="Les listes de vocabulaire japonais partagées par la communauté, les meilleurs scores, les avis et ce qui arrive. Réviser par kanji plutôt que par mot isolé." />
 <link rel="canonical" href="https://kanji-vocab-trainer.netlify.app/" />
 <link rel="manifest" href="/manifest.json" />
-<meta name="theme-color" content="#16162a" />
+<meta name="theme-color" content="#0b0b18" />
 <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
 <link rel="icon" href="/icons/icon-192.png" />
-<link rel="stylesheet" href="/style.css" />
 <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8318848112615285"
      crossorigin="anonymous"></script>
+<style>
+:root{
+  --bg:#0b0b18; --panel:#242442; --panel-alt:#16162a;
+  --border:#3d4373; --ink:#f0f0fa; --muted:#a8a8cc;
+  --accent:#2980b9; --accent-bright:#5bc8f5; --on-accent:#10101c;
+  --good:#5fae5f; --warn:#e0a050; --bad:#ff7a8a;
+  --radius:12px; --radius-sm:8px;
+}
+body{margin:0;background:var(--bg)}
+a{color:var(--accent-bright);text-decoration:none}
+a:hover{color:var(--accent-bright);text-decoration:underline}
+@media (max-width:860px){
+  .kvt-cols{grid-template-columns:1fr !important}
+  .kvt-vids{grid-template-columns:1fr !important}
+}
+</style>
 </head>
 <body>
-  <header class="editorial-header">
-    <a class="editorial-brand" href="/">
-      <div class="brand-kanji">漢</div>
-      <div class="brand-text">KVT</div>
-    </a>
-    <nav class="editorial-nav">
-      <a href="/" class="active">L'idée</a>
-      <a href="/a-propos">À propos</a>
-      <a href="/faq">FAQ</a>
-      <a href="/blog">Blog</a>
-      <a href="/app">Ouvrir l'app</a>
-    </nav>
-  </header>
+<div style="background:var(--bg);color:var(--ink);font-family:'Helvetica Neue','Helvetica','Arial',-apple-system,BlinkMacSystemFont,'Hiragino Sans','Meiryo',sans-serif;font-weight:400;min-height:100vh">
 
-<div class="kvt-pitch">
+<header style="max-width:1100px;margin:0 auto;padding:48px 24px 32px;display:flex;flex-direction:column;align-items:center;text-align:center">
+  <div style="font-size:40px;line-height:1.3;color:var(--accent-bright);font-weight:600">漢</div>
+  <div style="font-size:26px;line-height:1.3;font-weight:600;margin-top:8px">KVT — Kanji Vocab Trainer</div>
+  <p style="font-size:13px;line-height:1.6;color:var(--muted);margin:8px 0 0;max-width:480px">Ce que la communauté révise, publie et discute, kanji par kanji.</p>
+  <div style="display:flex;gap:16px;flex-wrap:wrap;justify-content:center;margin-top:24px">
+    <a href="#" style="background:var(--accent);color:var(--on-accent);font-weight:600;font-size:14px;line-height:1.3;padding:8px 24px;border-radius:var(--radius-sm)">Ouvrir l'app</a>
+    <a href="#" style="border:1px solid var(--border);color:var(--ink);font-weight:400;font-size:14px;line-height:1.3;padding:8px 24px;border-radius:var(--radius-sm)">Parcourir les decks</a>
+  </div>
+  <div style="display:flex;gap:48px;flex-wrap:wrap;justify-content:center;margin-top:32px">
+    <div><div style="font-size:20px;font-weight:600;line-height:1.3">2 136</div><div style="font-size:12px;line-height:1.6;color:var(--muted)">kanji disponibles</div></div>
+    <div><div style="font-size:20px;font-weight:600;line-height:1.3">341</div><div style="font-size:12px;line-height:1.6;color:var(--muted)">decks publiés</div></div>
+    <div><div style="font-size:20px;font-weight:600;line-height:1.3">4 802</div><div style="font-size:12px;line-height:1.6;color:var(--muted)">membres</div></div>
+  </div>
+</header>
 
-  <div class="kvt-landing-a" data-compact="true">
-    <span class="kvt-landing-a__watermark" aria-hidden="true">語</span>
+<main style="max-width:1100px;margin:0 auto;padding:32px 24px 48px;display:flex;flex-direction:column;gap:32px">
 
-    <div class="kvt-landing-a__hero">
-      <h1 class="kvt-pitch__title">Le kanji d'abord, le mot ensuite.</h1>
-      <p class="kvt-pitch__hook">Le japonais ne se retient pas comme une liste de courses. La plupart des méthodes empilent des mots sans lien entre eux, et l'oubli va plus vite que l'apprentissage. KVT part du kanji : chaque caractère devient un point d'ancrage, et les mots s'y accrochent au lieu de flotter seuls dans une liste.</p>
+<div class="kvt-cols" style="display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:start">
 
-      <a class="kvt-cta" href="/app">Essayer un quiz</a>
-      <p class="kvt-cta-note">Gratuit. Aucun compte requis. Sans publicité intrusive.</p>
+  <section>
+    <h2 style="font-size:15px;line-height:1.3;font-weight:600;color:var(--muted);margin:0 0 16px">Derniers avis</h2>
+    <div id="zoneAvis" style="display:flex;flex-direction:column;gap:16px">
 
-      <div class="kvt-landing-a__tags kvt-tags">
-        <span class="kvt-tag">Débutant</span>
-        <span class="kvt-tag">N5</span>
-        <span class="kvt-tag">N4</span>
-        <span class="kvt-tag">N3</span>
-        <span class="kvt-tag">Semestres universitaires</span>
+      <div style="background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:20px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+          <span style="width:32px;height:32px;border-radius:50%;background:var(--panel-alt);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:var(--accent-bright);flex:none">RN</span>
+          <span style="font-size:14px;line-height:1.3;font-weight:600">ryo_nihon</span>
+          <span style="font-size:13px;line-height:1.3;color:var(--warn);margin-left:8px">★★★★★</span>
+        </div>
+        <p style="font-size:14px;line-height:1.6;margin:0 0 8px">« Le deck N4 m'a fait revoir 食 sous un autre angle — je ne confondais plus ショク et た(べる) après deux passages. »</p>
+        <div style="font-size:12px;line-height:1.6;color:var(--muted)">sur <a href="#">JLPT N4 — Semaine 6</a></div>
       </div>
-    </div>
 
-    <div class="kvt-landing-a__card">
-      <div class="kvt-landing-a__card-head">
-        <span class="kvt-landing-a__kanji">食</span>
-        <div>
-          <div class="kvt-landing-a__word-label">Manger</div>
-          <div class="kvt-landing-a__word-kana">たべる</div>
+      <div style="background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:20px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+          <span style="width:32px;height:32px;border-radius:50%;background:var(--panel-alt);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:var(--good);flex:none">ML</span>
+          <span style="font-size:14px;line-height:1.3;font-weight:600">mei.learns</span>
+          <span style="font-size:13px;line-height:1.3;color:var(--warn);margin-left:8px">★★★★☆</span>
+        </div>
+        <p style="font-size:14px;line-height:1.6;margin:0 0 8px">« Un peu dense pour une première semaine de semestre, mais l'ordre des kanji suit vraiment le cours. »</p>
+        <div style="font-size:12px;line-height:1.6;color:var(--muted)">sur <a href="#">LV2 Japonais — S1</a></div>
+      </div>
+
+      <div style="background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:20px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+          <span style="width:32px;height:32px;border-radius:50%;background:var(--panel-alt);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:var(--accent-bright);flex:none">TK</span>
+          <span style="font-size:14px;line-height:1.3;font-weight:600">tomo_k</span>
+          <span style="font-size:13px;line-height:1.3;color:var(--warn);margin-left:8px">★★★★★</span>
+        </div>
+        <p style="font-size:14px;line-height:1.6;margin:0 0 8px">« Le deck N3 sur les verbes composés est le meilleur que j'aie trouvé pour cette liste. »</p>
+        <div style="font-size:12px;line-height:1.6;color:var(--muted)">sur <a href="#">JLPT N3 — Verbes composés</a></div>
+      </div>
+
+    </div>
+  </section>
+
+  <section>
+    <h2 style="font-size:15px;line-height:1.3;font-weight:600;color:var(--muted);margin:0 0 16px">Derniers decks</h2>
+    <div id="zoneDecks" style="background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden">
+
+      <div style="display:grid;grid-template-columns:1fr auto;align-items:center;gap:16px;height:72px;padding:0 20px;border-bottom:1px solid var(--border)">
+        <div style="min-width:0">
+          <div style="font-size:16px;line-height:1.3;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">JLPT N4 — Semaine 6</div>
+          <div style="font-size:12px;line-height:1.6;color:var(--muted)">42 kanji · officiel</div>
+        </div>
+        <div style="text-align:right;font-variant-numeric:tabular-nums">
+          <div style="font-size:20px;line-height:1.3;font-weight:600;color:var(--accent-bright)">100 %</div>
+          <div style="font-size:12px;line-height:1.6;color:var(--muted)">ryo_nihon</div>
         </div>
       </div>
-      <div class="kvt-landing-a__readings">
-        <div class="kvt-reading kvt-reading--on">
-          <span class="kvt-reading__label">On'yomi</span>
-          <span class="kvt-reading__value">ショク</span>
+
+      <div style="display:grid;grid-template-columns:1fr auto;align-items:center;gap:16px;height:72px;padding:0 20px;border-bottom:1px solid var(--border)">
+        <div style="min-width:0">
+          <div style="font-size:16px;line-height:1.3;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">LV2 Japonais — S1</div>
+          <div style="font-size:12px;line-height:1.6;color:var(--muted)">28 kanji · Université Lyon 3</div>
         </div>
-        <div class="kvt-reading kvt-reading--kun">
-          <span class="kvt-reading__label">Kun'yomi</span>
-          <span class="kvt-reading__value">た(べる)</span>
+        <div style="text-align:right;font-variant-numeric:tabular-nums">
+          <div style="font-size:20px;line-height:1.3;font-weight:600;color:var(--accent-bright)">92 %</div>
+          <div style="font-size:12px;line-height:1.6;color:var(--muted)">mei.learns</div>
         </div>
       </div>
+
+      <div style="display:grid;grid-template-columns:1fr auto;align-items:center;gap:16px;height:72px;padding:0 20px">
+        <div style="min-width:0">
+          <div style="font-size:16px;line-height:1.3;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Kanji rares — arts martiaux</div>
+          <div style="font-size:12px;line-height:1.6;color:var(--muted)">16 kanji · aiko_sensei</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:13px;line-height:1.3;color:var(--muted)">Personne encore</div>
+          <a href="#" style="font-size:12px;line-height:1.6">poser le premier score</a>
+        </div>
+      </div>
+
     </div>
-  </div>
-
-  <div class="kvt-pitch__sections">
-
-    <div class="kvt-pitch__section">
-      <h2 class="kvt-pitch__section-title">Ce qui fait décrocher, d'habitude</h2>
-      <p class="kvt-pitch__section-body">On ne quitte pas le japonais parce qu'il est difficile. On le quitte parce qu'on a l'impression de recommencer à zéro chaque semaine — cent mots appris lundi, la moitié disparue vendredi, sans savoir lesquels retenir en priorité.</p>
-      <p class="kvt-pitch__section-body">Apprendre par kanji change ce qu'on retient. Un caractère revu aujourd'hui rappelle les trois ou quatre mots qui le contiennent. La mémoire ne travaille plus mot par mot, elle travaille par racines — et une racine oubliée se retrouve, alors qu'un mot isolé, une fois perdu, repart de rien.</p>
-    </div>
-
-    <div class="kvt-pitch__section">
-      <h2 class="kvt-pitch__section-title">Le moment où ça accroche</h2>
-      <p class="kvt-pitch__section-body">Il y a un instant précis où le japonais cesse d'être une corvée : celui où on reconnaît un kanji dans un mot qu'on n'a jamais vu, et où on devine le sens avant de vérifier. KVT est construit pour provoquer ce moment plus tôt, en réunissant les lectures on'yomi et kun'yomi d'un même kanji au même endroit, au lieu de les disperser dans des chapitres différents.</p>
-    </div>
-
-    <div class="kvt-pitch__section">
-      <h2 class="kvt-pitch__section-title">Une correction qui distingue l'erreur de l'oubli</h2>
-      <p class="kvt-pitch__section-body">La réponse est comparée à la lecture attendue caractère par caractère. Oublier une syllabe n'est pas la même erreur que confondre deux mots : le premier est un trou de mémoire ordinaire, le second révèle une vraie confusion. KVT ne les traite pas pareil, parce que le découragement vient souvent d'un système qui sanctionne les deux de la même façon.</p>
-    </div>
-
-    <div class="kvt-pitch__section">
-      <h2 class="kvt-pitch__section-title">Organisé pour un vrai programme, pas pour une app</h2>
-      <p class="kvt-pitch__section-body">Le contenu suit un déroulé semaine par semaine, calqué sur un semestre universitaire, et les niveaux JLPT du N5 au N3. Pas de parcours générique à réordonner soi-même : la progression existe déjà, parce qu'elle a été pensée pour un cours réel avant d'être pensée pour un produit.</p>
-    </div>
-
-    <div class="kvt-pitch__section">
-      <h2 class="kvt-pitch__section-title">Fait par quelqu'un qui apprend, pas qui vend</h2>
-      <p class="kvt-pitch__section-body">KVT a été créé par un étudiant en licence de japonais, pour son propre usage, parce qu'aucun outil existant ne suivait son programme. Il n'y a pas de mascotte à qui faire plaisir, pas de série à ne pas briser, pas de notification pour te faire revenir.</p>
-      <p class="kvt-pitch__section-body">L'outil fonctionne hors ligne, sans compte, et tout ce qui sert à apprendre reste gratuit — parce qu'il a été construit pour réviser, pas pour retenir l'attention.</p>
-    </div>
-
-  </div>
-
-  <div class="kvt-pitch__closing">
-    <p class="kvt-pitch__closing-line">Le japonais ne manque pas d'outils pour mémoriser des mots ; il manque d'outils qui se souviennent pourquoi on les apprend.</p>
-  </div>
+  </section>
 
 </div>
-  <footer class="site-footer">
-    <p>
-      © 2026 KVT (Kanji Vocab Trainer). Tous droits réservés. Le code source, les contenus
-      pédagogiques (kanji, vocabulaire, fiches, modules JLPT) et les textes de ce site sont la
-      propriété de leur auteur et ne peuvent pas être copiés, extraits automatiquement (scraping),
-      republiés ou réutilisés, en tout ou partie, sans autorisation écrite préalable. L'utilisation
-      normale du site (révision, quiz, consultation de son propre compte) reste évidemment libre et
-      gratuite pour tout visiteur. Les decks publiés par les utilisateurs restent la
-      propriété de leurs auteurs respectifs.
-    </p>
-    <p style="margin-top:10px;">
-      <a href="/regles-de-publication">Règles de publication</a> · <a href="/signaler">Signaler un contenu</a> · <a href="/confidentialite">Confidentialité</a>
-    </p>
-  </footer>
 
-<script>
-// Apparition des sections au défilement. Le marqueur .kvt-js n'est posé que si
-// ce script s'exécute : sans lui, le CSS laisse tout visible. Une animation ne
-// doit jamais conditionner la lecture du texte.
-(function () {
-  var cibles = document.querySelectorAll('.kvt-pitch__section, .kvt-pitch__closing-line');
-  if (!cibles.length) return;
-  var doux = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  if (doux || !('IntersectionObserver' in window)) return; // on laisse tout visible
-  document.documentElement.classList.add('kvt-js');
-  var obs = new IntersectionObserver(function (entrees) {
-    entrees.forEach(function (e) {
-      if (!e.isIntersecting) return;
-      e.target.classList.add('kvt-reveal');
-      obs.unobserve(e.target);
-    });
-  }, { rootMargin: '0px 0px -10% 0px' });
-  cibles.forEach(function (c) { obs.observe(c); });
-  // Filet de sécurité : si rien n'a été révélé au bout de 3 s (onglet en
-  // arrière-plan, observateur en défaut), on affiche tout.
-  setTimeout(function () {
-    cibles.forEach(function (c) { c.classList.add('kvt-reveal'); });
-  }, 3000);
-})();
-</script>
+<sc-if value="{{ showAd }}" hint-placeholder-val="{{ true }}">
+<section>
+  <div style="font-size:12px;line-height:1.6;color:var(--muted);margin-bottom:8px">Publicité</div>
+  <div style="height:90px;background:var(--panel-alt);border:1px solid var(--border);border-radius:var(--radius-sm);display:flex;align-items:center;padding:0 20px;font-size:12px;line-height:1.6;color:var(--muted)">Emplacement 728 × 90</div>
+</section>
+</sc-if>
+
+<div class="kvt-cols" style="display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:start">
+
+  <section>
+    <h2 style="font-size:15px;line-height:1.3;font-weight:600;color:var(--muted);margin:0 0 16px">Ce qui arrive</h2>
+    <div id="zoneArrive" style="background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden">
+      <div style="display:flex;align-items:center;gap:16px;height:56px;padding:0 20px;border-bottom:1px solid var(--border)">
+        <span style="width:8px;height:8px;border-radius:50%;background:var(--muted);flex:none"></span>
+        <span style="font-size:14px;line-height:1.3">Export des decks en PDF — prévu</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:16px;height:56px;padding:0 20px;border-bottom:1px solid var(--border)">
+        <span style="width:8px;height:8px;border-radius:50%;background:var(--warn);flex:none"></span>
+        <span style="font-size:14px;line-height:1.3">Statistiques par radical — à l'étude</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:16px;height:56px;padding:0 20px">
+        <span style="width:8px;height:8px;border-radius:50%;background:var(--good);flex:none"></span>
+        <span style="font-size:14px;line-height:1.3">Mode hors ligne sur l'app de bureau — fait</span>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2 style="font-size:15px;line-height:1.3;font-weight:600;color:var(--muted);margin:0 0 16px">Les plus demandés</h2>
+    <div id="zoneDemandes" style="background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden">
+      <div style="display:flex;align-items:center;gap:16px;height:72px;padding:0 20px;border-bottom:1px solid var(--border)">
+        <div style="flex:none;width:48px;background:var(--panel-alt);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 0;text-align:center;color:var(--accent-bright);font-variant-numeric:tabular-nums">
+          <div style="font-size:12px;line-height:1.3">▲</div>
+          <div style="font-size:13px;line-height:1.3;font-weight:600">128</div>
+        </div>
+        <span style="font-size:14px;line-height:1.6">Deck N2 — la communauté attend la suite</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:16px;height:72px;padding:0 20px;border-bottom:1px solid var(--border)">
+        <div style="flex:none;width:48px;background:var(--panel-alt);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 0;text-align:center;color:var(--accent-bright);font-variant-numeric:tabular-nums">
+          <div style="font-size:12px;line-height:1.3">▲</div>
+          <div style="font-size:13px;line-height:1.3;font-weight:600">94</div>
+        </div>
+        <span style="font-size:14px;line-height:1.6">Filtrer les decks par université</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:16px;height:72px;padding:0 20px">
+        <div style="flex:none;width:48px;background:var(--panel-alt);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 0;text-align:center;color:var(--accent-bright);font-variant-numeric:tabular-nums">
+          <div style="font-size:12px;line-height:1.3">▲</div>
+          <div style="font-size:13px;line-height:1.3;font-weight:600">61</div>
+        </div>
+        <span style="font-size:14px;line-height:1.6">Historique des tentatives par kanji</span>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<section>
+  <h2 style="font-size:15px;line-height:1.3;font-weight:600;color:var(--muted);margin:0 0 16px">Vidéos partagées</h2>
+  <div id="zoneVideos" class="kvt-vids" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:24px">
+
+    <div>
+      <div style="aspect-ratio:16/9;background:var(--panel-alt);border:1px solid var(--border);border-radius:var(--radius);display:flex;align-items:center;justify-content:center;margin-bottom:8px">
+        <span style="width:0;height:0;border-style:solid;border-width:8px 0 8px 16px;border-color:transparent transparent transparent var(--muted)"></span>
+      </div>
+      <div style="font-size:16px;line-height:1.3;font-weight:600;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">Distinguer on'yomi et kun'yomi en une astuce</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;margin-top:8px;font-size:12px;line-height:1.6;color:var(--muted)">
+        <span>par tomo_k</span>
+        <span style="color:var(--accent-bright);font-variant-numeric:tabular-nums">▲ 47</span>
+      </div>
+    </div>
+
+    <div>
+      <div style="aspect-ratio:16/9;background:var(--panel-alt);border:1px solid var(--border);border-radius:var(--radius);display:flex;align-items:center;justify-content:center;margin-bottom:8px">
+        <span style="width:0;height:0;border-style:solid;border-width:8px 0 8px 16px;border-color:transparent transparent transparent var(--muted)"></span>
+      </div>
+      <div style="font-size:16px;line-height:1.3;font-weight:600;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">Comment j'organise mes semaines de révision N3</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;margin-top:8px;font-size:12px;line-height:1.6;color:var(--muted)">
+        <span>par mei.learns</span>
+        <span style="color:var(--accent-bright);font-variant-numeric:tabular-nums">▲ 33</span>
+      </div>
+    </div>
+
+    <div>
+      <div style="aspect-ratio:16/9;background:var(--panel-alt);border:1px solid var(--border);border-radius:var(--radius);display:flex;align-items:center;justify-content:center;margin-bottom:8px">
+        <span style="width:0;height:0;border-style:solid;border-width:8px 0 8px 16px;border-color:transparent transparent transparent var(--muted)"></span>
+      </div>
+      <div style="font-size:16px;line-height:1.3;font-weight:600;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">Les kanji rares expliqués en cinq minutes</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;margin-top:8px;font-size:12px;line-height:1.6;color:var(--muted)">
+        <span>par aiko_sensei</span>
+        <span style="color:var(--accent-bright);font-variant-numeric:tabular-nums">▲ 21</span>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<footer style="border-top:1px solid var(--border);padding-top:24px">
+  <div style="font-size:15px;line-height:1.3;font-weight:600;color:var(--muted);margin-bottom:16px">En savoir plus</div>
+  <div style="display:flex;flex-wrap:wrap;gap:24px;font-size:13px;line-height:1.6">
+    <a href="#">L'idée du projet</a>
+    <a href="#">À propos</a>
+    <a href="#">FAQ</a>
+    <a href="#">Blog</a>
+    <a href="#">Règles de publication</a>
+    <a href="#">Signaler un contenu</a>
+    <a href="#">Confidentialité</a>
+  </div>
+</footer>
+
+</main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="/supabaseClient.js"></script>
+<script src="/accueil.js"></script>
 </body>
 </html>

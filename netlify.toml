@@ -1,7 +1,8 @@
 # netlify.toml — KVT web (kanji-vocab-trainer-web)
 #
 # Structure du site depuis le 27/07/2026 :
-#   /                       page de présentation (« L'idée ») — la façade
+#   /                       accueil communauté (avis, decks, mises à jour)
+#   /l-idee                 l'ancienne page de présentation, devenue secondaire
 #   /app                    l'application elle-même
 #   /a-propos /faq /blog/*  pages éditoriales, vrais dossiers
 #   /downloads/*            binaires Mac et Windows
@@ -21,12 +22,12 @@
 #    permanente pour ne pas casser les liens déjà partagés.
 [[redirects]]
   from = "/decouvrir"
-  to = "/"
+  to = "/l-idee"
   status = 301
 
 [[redirects]]
   from = "/decouvrir/*"
-  to = "/"
+  to = "/l-idee"
   status = 301
 
 # 3) Filet pour l'app. Elle n'a aucun routage côté client aujourd'hui (aucun

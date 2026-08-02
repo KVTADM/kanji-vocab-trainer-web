@@ -5,13 +5,13 @@
    espacés.
    ============================================================ */
 :root {
-  --bg: #16162a;
-  --panel: #1c1c34;
-  --panel-alt: #12122a;
-  --sidebar: #101020;
-  --ink: #e0e0f0;
+  --bg: #0b0b18;
+  --panel: #242442;
+  --panel-alt: #16162a;
+  --sidebar: #0b0b18;
+  --ink: #f0f0fa;
   --cream: #f0eadc;
-  --muted: #8383b2;
+  --muted: #a8a8cc;
   --muted-dim: #8181c0;
   --label-dim: #8383b7;
   --accent: #2980b9;
@@ -22,8 +22,8 @@
   --good-bright: #5fae5f;
   --warn: #c07830;
   --warn-bright: #e0a050;
-  --bad: #c04060;
-  --border: #2a2a50;
+  --bad: #ff7a8a;
+  --border: #3d4373;
   --radius: 12px;
   --sur-accent: #ffffff;
 }
