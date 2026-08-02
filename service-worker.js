@@ -18,6 +18,7 @@ const ASSETS = [
   '/decks.js',
   '/maj.js',
   '/accueil.js',
+  '/communaute.js',
   '/profils.js',
   '/amis.js',
   '/admin.js',
