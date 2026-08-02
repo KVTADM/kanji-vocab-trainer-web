@@ -2071,11 +2071,10 @@ code {
    quoi on agit. */
 .comm-grille { display: flex; flex-direction: column; gap: 18px; }
 
-/* La page se lit du haut vers le bas sur une colonne etroite : au-dela de
-   720 px une ligne de texte devient penible a suivre, et l'oeil perd le
-   debut de la ligne suivante. */
-#view-communaute { max-width: 720px; }
-#view-communaute .comm-videos { grid-template-columns: 1fr 1fr; }
+/* Colonne centree dans la zone de contenu, et non collee a gauche. 940 px :
+   assez large pour que les cartes respirent, assez etroit pour que l'oeil
+   retrouve le debut de la ligne suivante. */
+#view-communaute { max-width: 940px; margin-left: auto; margin-right: auto; }
 .comm-grille .card { margin-bottom: 0; }
 
 .comm-etat-vide {
