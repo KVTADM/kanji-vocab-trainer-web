@@ -60,7 +60,7 @@ async function chargerCommunaute() {
 }
 
 function commVide(message) {
-  return `<p class="comm-vide">${message}</p>`;
+  return `<p class="comm-etat-vide">${message}</p>`;
 }
 
 function commEtoiles(n) {

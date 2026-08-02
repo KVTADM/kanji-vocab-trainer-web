@@ -2073,7 +2073,7 @@ code {
 }
 .comm-grille .card { margin-bottom: 0; }
 
-.comm-vide {
+.comm-etat-vide {
   margin: 0; font-size: 13px; line-height: 1.6; color: var(--muted);
   border: 1px dashed var(--border); border-radius: var(--radius); padding: 14px;
 }
