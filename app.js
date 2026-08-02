@@ -527,6 +527,9 @@ function renderCurrentView() {
   else if (currentView === 'settings') renderSettings();
   else if (currentView === 'account' && typeof renderAccount === 'function') renderAccount();
   else if (currentView === 'leaderboard' && typeof renderLeaderboard === 'function') renderLeaderboard();
+  else if (currentView === 'decks' && typeof renderDecks === 'function') renderDecks();
+  else if (currentView === 'publier' && typeof renderPublier === 'function') renderPublier();
+  else if (currentView === 'deck' && typeof renderDeck === 'function') renderDeck();
   else if (currentView === 'admin' && typeof renderAdmin === 'function') renderAdmin();
   renderSidebarFooter();
 }
@@ -535,23 +538,112 @@ function renderSidebarFooter() {
   $('#weekBadge').innerHTML = `${DB.vocab.length} mot(s) au total<br/>Sauvegarde locale active`;
 }
 
+// ---------- Catégories du tableau de bord ----------
+// Deux catégories intégrées, déduites de l'identifiant du semestre, et
+// autant de catégories libres que l'utilisateur en crée. Un semestre rangé
+// dans une catégorie libre quitte sa catégorie intégrée : sinon il
+// apparaîtrait à deux endroits et on ne saurait plus où le chercher.
+
+function categoriesLibres() {
+  return (DB.settings.categories || []);
+}
+
+function categorieDuSemestre(sem) {
+  if (sem.categorie && categoriesLibres().some(c => c.id === sem.categorie)) return sem.categorie;
+  return sem.id.startsWith('jlpt') ? 'jlpt' : 'cursus';
+}
+
+// Les onglets réellement affichés : on ne montre jamais un onglet vide, sauf
+// s'il est sélectionné — sinon supprimer le dernier semestre d'une catégorie
+// ferait disparaître l'onglet sous le curseur.
+function ongletsDashboard() {
+  const compte = {};
+  DB.settings.semesters.forEach(sem => {
+    const c = categorieDuSemestre(sem);
+    compte[c] = (compte[c] || 0) + 1;
+  });
+  const onglets = [
+    { id: 'cursus', label: 'Cursus', integre: true },
+    { id: 'jlpt', label: 'JLPT', integre: true }
+  ].concat(categoriesLibres().map(c => ({ id: c.id, label: c.label, integre: false })));
+  return onglets.filter(o => compte[o.id] || o.id === dashboardMode || o.id === 'cursus');
+}
+
+async function creerCategorie() {
+  const nom = (prompt('Nom de la nouvelle catégorie (ex. « Deuxième année », « Decks d\'amis ») :') || '').trim();
+  if (!nom) return;
+  if (nom.length > 30) { showToast('Nom trop long (30 caractères maximum)'); return; }
+  if (categoriesLibres().some(c => c.label.toLowerCase() === nom.toLowerCase())) {
+    showToast('Cette catégorie existe déjà'); return;
+  }
+  const cat = { id: uid('cat'), label: nom };
+  DB.settings.categories.push(cat);
+  dashboardMode = cat.id;
+  await persist();
+  renderDashboard();
+}
+
+async function renommerCategorie(id) {
+  const cat = categoriesLibres().find(c => c.id === id);
+  if (!cat) return;
+  const nom = (prompt('Nouveau nom :', cat.label) || '').trim();
+  if (!nom || nom === cat.label) return;
+  cat.label = nom.slice(0, 30);
+  await persist();
+  renderDashboard();
+}
+
+// Supprimer une catégorie ne supprime aucun semestre : ceux qui y étaient
+// rangés retournent simplement dans leur catégorie intégrée.
+async function supprimerCategorie(id) {
+  const cat = categoriesLibres().find(c => c.id === id);
+  if (!cat) return;
+  const dedans = DB.settings.semesters.filter(s => s.categorie === id).length;
+  const message = dedans
+    ? `Supprimer la catégorie « ${cat.label} » ?\n\nLes ${dedans} semestre(s) qu'elle contient ne sont pas supprimés : ils retournent dans Cursus ou JLPT.`
+    : `Supprimer la catégorie « ${cat.label} » ?`;
+  if (!confirm(message)) return;
+  DB.settings.categories = categoriesLibres().filter(c => c.id !== id);
+  DB.settings.semesters.forEach(s => { if (s.categorie === id) delete s.categorie; });
+  dashboardMode = 'cursus';
+  await persist();
+  renderDashboard();
+}
+
+async function rangerSemestre(semesterId, categorieId) {
+  const sem = DB.settings.semesters.find(s => s.id === semesterId);
+  if (!sem) return;
+  if (categorieId === 'cursus' || categorieId === 'jlpt') delete sem.categorie;
+  else sem.categorie = categorieId;
+  await persist();
+  renderDashboard();
+}
+
 // ============================================================
 // Accueil : grille des semaines par semestre
 // ============================================================
 function renderDashboard() {
   // Bascule Cursus / JLPT : n'affecte que la grille des semestres plus bas,
   // le proverbe et la bannière de reprise restent visibles dans tous les cas.
-  const hasJlpt = DB.settings.semesters.some(s => s.id.startsWith('jlpt'));
+  const onglets = ongletsDashboard();
+  if (!onglets.some(o => o.id === dashboardMode)) dashboardMode = 'cursus';
+  const ongletCourant = onglets.find(o => o.id === dashboardMode);
+
   let html = `
     <div class="dashboard-header">
       <h2>Accueil</h2>
-      ${hasJlpt ? `
-        <div class="mode-toggle">
-          <button class="mode-toggle-btn ${dashboardMode === 'cursus' ? 'active' : ''}" id="btnModeCursus">Cursus</button>
-          <button class="mode-toggle-btn ${dashboardMode === 'jlpt' ? 'active' : ''}" id="btnModeJlpt">JLPT</button>
-        </div>
-      ` : ''}
-    </div>`;
+      <div class="mode-toggle">
+        ${onglets.map(o => `
+          <button class="mode-toggle-btn ${dashboardMode === o.id ? 'active' : ''}" data-onglet="${o.id}">${escapeHtml(o.label)}</button>`).join('')}
+        <button class="mode-toggle-btn mode-toggle-plus" id="btnNouvelleCategorie" title="Nouvelle catégorie">+</button>
+      </div>
+    </div>
+    ${ongletCourant && !ongletCourant.integre ? `
+      <div class="categorie-outils">
+        <span>Catégorie « ${escapeHtml(ongletCourant.label)} »</span>
+        <button class="lien-retour" data-renommer="${ongletCourant.id}">Renommer</button>
+        <button class="lien-retour" data-supprimer-cat="${ongletCourant.id}">Supprimer</button>
+      </div>` : ''}`;
 
   const proverb = getProverbOfDay();
   html += `
@@ -604,12 +696,27 @@ function renderDashboard() {
     }
   }
 
-  const visibleSemesters = DB.settings.semesters.filter(sem =>
-    dashboardMode === 'jlpt' ? sem.id.startsWith('jlpt') : !sem.id.startsWith('jlpt')
-  );
+  const visibleSemesters = DB.settings.semesters.filter(sem => categorieDuSemestre(sem) === dashboardMode);
+
+  if (!visibleSemesters.length) {
+    html += `<div class="card"><p style="color:var(--muted);">Cette catégorie est vide. Range un semestre dedans depuis un autre onglet.</p></div>`;
+  }
+
   visibleSemesters.forEach(sem => {
     const unitPrefix = sem.id.startsWith('jlpt') ? 'C' : 'S';
-    html += `<div class="card"><h3>${escapeHtml(sem.label)}</h3><div class="week-grid">`;
+    const rangeeDans = categorieDuSemestre(sem);
+    const choixCategorie = `
+      <select class="semestre-categorie" data-ranger="${sem.id}" title="Ranger ce semestre dans une catégorie">
+        <option value="cursus" ${rangeeDans === 'cursus' ? 'selected' : ''}>Cursus</option>
+        <option value="jlpt" ${rangeeDans === 'jlpt' ? 'selected' : ''}>JLPT</option>
+        ${categoriesLibres().map(c => `<option value="${c.id}" ${rangeeDans === c.id ? 'selected' : ''}>${escapeHtml(c.label)}</option>`).join('')}
+      </select>`;
+    html += `<div class="card">
+      <div class="semestre-tete">
+        <h3>${escapeHtml(sem.label)}${sem.importe ? ` <span class="semestre-origine">importé de ${escapeHtml(sem.auteur || 'quelqu\'un')}</span>` : ''}</h3>
+        ${choixCategorie}
+      </div>
+      <div class="week-grid">`;
     for (let w = 1; w <= sem.weeks; w++) {
       const vocabList = getVocabForWeek(sem.id, w);
       const groups = getKanjiGroupsForWeek(sem.id, w);
@@ -636,10 +743,18 @@ function renderDashboard() {
   $('#view-dashboard').innerHTML = html;
   renderAllAdSlots();
 
-  if (hasJlpt) {
-    $('#btnModeCursus').addEventListener('click', () => { dashboardMode = 'cursus'; renderDashboard(); });
-    $('#btnModeJlpt').addEventListener('click', () => { dashboardMode = 'jlpt'; renderDashboard(); });
-  }
+  $$('[data-onglet]').forEach(b => {
+    b.addEventListener('click', () => { dashboardMode = b.dataset.onglet; renderDashboard(); });
+  });
+  $('#btnNouvelleCategorie').addEventListener('click', creerCategorie);
+  $$('[data-renommer]').forEach(b => b.addEventListener('click', () => renommerCategorie(b.dataset.renommer)));
+  $$('[data-supprimer-cat]').forEach(b => b.addEventListener('click', () => supprimerCategorie(b.dataset.supprimerCat)));
+  $$('[data-ranger]').forEach(sel => {
+    // Le menu est dans l'en-tête d'une carte de semestre : sans cette ligne,
+    // ouvrir le menu déclencherait aussi le clic de la carte en dessous.
+    sel.addEventListener('click', (e) => e.stopPropagation());
+    sel.addEventListener('change', () => rangerSemestre(sel.dataset.ranger, sel.value));
+  });
 
   $$('.week-card').forEach(el => {
     el.addEventListener('click', () => {
@@ -1368,7 +1483,7 @@ function renderDownload() {
         <h3>macOS</h3>
         <p>Apple Silicon (M1/M2/M3/M4). Fichier .dmg.</p>
         <p class="download-version">Version ${APP_VERSION}</p>
-        <a class="primary download-btn" id="btnDownloadMac" href="downloads/KVT-Mac.dmg" download>Télécharger pour Mac · v${APP_VERSION}</a>
+        <a class="primary download-btn" id="btnDownloadMac" href="/downloads/KVT-Mac.dmg" download>Télécharger pour Mac · v${APP_VERSION}</a>
         ${detected === 'mac' ? '<div class="download-tag">Recommandé pour ton appareil</div>' : ''}
       </div>
       <div class="download-card ${detected === 'win' ? 'recommended' : ''}" id="downloadCardWin">
@@ -1376,7 +1491,7 @@ function renderDownload() {
         <h3>Windows</h3>
         <p>Windows 10/11 (64 bits). Fichier .exe.</p>
         <p class="download-version">Version ${APP_VERSION}</p>
-        <a class="primary download-btn" id="btnDownloadWin" href="downloads/KVT-Windows.exe" download>Télécharger pour Windows · v${APP_VERSION}</a>
+        <a class="primary download-btn" id="btnDownloadWin" href="/downloads/KVT-Windows.exe" download>Télécharger pour Windows · v${APP_VERSION}</a>
         ${detected === 'win' ? '<div class="download-tag">Recommandé pour ton appareil</div>' : ''}
       </div>
     </div>
@@ -1408,7 +1523,7 @@ function renderDownload() {
 
   // Si le build Windows n'est pas encore disponible sur le serveur, on
   // désactive proprement le bouton plutôt que de laisser un lien mort (404).
-  fetch('downloads/KVT-Windows.exe', { method: 'HEAD' }).then(res => {
+  fetch('/downloads/KVT-Windows.exe', { method: 'HEAD' }).then(res => {
     if (!res.ok) {
       const btn = $('#btnDownloadWin');
       const card = $('#downloadCardWin');

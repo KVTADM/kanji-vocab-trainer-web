@@ -369,6 +369,22 @@ function renderAccount() {
       </div>`}
     `;
 
+    // Le profil public est rendu par profils.js : le compte gère l'identité
+    // (email, mot de passe, synchronisation), le profil gère ce qui est
+    // montré aux autres. Deux sujets, deux fichiers.
+    if (window.kvtProfils) {
+      el.insertAdjacentHTML('beforeend', window.kvtProfils.htmlBlocProfil());
+      window.kvtProfils.brancherBlocProfil();
+    }
+
+    if (window.kvtAmis) {
+      el.insertAdjacentHTML('beforeend', window.kvtAmis.htmlBlocAmis());
+      window.kvtAmis.brancherBlocAmis();
+      // Le chargement est asynchrone : la carte s'affiche d'abord en
+      // « Chargement… », puis se redessine seule quand les données arrivent.
+      window.kvtAmis.chargerAmities().then(() => window.kvtAmis.renderAccountAmis());
+    }
+
     $('#btnSavePseudo').addEventListener('click', async () => {
       const newPseudo = $('#acctPseudoEdit').value.trim();
       $('#pseudoError').textContent = '';
@@ -382,7 +398,12 @@ function renderAccount() {
       // toutes les lignes déjà enregistrées pour que le changement soit
       // rétroactif partout, pas seulement sur les futurs scores.
       await window.sb.from('scores').update({ pseudo: newPseudo }).eq('user_id', window.accountUser.id);
+      // Le profil en cache porte l'ancien pseudo : sans ce rechargement,
+      // l'avatar et le nom affichés à côté des decks resteraient périmés
+      // jusqu'au prochain chargement de page.
+      if (window.kvtProfils) await window.kvtProfils.chargerMonProfil();
       showToast('Pseudo mis à jour');
+      renderAccount();
     });
 
     $('#btnSyncNow').addEventListener('click', async () => {
@@ -392,6 +413,7 @@ function renderAccount() {
 
     $('#btnLogout').addEventListener('click', async () => {
       await window.sb.auth.signOut();
+      if (window.kvtAmis) window.kvtAmis.reinitialiser();
       renderAccount();
       showToast('Déconnecté');
     });

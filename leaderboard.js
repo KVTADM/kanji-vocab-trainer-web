@@ -5,7 +5,10 @@
 // depuis app.js à la fin de chaque session de révision.
 // ============================================================
 let leaderboardWeek = null; // { semesterId, week }
-let leaderboardMode = 'absolu'; // 'absolu' | 'progression'
+let leaderboardMode = 'apercu'; // 'apercu' | 'absolu' | 'progression'
+let apercuLignes = null;    // scores bruts pour la vue d'ensemble
+let apercuErreur = null;
+let apercuSemestre = 'tous';// filtre facultatif, jamais un préalable
 
 function renderLeaderboard() {
   const el = $('#view-leaderboard');
@@ -36,16 +39,28 @@ function renderLeaderboard() {
     <h2>Classement</h2>
     <div class="card">
       <div class="lb-tabs">
-        <button class="lb-tab ${isProg ? '' : 'is-active'}" data-mode="absolu">Meilleurs scores</button>
-        <button class="lb-tab ${isProg ? 'is-active' : ''}" data-mode="progression">Plus grosse progression</button>
+        <button class="lb-tab ${leaderboardMode === 'apercu' ? 'is-active' : ''}" data-mode="apercu">Vue d'ensemble</button>
+        <button class="lb-tab ${leaderboardMode === 'absolu' ? 'is-active' : ''}" data-mode="absolu">Une semaine en détail</button>
+        <button class="lb-tab ${leaderboardMode === 'progression' ? 'is-active' : ''}" data-mode="progression">Plus grosse progression</button>
       </div>
-      ${isProg ? '' : `
+      ${leaderboardMode === 'absolu' ? `
       <div class="form-row">
         <label>Semaine <select id="lbWeekSelect">${opts.join('')}</select></label>
-      </div>`}
-      <p class="lb-explain">${isProg
-        ? 'Écart entre ton tout premier essai sur un contenu et ton meilleur score actuel, additionné sur tous les contenus travaillés. Plus on part de loin, plus on peut gagner — ce classement se gagne à la progression, pas au niveau.'
-        : 'Meilleurs scores obtenus sur la semaine choisie.'}</p>
+      </div>` : ''}
+      ${leaderboardMode === 'apercu' ? `
+      <div class="lb-filtre">
+        <label for="lbSemFiltre">Filtrer (facultatif)</label>
+        <select id="lbSemFiltre">
+          <option value="tous" ${apercuSemestre === 'tous' ? 'selected' : ''}>Tous les semestres</option>
+          ${DB.settings.semesters.map(sem => `<option value="${sem.id}" ${apercuSemestre === sem.id ? 'selected' : ''}>${escapeHtml(sem.label)}</option>`).join('')}
+        </select>
+      </div>` : ''}
+      <p class="lb-explain">${
+        leaderboardMode === 'progression'
+          ? 'Écart entre ton tout premier essai sur un contenu et ton meilleur score actuel, additionné sur tous les contenus travaillés. Plus on part de loin, plus on peut gagner — ce classement se gagne à la progression, pas au niveau.'
+        : leaderboardMode === 'apercu'
+          ? 'Le meilleur score de chaque semaine, dans l\'ordre du programme. Le filtre est là si tu veux resserrer, pas pour commencer.'
+          : 'Meilleurs scores obtenus sur la semaine choisie.'}</p>
       <div id="lbTableWrap"><p style="color:var(--muted);">Chargement…</p></div>
       <p style="font-size:12px; color:var(--muted); margin-top:14px;">
         Seuls les pseudos sont visibles — jamais les noms réels.
@@ -68,8 +83,144 @@ function renderLeaderboard() {
     });
   }
 
-  if (isProg) loadProgressionRows();
+  const filtre = $('#lbSemFiltre');
+  if (filtre) filtre.addEventListener('change', () => {
+    apercuSemestre = filtre.value;
+    renderApercu();
+  });
+
+  if (leaderboardMode === 'progression') loadProgressionRows();
+  else if (leaderboardMode === 'apercu') chargerApercu();
   else loadLeaderboardRows(leaderboardWeek.semesterId, leaderboardWeek.week);
+}
+
+// ---------- Vue d'ensemble ----------
+
+async function chargerApercu() {
+  if (apercuLignes) { renderApercu(); return; }
+  try {
+    // Une seule requête pour toutes les semaines : la table reste petite
+    // (quelques centaines de lignes). Si elle grossit, ce calcul devra passer
+    // dans une vue Postgres — même remarque que pour la progression.
+    const { data, error } = await window.sb
+      .from('scores').select('user_id,pseudo,semester_id,week,pct,points,max_points,created_at')
+      .order('created_at', { ascending: false }).limit(2000);
+    if (error) throw error;
+    apercuLignes = data || [];
+    apercuErreur = null;
+    if (window.kvtProfils) {
+      await window.kvtProfils.chargerProfils(apercuLignes.map(r => r.user_id));
+    }
+  } catch (err) {
+    apercuLignes = [];
+    apercuErreur = err && err.message ? err.message : String(err);
+  }
+  if (leaderboardMode === 'apercu') renderApercu();
+}
+
+function renderApercu() {
+  const wrap = $('#lbTableWrap');
+  if (!wrap) return;
+
+  if (apercuErreur) {
+    wrap.innerHTML = `<p style="color:var(--pink);">Impossible de charger les scores : ${escapeHtml(apercuErreur)}</p>`;
+    return;
+  }
+  if (!apercuLignes) {
+    wrap.innerHTML = `<p style="color:var(--muted);">Chargement…</p>`;
+    return;
+  }
+
+  let semaines = meilleursParSemaine(apercuLignes);
+  if (apercuSemestre !== 'tous') semaines = semaines.filter(s => s.semesterId === apercuSemestre);
+
+  if (!semaines.length) {
+    wrap.innerHTML = `<p style="color:var(--muted);">${apercuSemestre === 'tous'
+      ? "Aucun score enregistré pour l'instant. Termine une semaine : tu seras le premier du tableau."
+      : "Personne n'a encore de score sur ce semestre."}</p>`;
+    return;
+  }
+
+  const moi = window.accountUser ? window.accountUser.id : null;
+
+  wrap.innerHTML = `
+    <div class="lb-grille">
+      ${semaines.map(s => {
+        const [premier, ...suivants] = s.lignes;
+        const jeSuisPremier = premier.user_id === moi;
+        return `
+        <div class="lb-case ${jeSuisPremier ? 'lb-me' : ''}">
+          <button class="lb-case-titre" data-voir="${s.semesterId}|${s.week}">
+            ${escapeHtml(libelleSemestre(s.semesterId))} · semaine ${s.week}
+          </button>
+          <div class="lb-case-premier">
+            ${window.kvtProfils ? window.kvtProfils.avatarHtml(premier.user_id, premier.pseudo, 34) : ''}
+            <div class="lb-case-infos">
+              <div class="lb-case-pseudo">${escapeHtml(premier.pseudo)}${jeSuisPremier ? ' <span class="com-marque">toi</span>' : ''}</div>
+              <div class="lb-case-detail">${premier.points}/${premier.max_points} pts</div>
+            </div>
+            <div class="lb-case-pct">${Math.round(premier.pct)}%</div>
+          </div>
+          ${suivants.length ? `
+            <div class="lb-case-suite">
+              ${suivants.slice(0, 2).map((r, i) => `
+                <div class="lb-case-ligne ${r.user_id === moi ? 'lb-row-me' : ''}">
+                  <span class="lb-case-rang">${i + 2}</span>
+                  <span class="lb-case-nom">${escapeHtml(r.pseudo)}</span>
+                  <span class="lb-case-mini">${Math.round(r.pct)}%</span>
+                </div>`).join('')}
+              ${s.lignes.length > 3 ? `<div class="lb-case-reste">et ${s.lignes.length - 3} autre${s.lignes.length - 3 > 1 ? 's' : ''}</div>` : ''}
+            </div>`
+            : `<div class="lb-case-suite"><div class="lb-case-reste">Personne d'autre sur cette semaine.</div></div>`}
+        </div>`;
+      }).join('')}
+    </div>`;
+
+  $$('[data-voir]', wrap).forEach(b => {
+    b.addEventListener('click', () => {
+      const [sem, w] = b.dataset.voir.split('|');
+      leaderboardWeek = { semesterId: sem, week: parseInt(w, 10) };
+      leaderboardMode = 'absolu';
+      renderLeaderboard();
+    });
+  });
+}
+
+// Le meilleur score de chaque semaine, toutes semaines confondues. Une
+// personne peut avoir plusieurs lignes sur la même semaine (chaque session
+// est enregistrée) : on ne garde que son meilleur essai avant de comparer.
+function meilleursParSemaine(rows) {
+  const parPersonne = new Map(); // "sem|week|user" -> meilleure ligne
+  (rows || []).forEach(r => {
+    const cle = `${r.semester_id}|${r.week}|${r.user_id}`;
+    const actuel = parPersonne.get(cle);
+    if (!actuel || Number(r.pct) > Number(actuel.pct)) parPersonne.set(cle, r);
+  });
+
+  const parSemaine = new Map();
+  parPersonne.forEach(r => {
+    const cle = `${r.semester_id}|${r.week}`;
+    if (!parSemaine.has(cle)) parSemaine.set(cle, { semesterId: r.semester_id, week: Number(r.week), lignes: [] });
+    parSemaine.get(cle).lignes.push(r);
+  });
+
+  const liste = [...parSemaine.values()];
+  liste.forEach(s => s.lignes.sort((a, b) => Number(b.pct) - Number(a.pct) || b.points - a.points));
+  // Ordre d'affichage : le semestre dans l'ordre du programme, puis la
+  // semaine. On lit une progression, pas un palmarès mélangé.
+  const ordre = DB.settings.semesters.map(s => s.id);
+  liste.sort((a, b) => {
+    const ia = ordre.indexOf(a.semesterId), ib = ordre.indexOf(b.semesterId);
+    return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib) || a.week - b.week;
+  });
+  return liste;
+}
+
+function libelleSemestre(id) {
+  const sem = DB.settings.semesters.find(s => s.id === id);
+  if (sem) return sem.label;
+  // Un deck importé par quelqu'un d'autre : je n'ai pas son libellé.
+  return id.startsWith('deck-') ? 'Deck partagé' : id;
 }
 
 // Classement de progression : pour chaque utilisateur et chaque contenu

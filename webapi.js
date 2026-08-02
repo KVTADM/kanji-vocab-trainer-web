@@ -107,6 +107,10 @@ const JLPT_N4_SEED = {"kanjiGroups":[{"id":"kg-hu66go90952pa","semesterId":"jlpt
       data.kanjiGroups.push(...L0_S2_SEED.kanjiGroups);
       data.vocab.push(...L0_S2_SEED.vocab);
     }
+    // Catégories libres du tableau de bord. Une liste vide veut dire « aucune
+    // catégorie créée », pas « données absentes » : on ne la remplit jamais
+    // d'office, et on ne touche pas à celle qui existe déjà.
+    if (!Array.isArray(data.settings.categories)) data.settings.categories = [];
     if (typeof data.settings.hardcoreMode !== 'boolean') data.settings.hardcoreMode = false;
     if (typeof data.settings.spectralMode !== 'boolean') data.settings.spectralMode = false;
     if (!data.wordStats || typeof data.wordStats !== 'object') data.wordStats = {};
@@ -120,7 +124,7 @@ const JLPT_N4_SEED = {"kanjiGroups":[{"id":"kg-hu66go90952pa","semesterId":"jlpt
   }
 
   async function fetchSeed() {
-    const res = await fetch('seed-data.json');
+    const res = await fetch('/seed-data.json');
     return res.json();
   }
 

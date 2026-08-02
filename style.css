@@ -25,6 +25,7 @@
   --bad: #c04060;
   --border: #2a2a50;
   --radius: 12px;
+  --sur-accent: #ffffff;
 }
 
 /* ---------- Thèmes alternatifs (Pro) ---------- */
@@ -48,6 +49,7 @@
   --warn-bright: #c9860f;
   --bad: #c0405f;
   --border: #ddd8cc;
+  --sur-accent: #ffffff;
 }
 
 :root[data-theme="sakura"] {
@@ -70,6 +72,7 @@
   --warn-bright: #e0a860;
   --bad: #d6455a;
   --border: #3a2838;
+  --sur-accent: #10101c;
 }
 
 /* ---------- Palettes Pro supplémentaires (27/07/2026) ----------
@@ -106,6 +109,7 @@
   --warn-bright: #6d4e06;
   --bad: #931f42;
   --border: #d5cab6;
+  --sur-accent: #ffffff;
 }
 
 /* Ai — mer et indigo */
@@ -129,6 +133,7 @@
   --warn-bright: #f0c257;
   --bad: #cc3a66;
   --border: #22334f;
+  --sur-accent: #10101c;
 }
 
 /* Momiji — érables d'automne */
@@ -152,6 +157,7 @@
   --warn-bright: #f7bc55;
   --bad: #cc3a66;
   --border: #3f2b21;
+  --sur-accent: #10101c;
 }
 
 /* Take — bambou */
@@ -175,6 +181,7 @@
   --warn-bright: #f2c058;
   --bad: #cc3a66;
   --border: #1f3327;
+  --sur-accent: #10101c;
 }
 
 
@@ -449,7 +456,7 @@ h3 {
 /* ---------- Boutons ---------- */
 button.primary {
   background: var(--accent);
-  color: white;
+  color: var(--sur-accent, #fff);
   border: none;
   padding: 10px 18px;
   border-radius: 10px;
@@ -1580,3 +1587,421 @@ code {
   .view.view-enter,
   .view.view-enter > .card{ animation:none; }
 }
+
+/* ============================================================
+   Decks partagés : la liste publique et le formulaire de publication.
+   ============================================================ */
+
+.decks-head {
+  display: flex; justify-content: space-between; align-items: flex-start;
+  gap: 20px; flex-wrap: wrap; margin-bottom: 18px;
+}
+.decks-head h2 { margin: 0 0 6px; }
+.decks-sous-titre {
+  color: var(--muted); font-size: 14px; line-height: 1.6;
+  max-width: 62ch; margin: 0 0 18px;
+}
+.decks-note { color: var(--muted); font-size: 13px; }
+
+.decks-barre {
+  display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 18px;
+}
+.decks-filtres { display: flex; gap: 6px; }
+.deck-filtre {
+  background: transparent; color: var(--muted);
+  border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 7px 14px; font-size: 13px; cursor: pointer;
+}
+.deck-filtre:hover { color: var(--ink); border-color: var(--accent); }
+.deck-filtre.is-active { background: var(--accent); border-color: var(--accent); color: var(--sur-accent, #fff); }
+.decks-recherche {
+  flex: 1; min-width: 220px;
+  background: var(--panel); color: var(--ink);
+  border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 8px 12px; font-size: 14px;
+}
+
+/* Trois par ligne, et trois seulement : la grille garde son rythme même si
+   un titre est court. En dessous de 1100 px on passe à deux, puis à une. */
+.decks-grille {
+  display: grid; gap: 14px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.deck-carte {
+  background: var(--panel); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 16px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.deck-titre { margin: 0; font-size: 17px; line-height: 1.35; }
+.deck-auteur { color: var(--muted); font-size: 13px; }
+.deck-etiquettes { display: flex; flex-wrap: wrap; gap: 6px; }
+.deck-etiquette {
+  border: 1px solid var(--border); border-radius: 99px;
+  padding: 3px 10px; font-size: 12px; color: var(--muted);
+}
+.deck-description {
+  margin: 0; font-size: 14px; line-height: 1.6; color: var(--ink);
+  /* Trois lignes réservées quoi qu'il arrive : sans ça, un deck sans
+     description remonte ses boutons et casse l'alignement de la ligne. */
+  min-height: 3.2em;
+}
+.deck-description.est-vide { color: var(--muted); font-style: italic; }
+
+.deck-mesures {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+  padding: 12px 0; margin-top: 2px;
+  border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
+}
+.deck-mesure { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.deck-mesure-titre { font-size: 12px; color: var(--muted); }
+.deck-resultat { display: flex; align-items: baseline; gap: 7px; flex-wrap: wrap; }
+.deck-resultat-score { font-size: 19px; color: var(--good-bright); }
+.deck-resultat-detail { font-size: 12px; color: var(--muted); }
+.deck-resultat-vide { font-size: 13px; color: var(--muted); }
+
+.deck-note { display: flex; flex-direction: column; gap: 3px; }
+.deck-etoiles { display: flex; gap: 2px; }
+.deck-etoiles[data-noter] { cursor: pointer; }
+.deck-etoile { font-size: 15px; line-height: 1; color: var(--border); }
+.deck-etoiles[data-noter] .deck-etoile:hover { color: var(--warn-bright); }
+.deck-etoile.est-pleine { color: var(--warn); }
+.deck-etoile.est-pleine.est-mienne { color: var(--warn-bright); }
+.deck-etoiles.est-sienne { opacity: 0.55; }
+.deck-note-texte { font-size: 12px; color: var(--muted); }
+
+.decks-tri-label { font-size: 13px; color: var(--muted); }
+.decks-tri {
+  background: var(--panel-alt); color: var(--ink);
+  border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 8px 10px; font-size: 13px;
+}
+
+.deck-actions { display: flex; gap: 8px; margin-top: auto; padding-top: 12px; }
+.deck-actions .primary[disabled] { opacity: 0.45; cursor: default; }
+
+/* ---- Formulaire de publication ---- */
+
+.pub-fil { margin-bottom: 10px; }
+.lien-retour {
+  background: none; border: none; color: var(--muted);
+  font-size: 13px; cursor: pointer; padding: 0;
+}
+.lien-retour:hover { color: var(--accent); }
+
+.pub-form { max-width: 620px; }
+.pub-label {
+  display: block; font-size: 13px; color: var(--muted);
+  margin: 18px 0 6px;
+}
+.pub-form > .pub-label:first-child { margin-top: 0; }
+.pub-champ {
+  width: 100%; box-sizing: border-box;
+  background: var(--bg); color: var(--ink);
+  border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 10px 12px; font-size: 14px; font-family: inherit;
+}
+.pub-zone { resize: vertical; line-height: 1.6; }
+
+.pub-choix { display: flex; gap: 8px; }
+.pub-option {
+  flex: 1; background: transparent; color: var(--muted);
+  border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 10px 12px; font-size: 14px; cursor: pointer;
+}
+.pub-option:hover { color: var(--ink); border-color: var(--accent); }
+.pub-option.is-active {
+  background: var(--accent); border-color: var(--accent);
+  color: var(--sur-accent, #fff);
+}
+
+.pub-aide { color: var(--muted); font-size: 12.5px; line-height: 1.6; margin: 6px 0 0; }
+
+.pub-avertissement {
+  border-left: 2px solid var(--warn);
+  background: var(--panel);
+  padding: 10px 14px; margin-top: 8px;
+  font-size: 12.5px; line-height: 1.65; color: var(--ink);
+}
+.pub-avertissement a { color: var(--accent); }
+
+.pub-recap {
+  margin-top: 20px; padding: 12px 14px;
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: var(--radius); font-size: 13.5px; color: var(--muted);
+}
+.pub-recap strong { color: var(--ink); }
+
+.pub-erreur {
+  margin-top: 14px; padding: 10px 14px;
+  border-left: 2px solid var(--bad); background: var(--panel);
+  font-size: 13.5px; line-height: 1.6; color: var(--ink);
+}
+
+.pub-actions {
+  display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-top: 20px;
+}
+.pub-actions .pub-aide { margin: 0; }
+
+@media (max-width: 1100px) {
+  .decks-grille { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 720px) {
+  .decks-grille { grid-template-columns: 1fr; }
+  .decks-barre { flex-direction: column; align-items: stretch; }
+  .decks-tri-label { display: none; }
+}
+
+/* ---- Page d'un deck : aperçu et avis ---- */
+
+.deck-lien {
+  background: none; border: none; padding: 0; margin: 0;
+  font: inherit; color: inherit; text-align: left; cursor: pointer;
+}
+.deck-lien:hover { color: var(--accent-bright); text-decoration: underline; }
+
+.deck-page-tete { margin-bottom: 20px; }
+.deck-page-tete h2 { margin: 0 0 6px; }
+.deck-page-tete .deck-description { max-width: 68ch; margin: 12px 0; min-height: 0; }
+.deck-page-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 16px; }
+
+.danger {
+  background: transparent; color: var(--bad);
+  border: 1px solid var(--bad); border-radius: 10px;
+  padding: 10px 18px; font-size: 14px; cursor: pointer;
+}
+.danger:hover { background: var(--bad); color: #fff; }
+
+.deck-section-titre { margin: 0 0 14px; font-size: 16px; }
+
+.deck-apercu { display: flex; flex-direction: column; }
+.deck-apercu-ligne {
+  display: flex; align-items: baseline; gap: 14px;
+  padding: 9px 0; border-bottom: 1px solid var(--border);
+}
+.deck-apercu-ligne:last-child { border-bottom: none; }
+.deck-apercu-kanji { font-size: 22px; min-width: 32px; }
+.deck-apercu-sens { font-size: 14px; color: var(--muted); }
+.deck-apercu-semaine { margin-left: auto; font-size: 12px; color: var(--muted); }
+
+.avis-form { max-width: 620px; margin-bottom: 24px; }
+.avis-form-note { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.avis-form-note .deck-etoiles { cursor: pointer; }
+.avis-form-note .deck-etoile { font-size: 20px; }
+.avis-form-note .deck-etoile:hover { color: var(--warn-bright); }
+
+.avis-liste { display: flex; flex-direction: column; gap: 16px; }
+.avis { border-top: 1px solid var(--border); padding-top: 14px; }
+.avis:first-child { border-top: none; padding-top: 0; }
+.avis-tete { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 6px; }
+.avis-pseudo { font-size: 14px; }
+.avis-date { font-size: 12px; color: var(--muted); }
+.avis-texte { margin: 0; font-size: 14px; line-height: 1.65; color: var(--ink); white-space: pre-wrap; }
+
+.pub-plage { display: flex; align-items: center; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
+.pub-plage label { font-size: 13px; color: var(--muted); }
+.pub-champ-court { width: auto; min-width: 72px; }
+
+/* ---- Catégories du tableau de bord ---- */
+
+.mode-toggle { flex-wrap: wrap; }
+.mode-toggle-plus { font-size: 16px; line-height: 1; padding-left: 12px; padding-right: 12px; }
+
+.categorie-outils {
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  margin: 0 0 16px; font-size: 13px; color: var(--muted);
+}
+
+.semestre-tete {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 14px; flex-wrap: wrap; margin-bottom: 12px;
+}
+.semestre-tete h3 { margin: 0; }
+.semestre-origine { font-size: 12px; color: var(--muted); font-weight: normal; }
+.semestre-categorie {
+  background: var(--panel-alt); color: var(--muted);
+  border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 5px 8px; font-size: 12px;
+}
+.semestre-categorie:hover { color: var(--ink); }
+
+/* ---- Survol d'une carte de deck ---- */
+
+.deck-carte {
+  position: relative;
+  cursor: pointer;
+  transition: transform .18s ease, border-color .18s ease;
+}
+/* Le liseré est un pseudo-élément et non une bordure : une bordure qui
+   change d'épaisseur au survol décale tout le contenu de la carte. */
+.deck-carte::after {
+  content: '';
+  position: absolute; inset: -1px;
+  border: 1.5px solid transparent; border-radius: var(--radius);
+  pointer-events: none;
+  transition: border-color .18s ease, box-shadow .18s ease;
+}
+.deck-carte:hover, .deck-carte:focus-visible { transform: translateY(-2px); }
+.deck-carte:hover::after, .deck-carte:focus-visible::after {
+  border-color: var(--accent-bright);
+  box-shadow: 0 0 0 3px rgba(91, 200, 245, 0.18);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-bright) 18%, transparent);
+}
+.deck-carte:focus-visible { outline: none; }
+.deck-carte:hover .deck-titre { color: var(--accent-bright); }
+
+@media (prefers-reduced-motion: reduce) {
+  .deck-carte, .deck-carte::after { transition: none; }
+  .deck-carte:hover, .deck-carte:focus-visible { transform: none; }
+}
+
+/* ---- Discussion façon fil de commentaires ---- */
+
+.com-entete { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; }
+.com-entete .deck-section-titre { margin-bottom: 14px; }
+.com-nouveau { max-width: 640px; margin-bottom: 22px; }
+.com-fil { display: flex; flex-direction: column; gap: 4px; }
+
+.com { padding-top: 10px; }
+.com-corps { display: flex; gap: 10px; }
+.com-votes { display: flex; flex-direction: column; align-items: center; gap: 1px; padding-top: 2px; }
+.com-vote {
+  background: none; border: none; cursor: pointer;
+  color: var(--muted); font-size: 12px; line-height: 1; padding: 2px 4px;
+}
+.com-vote:hover { color: var(--ink); }
+.com-vote.est-actif { color: var(--accent-bright); }
+.com-score { font-size: 12px; color: var(--muted); min-width: 18px; text-align: center; }
+.com-score.est-positif { color: var(--good-bright); }
+.com-score.est-negatif { color: var(--pink); }
+
+.com-contenu {
+  flex: 1; min-width: 0;
+  border-left: 1px solid var(--border); padding-left: 12px;
+}
+.com-tete { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.com-pseudo { font-size: 13px; color: var(--ink); }
+.com-marque {
+  font-size: 11px; color: var(--muted);
+  border: 1px solid var(--border); border-radius: 99px; padding: 0 6px;
+}
+.com-date { font-size: 12px; color: var(--muted); }
+.com-texte { margin: 5px 0 0; font-size: 14px; line-height: 1.6; white-space: pre-wrap; }
+.com-actions { display: flex; gap: 12px; margin-top: 5px; }
+.com-action {
+  background: none; border: none; padding: 0; cursor: pointer;
+  font-size: 12px; color: var(--muted);
+}
+.com-action:hover { color: var(--accent-bright); }
+.com-reponse { margin-top: 10px; max-width: 560px; }
+.com-reponse .pub-actions { margin-top: 8px; }
+
+/* ---- Avatars et profils ---- */
+
+.avatar-photo, .avatar-initiale {
+  display: inline-block; vertical-align: middle;
+  border-radius: 50%; flex-shrink: 0;
+}
+.avatar-photo { object-fit: cover; background: var(--panel-alt); }
+.avatar-initiale {
+  display: inline-flex; align-items: center; justify-content: center;
+  color: #fff; line-height: 1; font-weight: 600;
+}
+
+.auteur { display: inline-flex; align-items: center; gap: 7px; min-width: 0; }
+.auteur-pseudo { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.deck-auteur { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.deck-auteur-date { color: var(--muted); }
+
+.deck-mesures--trois { grid-template-columns: 1fr 1fr 1fr; }
+.deck-mesures--deux { grid-template-columns: 1fr 1fr; max-width: 520px; }
+.deck-mesures--trois .deck-resultat-score { font-size: 16px; }
+.deck-mesures--trois .deck-mesure-titre,
+.deck-mesures--trois .deck-resultat-vide,
+.deck-mesures--trois .deck-resultat-detail { font-size: 11.5px; }
+.deck-mesures--trois .deck-etoile { font-size: 13px; }
+.deck-mesures--trois .deck-note-texte { font-size: 11.5px; }
+
+.profil-tete { display: flex; align-items: flex-start; gap: 18px; margin: 16px 0 4px; flex-wrap: wrap; }
+.profil-photo-actions { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+.profil-bouton-fichier { display: inline-block; cursor: pointer; }
+.profil-photo-actions .pub-aide { margin: 0; }
+
+@media (max-width: 1100px) {
+  .deck-mesures--trois { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 720px) {
+  .deck-mesures--trois, .deck-mesures--deux { grid-template-columns: 1fr 1fr; }
+}
+
+/* ---- Amis ---- */
+
+.ami-ajout { display: flex; gap: 8px; align-items: center; margin: 14px 0 0; flex-wrap: wrap; }
+.ami-ajout .pub-champ { flex: 1; min-width: 200px; }
+
+.ami-section {
+  margin: 22px 0 10px; font-size: 13px; font-weight: normal;
+  color: var(--muted); text-transform: none;
+}
+.ami-liste { display: flex; flex-direction: column; gap: 2px; }
+
+.ami {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 0; border-top: 1px solid var(--border);
+}
+.ami:first-child { border-top: none; }
+.ami-infos { flex: 1; min-width: 0; }
+.ami-pseudo { font-size: 14px; }
+.ami-niveau { font-size: 12px; color: var(--muted); margin-top: 1px; }
+.ami-bio {
+  font-size: 12.5px; color: var(--muted); margin-top: 3px; line-height: 1.5;
+  overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+}
+.ami-actions { display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
+.ami-attente { font-size: 12px; color: var(--muted); }
+
+@media (max-width: 640px) {
+  .ami { flex-wrap: wrap; }
+  .ami-actions { width: 100%; justify-content: flex-end; }
+}
+
+/* ---- Classement : vue d'ensemble ---- */
+
+.lb-filtre { display: flex; align-items: center; gap: 10px; margin: 14px 0 0; flex-wrap: wrap; }
+.lb-filtre label { font-size: 13px; color: var(--muted); }
+
+.lb-grille {
+  display: grid; gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  margin-top: 6px;
+}
+
+.lb-case {
+  background: var(--panel-alt); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 12px 14px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.lb-case.lb-me { border-color: var(--accent); }
+
+.lb-case-titre {
+  background: none; border: none; padding: 0; text-align: left; cursor: pointer;
+  font-size: 12.5px; color: var(--muted);
+}
+.lb-case-titre:hover { color: var(--accent-bright); text-decoration: underline; }
+
+.lb-case-premier { display: flex; align-items: center; gap: 10px; }
+.lb-case-infos { flex: 1; min-width: 0; }
+.lb-case-pseudo {
+  font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.lb-case-detail { font-size: 12px; color: var(--muted); margin-top: 1px; }
+.lb-case-pct { font-size: 20px; color: var(--good-bright); }
+
+.lb-case-suite { border-top: 1px solid var(--border); padding-top: 8px; }
+.lb-case-ligne {
+  display: flex; align-items: baseline; gap: 8px;
+  font-size: 12.5px; color: var(--muted); padding: 2px 0;
+}
+.lb-case-ligne.lb-row-me { color: var(--ink); }
+.lb-case-rang { min-width: 12px; }
+.lb-case-nom { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lb-case-reste { font-size: 12px; color: var(--muted); padding-top: 2px; }
