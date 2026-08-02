@@ -36,6 +36,7 @@
       <button class="nav-btn" data-view="account">Compte</button>
       <button class="nav-btn" data-view="leaderboard">Classement</button>
       <button class="nav-btn" data-view="decks">Decks partagés</button>
+      <button class="nav-btn" data-view="maj">Mises à jour</button>
       <button class="nav-btn" data-view="admin" id="navAdmin" style="display:none;">Admin</button>
       <!-- Vraie page servie par le serveur, pas une vue de l'app : c'est un
            lien, pas un bouton. Placé ici parce que le pied de page est sous
@@ -80,12 +81,13 @@
       <section id="view-decks" class="view"></section>
       <section id="view-publier" class="view"></section>
       <section id="view-deck" class="view"></section>
+      <section id="view-maj" class="view"></section>
       <section id="view-admin" class="view"></section>
     </main>
   </div>
   <footer class="site-footer">
     <p>
-      <a href="/">L'idée</a> · <a href="/a-propos">À propos</a> · <a href="/faq">FAQ</a> · <a href="/blog">Blog</a> · <a href="/regles-de-publication">Règles de publication</a> · <a href="/signaler">Signaler</a>
+      <a href="/">L'idée</a> · <a href="/a-propos">À propos</a> · <a href="/faq">FAQ</a> · <a href="/blog">Blog</a> · <a href="/regles-de-publication">Règles de publication</a> · <a href="/signaler">Signaler</a> · <a href="/confidentialite">Confidentialité</a>
     </p>
     <p>
       © 2026 KVT (Kanji Vocab Trainer). Tous droits réservés. Le code source, les contenus
@@ -107,6 +109,7 @@
   <script src="/ads.js"></script>
   <script src="/leaderboard.js"></script>
   <script src="/decks.js"></script>
+  <script src="/maj.js"></script>
   <script src="/admin.js"></script>
   <script>
     if ('serviceWorker' in navigator) {

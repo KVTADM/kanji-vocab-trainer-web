@@ -530,6 +530,7 @@ function renderCurrentView() {
   else if (currentView === 'decks' && typeof renderDecks === 'function') renderDecks();
   else if (currentView === 'publier' && typeof renderPublier === 'function') renderPublier();
   else if (currentView === 'deck' && typeof renderDeck === 'function') renderDeck();
+  else if (currentView === 'maj' && typeof renderMaj === 'function') renderMaj();
   else if (currentView === 'admin' && typeof renderAdmin === 'function') renderAdmin();
   renderSidebarFooter();
 }

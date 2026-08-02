@@ -254,3 +254,47 @@ essai('un deck introuvable affiche une erreur, pas une page vide', () => {
   if (!trouve('#view-deck').innerHTML.includes('introuvable')) throw new Error("l'erreur n'est pas affichée");
   deckDetailErreur = null;
 });
+
+// ---------- Decks officiels ----------
+
+const DECK_OFFICIEL = {
+  id: 'o1', slug: 'jlpt-n3', titre: 'JLPT N3', description: 'Le palier.', pseudo: 'KVT',
+  auteur_id: null, officiel: true, semester_id: 'jlpt-n3',
+  type: 'jlpt', cursus: '', niveau: 'N3', decoupage: 'semaines',
+  nb_kanji: 367, nb_mots: 683, nb_semaines: 15, note_moyenne: 4.8, nb_notes: 5,
+  created_at: '2026-08-02T00:00:00Z'
+};
+
+essai('un deck officiel propose de réviser, pas d\'importer', () => {
+  window.accountUser = { id: 'u9', pseudo: 'Lecteur' };
+  decksCache = [DECK_OFFICIEL];
+  decksEnCours = false; decksErreur = null; decksFiltre = 'tous'; decksRecherche = '';
+  renderDecks();
+  const html = trouve('#view-decks').innerHTML;
+  if (!html.includes('data-ouvrir-semestre="jlpt-n3"')) throw new Error('bouton Réviser absent');
+  if (html.includes('data-importer="o1"')) throw new Error('un deck officiel propose l\'import');
+  if (!html.includes('Contenu officiel')) throw new Error('la marque « officiel » manque');
+});
+
+essai('un deck officiel ne peut pas être retiré depuis la liste', () => {
+  window.accountUser = { id: 'u9', pseudo: 'Lecteur' };
+  renderDecks();
+  if (trouve('#view-decks').innerHTML.includes('data-retirer="o1"')) throw new Error('bouton Retirer présent');
+});
+
+essai('un deck officiel reste notable par tout le monde', () => {
+  renderDecks();
+  const html = trouve('#view-decks').innerHTML;
+  if (!html.includes('data-noter="o1"')) throw new Error('les étoiles ne sont pas cliquables');
+  if (html.includes('est-sienne')) throw new Error('marqué comme « son propre deck » alors qu\'il n\'a pas d\'auteur');
+});
+
+essai('le résultat d\'un deck officiel se lit sous son vrai identifiant', () => {
+  DB.settings.semesters.push({ id: 'jlpt-n3', label: 'JLPT N3', weeks: 15 });
+  DB.scores['jlpt-n3-w2'] = { best: { pct: 88, points: 176, maxPoints: 200 }, history: [] };
+  const res = monResultat(DECK_OFFICIEL);
+  if (!res || !res.best) throw new Error('résultat non trouvé');
+  if (res.best.pct !== 88) throw new Error('mauvais score : ' + res.best.pct);
+  // et surtout : pas sous « deck-jlpt-n3 », qui n'existe pas
+  if (DB.settings.semesters.some(s => s.id === 'deck-jlpt-n3')) throw new Error('un semestre parasite a été créé');
+});

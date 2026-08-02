@@ -53,7 +53,7 @@ let pubEtat = {
 // On ne demande jamais la colonne "contenu" ici : un deck pèse plus de cent
 // kilo-octets et la liste en afficherait cinquante. Le contenu n'est chargé
 // qu'au moment de l'import, deck par deck.
-const CHAMPS_LISTE = 'id,slug,titre,description,pseudo,auteur_id,type,cursus,niveau,decoupage,nb_kanji,nb_mots,nb_semaines,note_moyenne,nb_notes,created_at';
+const CHAMPS_LISTE = 'id,slug,titre,description,pseudo,auteur_id,officiel,semester_id,type,cursus,niveau,decoupage,nb_kanji,nb_mots,nb_semaines,note_moyenne,nb_notes,created_at';
 
 async function chargerDecks() {
   if (!window.sb) { decksErreur = "La connexion au serveur n'est pas disponible."; return; }
@@ -92,7 +92,7 @@ async function chargerDecks() {
 
     // Les profils des auteurs, en une seule requête pour toute la liste.
     if (window.kvtProfils) {
-      await window.kvtProfils.chargerProfils(decksCache.map(d => d.auteur_id));
+      await window.kvtProfils.chargerProfils(decksCache.filter(d => d.auteur_id).map(d => d.auteur_id));
     }
   } catch (err) {
     decksCache = [];
@@ -117,7 +117,10 @@ function decksVisibles() {
 // travaillé. Les scores sont locaux : un deck jamais importé n'a rien à
 // afficher, et c'est une information en soi.
 function monResultat(deck) {
-  const semId = 'deck-' + deck.slug;
+  // Un deck officiel est déjà chez tout le monde, sous son identifiant réel
+  // (s1, jlpt-n3…). Un deck d'utilisateur n'existe qu'une fois importé, sous
+  // « deck-<slug> ».
+  const semId = deck.officiel ? deck.semester_id : ('deck-' + deck.slug);
   if (!DB.settings.semesters.some(s => s.id === semId)) return null;
   let meilleur = null;
   Object.keys(DB.scores || {}).forEach(cle => {
@@ -180,6 +183,7 @@ function htmlRecord(deck) {
 
 function formatDeck(d) {
   const bouts = [];
+  if (d.officiel) bouts.push('Contenu KVT');
   bouts.push(d.type === 'jlpt' ? ('JLPT ' + d.niveau) : (d.cursus || 'Cursus'));
   bouts.push(d.decoupage === 'bloc' ? "d'un seul bloc" : (d.nb_semaines + ' semaine' + (d.nb_semaines > 1 ? 's' : '')));
   bouts.push(d.nb_kanji + ' kanji');
@@ -256,8 +260,10 @@ function renderDecks() {
       <article class="deck-carte" data-ouvrir="${d.id}" tabindex="0" role="link" aria-label="Ouvrir ${escapeHtml(d.titre)}">
         <h3 class="deck-titre">${escapeHtml(d.titre)}</h3>
         <div class="deck-auteur">
-          ${window.kvtProfils ? window.kvtProfils.auteurHtml(d.auteur_id, d.pseudo, 22) : escapeHtml(d.pseudo)}
-          <span class="deck-auteur-date">${dateCourte(d.created_at)}</span>
+          ${d.officiel
+            ? `<span class="deck-officiel">Contenu officiel</span>`
+            : (window.kvtProfils ? window.kvtProfils.auteurHtml(d.auteur_id, d.pseudo, 22) : escapeHtml(d.pseudo))}
+          ${d.officiel ? '' : `<span class="deck-auteur-date">${dateCourte(d.created_at)}</span>`}
         </div>
         <div class="deck-etiquettes">
           ${formatDeck(d).map(t => `<span class="deck-etiquette">${escapeHtml(t)}</span>`).join('')}
@@ -278,8 +284,10 @@ function renderDecks() {
           </div>
         </div>
         <div class="deck-actions">
-          <button class="primary" data-importer="${d.id}" ${res ? 'disabled' : ''}>${res ? 'Déjà importé' : 'Importer ce deck'}</button>
-          ${window.accountUser && window.accountUser.id === d.auteur_id
+          ${d.officiel
+            ? `<button class="primary" data-ouvrir-semestre="${d.semester_id}">Réviser</button>`
+            : `<button class="primary" data-importer="${d.id}" ${res ? 'disabled' : ''}>${res ? 'Déjà importé' : 'Importer ce deck'}</button>`}
+          ${!d.officiel && window.accountUser && window.accountUser.id === d.auteur_id
             ? `<button class="secondary" data-retirer="${d.id}">Retirer</button>` : ''}
         </div>
       </article>`; }).join('')}</div>`;
@@ -325,6 +333,18 @@ function renderDecks() {
     $$('.deck-etoile', groupe).forEach(et => {
       et.onclick = () => noterDeck(groupe.dataset.noter, Number(et.dataset.valeur));
     });
+  });
+
+  $$('[data-ouvrir-semestre]', el).forEach(b => {
+    b.onclick = () => {
+      // Un deck officiel est déjà installé : on ne l'importe pas, on va le
+      // réviser là où il se trouve.
+      if (typeof dashboardMode !== 'undefined') {
+        const sem = DB.settings.semesters.find(s => s.id === b.dataset.ouvrirSemestre);
+        if (sem) dashboardMode = (typeof categorieDuSemestre === 'function') ? categorieDuSemestre(sem) : dashboardMode;
+      }
+      switchView('dashboard');
+    };
   });
 
   $$('[data-importer]', el).forEach(b => {
@@ -652,7 +672,11 @@ function renderDeck() {
   const d = deckDetail.deck;
   const res = monResultat(d);
   const estAuteur = window.accountUser && window.accountUser.id === d.auteur_id;
-  const groupes = (d.contenu && d.contenu.kanjiGroups) || [];
+  // Un deck officiel ne porte pas son contenu en base : il est déjà installé.
+  // L'aperçu se lit donc dans les données locales.
+  const groupes = d.officiel
+    ? DB.kanjiGroups.filter(g => g.semesterId === d.semester_id)
+    : ((d.contenu && d.contenu.kanjiGroups) || []);
   const apercu = groupes.slice(0, 6);
 
   el.innerHTML = `
@@ -661,8 +685,10 @@ function renderDeck() {
     <div class="deck-page-tete">
       <h2>${escapeHtml(d.titre)}</h2>
       <div class="deck-auteur">
-        ${window.kvtProfils ? window.kvtProfils.auteurHtml(d.auteur_id, d.pseudo, 28) : escapeHtml(d.pseudo)}
-        <span class="deck-auteur-date">${dateCourte(d.created_at)}</span>
+        ${d.officiel
+          ? `<span class="deck-officiel">Contenu officiel de KVT</span>`
+          : `${window.kvtProfils ? window.kvtProfils.auteurHtml(d.auteur_id, d.pseudo, 28) : escapeHtml(d.pseudo)}
+             <span class="deck-auteur-date">${dateCourte(d.created_at)}</span>`}
         ${(() => { const p = window.kvtProfils && window.kvtProfils.profilDe(d.auteur_id);
                    return p && p.niveau ? `<span class="deck-etiquette">${escapeHtml(window.kvtProfils.libelleNiveau(p.niveau))}</span>` : ''; })()}
       </div>
@@ -671,8 +697,10 @@ function renderDeck() {
       </div>
       <p class="deck-description ${d.description ? '' : 'est-vide'}">${d.description ? escapeHtml(d.description) : "L'auteur n'a pas écrit de description."}</p>
       <div class="deck-page-actions">
-        <button class="primary" id="btnImporterPage" ${res ? 'disabled' : ''}>${res ? 'Déjà importé' : 'Importer ce deck'}</button>
-        ${estAuteur ? `
+        ${d.officiel
+          ? `<button class="primary" id="btnReviserPage">Réviser</button>`
+          : `<button class="primary" id="btnImporterPage" ${res ? 'disabled' : ''}>${res ? 'Déjà importé' : 'Importer ce deck'}</button>`}
+        ${estAuteur && !d.officiel ? `
           <button class="secondary" id="btnMasquerPage">${d.visible === false ? 'Remettre en ligne' : 'Retirer de la liste'}</button>
           <button class="danger" id="btnSupprimerPage">Supprimer définitivement</button>` : ''}
       </div>
@@ -750,6 +778,9 @@ function renderDeck() {
 
   const bImp = $('#btnImporterPage');
   if (bImp && !res) bImp.onclick = () => importerDeck(d.id, bImp, d.contenu);
+
+  const bRev = $('#btnReviserPage');
+  if (bRev) bRev.onclick = () => switchView('dashboard');
 
   const bMasq = $('#btnMasquerPage');
   if (bMasq) bMasq.onclick = () => masquerDeck(d.id, d.visible === false);
