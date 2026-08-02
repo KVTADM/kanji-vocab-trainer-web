@@ -2066,11 +2066,10 @@ code {
 
 /* ---- Vue Communauté ---- */
 
-.comm-grille {
-  display: grid; gap: 18px;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  align-items: start;
-}
+/* Une seule colonne : on lit du haut vers le bas, les avis d'abord parce
+   que c'est ce qui donne envie, les decks ensuite parce que c'est ce sur
+   quoi on agit. */
+.comm-grille { display: flex; flex-direction: column; gap: 18px; }
 .comm-grille .card { margin-bottom: 0; }
 
 .comm-etat-vide {
@@ -2123,4 +2122,32 @@ code {
 @media (max-width: 900px) {
   .comm-grille { grid-template-columns: 1fr; }
   .comm-videos { grid-template-columns: 1fr; }
+}
+
+/* ---- Bannière de la page d'accueil ---- */
+
+.comm-banniere {
+  position: relative; overflow: hidden;
+  background: var(--panel-alt); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 26px 24px; margin-bottom: 18px;
+}
+/* Le kanji de fond reste très en retrait : il décore, il ne concurrence
+   pas le texte. À 0.06 d'opacité il ne fait jamais chuter le contraste. */
+.comm-banniere-kanji {
+  position: absolute; right: 18px; top: 50%; transform: translateY(-50%);
+  font-size: clamp(90px, 14vw, 150px); line-height: 1;
+  color: var(--ink); opacity: .06; pointer-events: none; user-select: none;
+}
+.comm-banniere-texte { position: relative; max-width: 60ch; }
+.comm-banniere-texte strong { display: block; font-size: 19px; font-weight: 600; }
+.comm-banniere-texte span {
+  display: block; margin-top: 6px; font-size: 14px; line-height: 1.6; color: var(--muted);
+}
+
+/* ---- Avis d'exemple ---- */
+
+.comm-avis.est-exemple { opacity: .72; }
+.comm-exemple-marque {
+  font-size: 11px; color: var(--muted);
+  border: 1px dashed var(--border); border-radius: 99px; padding: 0 8px;
 }

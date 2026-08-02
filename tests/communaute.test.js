@@ -14,13 +14,25 @@ const SRC=fs.readFileSync('communaute.js','utf8');
 const cas=[];
 global.essai=(n,f)=>{try{f();cas.push(['OK',n]);}catch(e){cas.push(['ECHEC',n+' -> '+e.message]);}};
 eval(SRC+`
-essai("tout vide : cinq etats vides, aucune erreur", ()=>{
+essai("tout vide : la banniere et les avis d'exemple prennent le relais", ()=>{
   commData={avis:[],decks:[],arrive:[],demandes:[],videos:[]};
   renderCommunaute();
   const h=trouve('#view-communaute').innerHTML;
-  const n=(h.match(/comm-etat-vide/g)||[]).length;
-  if(n!==5) throw new Error('etats vides = '+n);
+  if(!h.includes('comm-banniere')) throw new Error('banniere absente');
   if(!h.includes("Page d'accueil")) throw new Error('titre absent');
+  if((h.match(/est-exemple/g)||[]).length!==2) throw new Error('il faut deux exemples');
+  if((h.match(/comm-exemple-marque/g)||[]).length!==2) throw new Error('les exemples ne sont pas marques comme tels');
+  // les quatre autres sections restent en etat vide
+  if((h.match(/comm-etat-vide/g)||[]).length!==5) throw new Error('etats vides = '+(h.match(/comm-etat-vide/g)||[]).length);
+});
+
+essai("des que de vrais avis existent, les exemples disparaissent", ()=>{
+  commData={avis:[{note:5,avis:'Vrai avis.',pseudo:'Hana',user_id:'u1',decks:{titre:'JLPT N3'}}],
+            decks:[],arrive:[],demandes:[],videos:[]};
+  renderCommunaute();
+  const h=trouve('#view-communaute').innerHTML;
+  if(h.includes('est-exemple')) throw new Error('un exemple subsiste malgre un vrai avis');
+  if(!h.includes('Vrai avis.')) throw new Error('le vrai avis manque');
 });
 essai("avec des donnees : tout s'affiche", ()=>{
   commData={

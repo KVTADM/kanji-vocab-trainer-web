@@ -63,6 +63,32 @@ function commVide(message) {
   return `<p class="comm-etat-vide">${message}</p>`;
 }
 
+// Deux avis d'exemple, montrés uniquement quand il n'y en a aucun. Ils sont
+// marqués « exemple » et grisés : ce ne sont pas de faux avis signés de faux
+// pseudos, ce serait tromper le visiteur sur ce que vaut le site. Ils
+// disparaissent dès qu'un vrai avis existe.
+const AVIS_EXEMPLES = [
+  { note: 5, pseudo: 'Un jour, quelqu\'un', deck: 'Semestre 1 — semaine 1',
+    texte: 'Les premiers kanji passent tout seuls quand on voit les mots qui vont avec.' },
+  { note: 4, pseudo: 'Un jour, quelqu\'un d\'autre', deck: 'Semestre 1 — semaine 2',
+    texte: 'La correction qui compte les syllabes justes change tout : on voit ce qui manque au lieu d\'un « faux ».' }
+];
+
+function htmlAvisExemples() {
+  return `
+    <p class="comm-etat-vide">Personne n'a encore écrit d'avis. Voilà à quoi ça ressemblera :</p>
+    ${AVIS_EXEMPLES.map(a => `
+      <div class="comm-avis est-exemple">
+        <div class="comm-avis-tete">
+          <span class="comm-pseudo">${escapeHtml(a.pseudo)}</span>
+          ${commEtoiles(a.note)}
+          <span class="comm-exemple-marque">exemple</span>
+        </div>
+        <p class="comm-avis-texte">« ${escapeHtml(a.texte)} »</p>
+        <div class="comm-source">sur ${escapeHtml(a.deck)}</div>
+      </div>`).join('')}`;
+}
+
 function commEtoiles(n) {
   const pleines = Math.round(Number(n) || 0);
   return `<span class="deck-etoiles">${[1, 2, 3, 4, 5]
@@ -94,7 +120,7 @@ function renderCommunaute() {
       <p class="comm-avis-texte">« ${escapeHtml(a.avis)} »</p>
       <div class="comm-source">sur ${a.decks ? escapeHtml(a.decks.titre) : 'un deck'}</div>
     </div>`).join('')
-    : commVide("Personne n'a encore écrit d'avis. Le premier deck que tu noteras apparaîtra ici.");
+    : htmlAvisExemples();
 
   const decks = d.decks.length ? d.decks.map(x => `
     <button class="comm-ligne" data-comm-deck="${x.id}">
@@ -143,6 +169,14 @@ function renderCommunaute() {
     </div>
 
     ${commErreur ? `<div class="card"><p>Chargement partiel : ${escapeHtml(commErreur)}</p></div>` : ''}
+
+    <div class="comm-banniere">
+      <span class="comm-banniere-kanji" aria-hidden="true">語</span>
+      <div class="comm-banniere-texte">
+        <strong>Le kanji d'abord, le mot ensuite.</strong>
+        <span>Un caractère revu aujourd'hui rappelle les trois ou quatre mots qui le contiennent.</span>
+      </div>
+    </div>
 
     <div class="comm-grille">
       <div class="card">
