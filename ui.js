@@ -151,6 +151,19 @@
 
     enregistrer(document);
 
+    // Filet de securite. Tout ce qui porte .kvt-fade est invisible tant que
+    // l'observateur ne l'a pas revele : si celui-ci ne se declenchait jamais,
+    // la page resterait vide sans la moindre erreur en console. C'est
+    // exactement le genre de panne silencieuse qui a laisse de faux chiffres
+    // en production pendant deux jours. Passe ce delai, on montre tout, quitte
+    // a perdre l'effet : un contenu visible sans animation vaut infiniment
+    // mieux qu'une animation sans contenu.
+    window.setTimeout(() => {
+      document.querySelectorAll('.kvt-fade:not(.is-shown)').forEach((n) => {
+        n.classList.add('is-shown');
+      });
+    }, 5000);
+
     // L'app réécrit ses vues entièrement en JavaScript : les éléments
     // marqués après coup ne seraient jamais observés. On surveille donc
     // les ajouts, sans forcer les autres scripts à nous prévenir.

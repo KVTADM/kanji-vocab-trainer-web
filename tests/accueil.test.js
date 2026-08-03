@@ -158,6 +158,13 @@ essai('les animations ne cachent rien sans JavaScript', () => {
   if (!/prefers-reduced-motion/.test(css)) throw new Error('aucun repli prefers-reduced-motion');
 });
 
+essai('un filet montre le contenu si l\'observateur ne se declenche pas', () => {
+  const src = lire('ui.js');
+  if (!/setTimeout\([\s\S]{0,400}kvt-fade:not\(\.is-shown\)/.test(src)) {
+    throw new Error('aucun repli : un contenu anime pourrait rester invisible');
+  }
+});
+
 let echecs = 0;
 cas.forEach(([v, n]) => { if (v === 'ECHEC') echecs++; console.log(`  ${v.padEnd(7)} ${n}`); });
 console.log(`\n  ${cas.length - echecs}/${cas.length} passent`);
