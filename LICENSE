@@ -10,8 +10,13 @@ ou réutilisation de tout ou partie de ce contenu, à des fins commerciales ou
 non, est strictement interdite sans autorisation écrite préalable de
 l'auteur.
 
-Ce dépôt est un dépôt privé, partagé à des fins de développement et de
-collaboration limitée. Il ne constitue en aucun cas une mise à disposition
-publique du code sous une licence open source, permissive ou non.
+Ce dépôt est consultable publiquement afin de distribuer les installeurs de
+l'application via les Releases GitHub. Cette visibilité ne vaut ni licence
+ni renonciation à un droit : le code n'est mis à disposition sous aucune
+licence open source, permissive ou non. Consulter n'est pas réutiliser.
+
+Les installeurs publiés dans les Releases peuvent être librement
+téléchargés et utilisés. Ils ne peuvent pas être redistribués, modifiés ni
+décompilés.
 
 Pour toute demande d'autorisation, contacter l'auteur directement.
