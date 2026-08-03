@@ -164,11 +164,36 @@
       </a>`).join(''));
   }
 
+  // Les trois nombres du bandeau. Cette fonction visait un #nbKanji qui
+  // n'existait pas dans index.html : elle sortait a la premiere ligne, et les
+  // chiffres inventes de la maquette (2 136 / 341 / 4 802) sont restes
+  // affiches en production. Toute valeur montree ici doit venir d'une source
+  // reelle, et un echec doit laisser un tiret — jamais un nombre plausible.
+  //
+  // Le contenu de l'app ne bouge qu'a l'ajout d'un module. Le lire depuis
+  // seed-data.json couterait 988 ko a chaque visiteur de la page d'accueil,
+  // pour deux nombres : on ne telecharge pas un megaoctet pour afficher
+  // "1 318". Ces deux constantes sont donc ecrites ici, et
+  // tests/accueil.test.js verifie qu'elles correspondent au vrai
+  // seed-data.json. Ajoute un module sans les mettre a jour, le controle
+  // echoue. Le nombre de decks, lui, vient de la base : il bouge tout seul.
+  const CONTENU = { kanji: 1318, mots: 4221 };
+
+  const nombreFr = (n) => n.toLocaleString('fr-FR').replace(/ | /g, ' ');
+
   async function compteurs() {
-    const el = document.getElementById('nbKanji');
-    if (!el) return;
-    const { count } = await sb.from('decks').select('id', { count: 'exact', head: true }).eq('visible', true);
-    el.textContent = (count == null ? '—' : count);
+    const kanji = document.getElementById('nbKanji');
+    const mots = document.getElementById('nbMots');
+    const decksEl = document.getElementById('nbDecks');
+    if (!kanji && !mots && !decksEl) return;
+
+    if (kanji) kanji.textContent = nombreFr(CONTENU.kanji);
+    if (mots) mots.textContent = nombreFr(CONTENU.mots);
+
+    if (decksEl) {
+      const { count } = await sb.from('decks').select('id', { count: 'exact', head: true }).eq('visible', true);
+      if (count != null) decksEl.textContent = nombreFr(count);
+    }
   }
 
   // Une section qui échoue ne doit pas emporter les autres : chacune est

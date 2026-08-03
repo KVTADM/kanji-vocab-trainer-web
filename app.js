@@ -1740,8 +1740,13 @@ async function init() {
     btn.addEventListener('click', () => switchView(btn.dataset.view));
   });
   // La page d'accueil est le premier ecran : c'est elle qui dit ce qui a
-  // bouge depuis la derniere session.
-  switchView('communaute');
+  // bouge depuis la derniere session. Une ancre connue (/app/#decks) permet
+  // d'arriver directement sur une categorie — c'est ce qui rend cliquable le
+  // bouton "Parcourir les decks" de la page d'accueil publique. Une ancre
+  // inconnue est ignoree plutot que de vider l'ecran.
+  const vuesConnues = new Set($$('.nav-btn[data-view]').map(b => b.dataset.view));
+  const ancre = decodeURIComponent(location.hash.replace(/^#/, ''));
+  switchView(vuesConnues.has(ancre) ? ancre : 'communaute');
 }
 
 document.addEventListener('DOMContentLoaded', init);

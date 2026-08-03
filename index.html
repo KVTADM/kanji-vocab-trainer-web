@@ -37,13 +37,18 @@ a:hover{color:var(--accent-bright);text-decoration:underline}
   <div style="font-size:26px;line-height:1.3;font-weight:600;margin-top:8px">KVT — Kanji Vocab Trainer</div>
   <p style="font-size:13px;line-height:1.6;color:var(--muted);margin:8px 0 0;max-width:480px">Ce que la communauté révise, publie et discute, kanji par kanji.</p>
   <div style="display:flex;gap:16px;flex-wrap:wrap;justify-content:center;margin-top:24px">
-    <a href="#" style="background:var(--accent);color:var(--on-accent);font-weight:600;font-size:14px;line-height:1.3;padding:8px 24px;border-radius:var(--radius-sm)">Ouvrir l'app</a>
-    <a href="#" style="border:1px solid var(--border);color:var(--ink);font-weight:400;font-size:14px;line-height:1.3;padding:8px 24px;border-radius:var(--radius-sm)">Parcourir les decks</a>
+    <a href="/app/" style="background:var(--accent);color:var(--on-accent);font-weight:600;font-size:14px;line-height:1.3;padding:8px 24px;border-radius:var(--radius-sm)">Ouvrir l'app</a>
+    <a href="/app/#decks" style="border:1px solid var(--border);color:var(--ink);font-weight:400;font-size:14px;line-height:1.3;padding:8px 24px;border-radius:var(--radius-sm)">Parcourir les decks</a>
   </div>
+  <!-- Ces trois nombres sont remplis par accueil.js (fonction compteurs()).
+       Ils ne doivent JAMAIS etre ecrits en dur : la maquette d'origine
+       affichait 2 136 kanji, 341 decks et 4 802 membres, des chiffres
+       inventes restes en production jusqu'au 03/08/2026. Le tiret est la
+       valeur d'attente, pas une valeur de repli plausible. -->
   <div style="display:flex;gap:48px;flex-wrap:wrap;justify-content:center;margin-top:32px">
-    <div><div style="font-size:20px;font-weight:600;line-height:1.3">2 136</div><div style="font-size:12px;line-height:1.6;color:var(--muted)">kanji disponibles</div></div>
-    <div><div style="font-size:20px;font-weight:600;line-height:1.3">341</div><div style="font-size:12px;line-height:1.6;color:var(--muted)">decks publiés</div></div>
-    <div><div style="font-size:20px;font-weight:600;line-height:1.3">4 802</div><div style="font-size:12px;line-height:1.6;color:var(--muted)">membres</div></div>
+    <div><div id="nbKanji" style="font-size:20px;font-weight:600;line-height:1.3;font-variant-numeric:tabular-nums">—</div><div style="font-size:12px;line-height:1.6;color:var(--muted)">kanji disponibles</div></div>
+    <div><div id="nbMots" style="font-size:20px;font-weight:600;line-height:1.3;font-variant-numeric:tabular-nums">—</div><div style="font-size:12px;line-height:1.6;color:var(--muted)">mots de vocabulaire</div></div>
+    <div><div id="nbDecks" style="font-size:20px;font-weight:600;line-height:1.3;font-variant-numeric:tabular-nums">—</div><div style="font-size:12px;line-height:1.6;color:var(--muted)">decks publiés</div></div>
   </div>
 </header>
 
@@ -54,133 +59,39 @@ a:hover{color:var(--accent-bright);text-decoration:underline}
   <section>
     <h2 style="font-size:15px;line-height:1.3;font-weight:600;color:var(--muted);margin:0 0 16px">Derniers avis</h2>
     <div id="zoneAvis" style="display:flex;flex-direction:column;gap:16px">
-
-      <div style="background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:20px">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-          <span style="width:32px;height:32px;border-radius:50%;background:var(--panel-alt);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:var(--accent-bright);flex:none">RN</span>
-          <span style="font-size:14px;line-height:1.3;font-weight:600">ryo_nihon</span>
-          <span style="font-size:13px;line-height:1.3;color:var(--warn);margin-left:8px">★★★★★</span>
-        </div>
-        <p style="font-size:14px;line-height:1.6;margin:0 0 8px">« Le deck N4 m'a fait revoir 食 sous un autre angle — je ne confondais plus ショク et た(べる) après deux passages. »</p>
-        <div style="font-size:12px;line-height:1.6;color:var(--muted)">sur <a href="#">JLPT N4 — Semaine 6</a></div>
-      </div>
-
-      <div style="background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:20px">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-          <span style="width:32px;height:32px;border-radius:50%;background:var(--panel-alt);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:var(--good);flex:none">ML</span>
-          <span style="font-size:14px;line-height:1.3;font-weight:600">mei.learns</span>
-          <span style="font-size:13px;line-height:1.3;color:var(--warn);margin-left:8px">★★★★☆</span>
-        </div>
-        <p style="font-size:14px;line-height:1.6;margin:0 0 8px">« Un peu dense pour une première semaine de semestre, mais l'ordre des kanji suit vraiment le cours. »</p>
-        <div style="font-size:12px;line-height:1.6;color:var(--muted)">sur <a href="#">LV2 Japonais — S1</a></div>
-      </div>
-
-      <div style="background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:20px">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-          <span style="width:32px;height:32px;border-radius:50%;background:var(--panel-alt);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:var(--accent-bright);flex:none">TK</span>
-          <span style="font-size:14px;line-height:1.3;font-weight:600">tomo_k</span>
-          <span style="font-size:13px;line-height:1.3;color:var(--warn);margin-left:8px">★★★★★</span>
-        </div>
-        <p style="font-size:14px;line-height:1.6;margin:0 0 8px">« Le deck N3 sur les verbes composés est le meilleur que j'aie trouvé pour cette liste. »</p>
-        <div style="font-size:12px;line-height:1.6;color:var(--muted)">sur <a href="#">JLPT N3 — Verbes composés</a></div>
-      </div>
-
+      <div style="padding:20px;font-size:13px;line-height:1.6;color:var(--muted)">Chargement des derniers avis…</div>
     </div>
   </section>
 
   <section>
     <h2 style="font-size:15px;line-height:1.3;font-weight:600;color:var(--muted);margin:0 0 16px">Derniers decks</h2>
     <div id="zoneDecks" style="background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden">
-
-      <div style="display:grid;grid-template-columns:1fr auto;align-items:center;gap:16px;height:72px;padding:0 20px;border-bottom:1px solid var(--border)">
-        <div style="min-width:0">
-          <div style="font-size:16px;line-height:1.3;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">JLPT N4 — Semaine 6</div>
-          <div style="font-size:12px;line-height:1.6;color:var(--muted)">42 kanji · officiel</div>
-        </div>
-        <div style="text-align:right;font-variant-numeric:tabular-nums">
-          <div style="font-size:20px;line-height:1.3;font-weight:600;color:var(--accent-bright)">100 %</div>
-          <div style="font-size:12px;line-height:1.6;color:var(--muted)">ryo_nihon</div>
-        </div>
-      </div>
-
-      <div style="display:grid;grid-template-columns:1fr auto;align-items:center;gap:16px;height:72px;padding:0 20px;border-bottom:1px solid var(--border)">
-        <div style="min-width:0">
-          <div style="font-size:16px;line-height:1.3;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">LV2 Japonais — S1</div>
-          <div style="font-size:12px;line-height:1.6;color:var(--muted)">28 kanji · Université Lyon 3</div>
-        </div>
-        <div style="text-align:right;font-variant-numeric:tabular-nums">
-          <div style="font-size:20px;line-height:1.3;font-weight:600;color:var(--accent-bright)">92 %</div>
-          <div style="font-size:12px;line-height:1.6;color:var(--muted)">mei.learns</div>
-        </div>
-      </div>
-
-      <div style="display:grid;grid-template-columns:1fr auto;align-items:center;gap:16px;height:72px;padding:0 20px">
-        <div style="min-width:0">
-          <div style="font-size:16px;line-height:1.3;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Kanji rares — arts martiaux</div>
-          <div style="font-size:12px;line-height:1.6;color:var(--muted)">16 kanji · aiko_sensei</div>
-        </div>
-        <div style="text-align:right">
-          <div style="font-size:13px;line-height:1.3;color:var(--muted)">Personne encore</div>
-          <a href="#" style="font-size:12px;line-height:1.6">poser le premier score</a>
-        </div>
-      </div>
-
+      <div style="padding:20px;font-size:13px;line-height:1.6;color:var(--muted)">Chargement des derniers decks…</div>
     </div>
   </section>
 
 </div>
 
-<sc-if value="{{ showAd }}" hint-placeholder-val="{{ true }}">
-<section>
-  <div style="font-size:12px;line-height:1.6;color:var(--muted);margin-bottom:8px">Publicité</div>
-  <div style="height:90px;background:var(--panel-alt);border:1px solid var(--border);border-radius:var(--radius-sm);display:flex;align-items:center;padding:0 20px;font-size:12px;line-height:1.6;color:var(--muted)">Emplacement 728 × 90</div>
-</section>
-</sc-if>
+<!-- Ici se trouvait un faux emplacement publicitaire ("Emplacement 728 x 90")
+     enferme dans une balise de condition de la maquette (sc-if)
+     d'origine, que rien n'interpretait : le navigateur affichait la boite
+     grise et sa legende "Publicite" a tous les visiteurs. Retire le
+     03/08/2026. Le vrai emplacement viendra d'ads.js quand AdSense validera
+     le site — pas avant, et pas en dur dans la page. -->
 
 <div class="kvt-cols" style="display:grid;grid-template-columns:1fr;gap:24px;align-items:start">
 
   <section>
     <h2 style="font-size:15px;line-height:1.3;font-weight:600;color:var(--muted);margin:0 0 16px">Ce qui arrive</h2>
     <div id="zoneArrive" style="background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden">
-      <div style="display:flex;align-items:center;gap:16px;height:56px;padding:0 20px;border-bottom:1px solid var(--border)">
-        <span style="width:8px;height:8px;border-radius:50%;background:var(--muted);flex:none"></span>
-        <span style="font-size:14px;line-height:1.3">Export des decks en PDF — prévu</span>
-      </div>
-      <div style="display:flex;align-items:center;gap:16px;height:56px;padding:0 20px;border-bottom:1px solid var(--border)">
-        <span style="width:8px;height:8px;border-radius:50%;background:var(--warn);flex:none"></span>
-        <span style="font-size:14px;line-height:1.3">Statistiques par radical — à l'étude</span>
-      </div>
-      <div style="display:flex;align-items:center;gap:16px;height:56px;padding:0 20px">
-        <span style="width:8px;height:8px;border-radius:50%;background:var(--good);flex:none"></span>
-        <span style="font-size:14px;line-height:1.3">Mode hors ligne sur l'app de bureau — fait</span>
-      </div>
+      <div style="padding:20px;font-size:13px;line-height:1.6;color:var(--muted)">Chargement…</div>
     </div>
   </section>
 
   <section>
     <h2 style="font-size:15px;line-height:1.3;font-weight:600;color:var(--muted);margin:0 0 16px">Les plus demandés</h2>
     <div id="zoneDemandes" style="background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden">
-      <div style="display:flex;align-items:center;gap:16px;height:72px;padding:0 20px;border-bottom:1px solid var(--border)">
-        <div style="flex:none;width:48px;background:var(--panel-alt);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 0;text-align:center;color:var(--accent-bright);font-variant-numeric:tabular-nums">
-          <div style="font-size:12px;line-height:1.3">▲</div>
-          <div style="font-size:13px;line-height:1.3;font-weight:600">128</div>
-        </div>
-        <span style="font-size:14px;line-height:1.6">Deck N2 — la communauté attend la suite</span>
-      </div>
-      <div style="display:flex;align-items:center;gap:16px;height:72px;padding:0 20px;border-bottom:1px solid var(--border)">
-        <div style="flex:none;width:48px;background:var(--panel-alt);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 0;text-align:center;color:var(--accent-bright);font-variant-numeric:tabular-nums">
-          <div style="font-size:12px;line-height:1.3">▲</div>
-          <div style="font-size:13px;line-height:1.3;font-weight:600">94</div>
-        </div>
-        <span style="font-size:14px;line-height:1.6">Filtrer les decks par université</span>
-      </div>
-      <div style="display:flex;align-items:center;gap:16px;height:72px;padding:0 20px">
-        <div style="flex:none;width:48px;background:var(--panel-alt);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 0;text-align:center;color:var(--accent-bright);font-variant-numeric:tabular-nums">
-          <div style="font-size:12px;line-height:1.3">▲</div>
-          <div style="font-size:13px;line-height:1.3;font-weight:600">61</div>
-        </div>
-        <span style="font-size:14px;line-height:1.6">Historique des tentatives par kanji</span>
-      </div>
+      <div style="padding:20px;font-size:13px;line-height:1.6;color:var(--muted)">Chargement…</div>
     </div>
   </section>
 
@@ -189,53 +100,20 @@ a:hover{color:var(--accent-bright);text-decoration:underline}
 <section>
   <h2 style="font-size:15px;line-height:1.3;font-weight:600;color:var(--muted);margin:0 0 16px">Vidéos partagées</h2>
   <div id="zoneVideos" class="kvt-vids" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:24px">
-
-    <div>
-      <div style="aspect-ratio:16/9;background:var(--panel-alt);border:1px solid var(--border);border-radius:var(--radius);display:flex;align-items:center;justify-content:center;margin-bottom:8px">
-        <span style="width:0;height:0;border-style:solid;border-width:8px 0 8px 16px;border-color:transparent transparent transparent var(--muted)"></span>
-      </div>
-      <div style="font-size:16px;line-height:1.3;font-weight:600;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">Distinguer on'yomi et kun'yomi en une astuce</div>
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;margin-top:8px;font-size:12px;line-height:1.6;color:var(--muted)">
-        <span>par tomo_k</span>
-        <span style="color:var(--accent-bright);font-variant-numeric:tabular-nums">▲ 47</span>
-      </div>
+      <div style="padding:20px;font-size:13px;line-height:1.6;color:var(--muted)">Chargement…</div>
     </div>
-
-    <div>
-      <div style="aspect-ratio:16/9;background:var(--panel-alt);border:1px solid var(--border);border-radius:var(--radius);display:flex;align-items:center;justify-content:center;margin-bottom:8px">
-        <span style="width:0;height:0;border-style:solid;border-width:8px 0 8px 16px;border-color:transparent transparent transparent var(--muted)"></span>
-      </div>
-      <div style="font-size:16px;line-height:1.3;font-weight:600;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">Comment j'organise mes semaines de révision N3</div>
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;margin-top:8px;font-size:12px;line-height:1.6;color:var(--muted)">
-        <span>par mei.learns</span>
-        <span style="color:var(--accent-bright);font-variant-numeric:tabular-nums">▲ 33</span>
-      </div>
-    </div>
-
-    <div>
-      <div style="aspect-ratio:16/9;background:var(--panel-alt);border:1px solid var(--border);border-radius:var(--radius);display:flex;align-items:center;justify-content:center;margin-bottom:8px">
-        <span style="width:0;height:0;border-style:solid;border-width:8px 0 8px 16px;border-color:transparent transparent transparent var(--muted)"></span>
-      </div>
-      <div style="font-size:16px;line-height:1.3;font-weight:600;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">Les kanji rares expliqués en cinq minutes</div>
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;margin-top:8px;font-size:12px;line-height:1.6;color:var(--muted)">
-        <span>par aiko_sensei</span>
-        <span style="color:var(--accent-bright);font-variant-numeric:tabular-nums">▲ 21</span>
-      </div>
-    </div>
-
-  </div>
 </section>
 
 <footer style="border-top:1px solid var(--border);padding-top:24px">
   <div style="font-size:15px;line-height:1.3;font-weight:600;color:var(--muted);margin-bottom:16px">En savoir plus</div>
   <div style="display:flex;flex-wrap:wrap;gap:24px;font-size:13px;line-height:1.6">
-    <a href="#">L'idée du projet</a>
-    <a href="#">À propos</a>
-    <a href="#">FAQ</a>
-    <a href="#">Blog</a>
-    <a href="#">Règles de publication</a>
-    <a href="#">Signaler un contenu</a>
-    <a href="#">Confidentialité</a>
+    <a href="/l-idee">L'idée du projet</a>
+    <a href="/a-propos">À propos</a>
+    <a href="/faq">FAQ</a>
+    <a href="/blog">Blog</a>
+    <a href="/regles-de-publication">Règles de publication</a>
+    <a href="/signaler">Signaler un contenu</a>
+    <a href="/confidentialite">Confidentialité</a>
   </div>
 </footer>
 
