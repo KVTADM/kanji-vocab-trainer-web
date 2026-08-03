@@ -49,10 +49,10 @@ self.addEventListener('activate', (event) => {
 // cache uniquement si le réseau est indisponible (mode hors-ligne préservé).
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
-  // Les gros fichiers d'installeurs (DMG/EXE, ~100 Mo) ne doivent jamais
-  // passer par le cache : ça gonflerait le stockage hors-ligne pour rien,
-  // ce sont de simples téléchargements, pas des assets de l'app.
+  // Les installeurs sont sur les Releases GitHub depuis le 02/08 : on ne
+  // touche pas aux requêtes qui sortent du site.
   if (event.request.url.includes('/downloads/')) return;
+  if (new URL(event.request.url).origin !== self.location.origin) return;
   event.respondWith(
     caches.match(event.request).then((cached) => {
       const fetchPromise = fetch(event.request).then((networkResponse) => {

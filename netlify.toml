@@ -5,18 +5,21 @@
 #   /l-idee                 l'ancienne page de présentation, devenue secondaire
 #   /app                    l'application elle-même
 #   /a-propos /faq /blog/*  pages éditoriales, vrais dossiers
-#   /downloads/*            binaires Mac et Windows
+#   /downloads/*            ancienne adresse des binaires : ils sont
+#                           desormais sur les Releases GitHub
 #
 # Principe Netlify : un fichier statique existant est TOUJOURS servi avant une
 # règle non forcée, et la première règle qui correspond gagne. L'ordre compte.
 
-# 1) Téléchargements : le vrai fichier, sinon un 404 franc. Sans cette règle en
-#    premier, un binaire manquant retomberait sur une page HTML et l'utilisateur
-#    téléchargerait un faux fichier (bug rencontré le 23/07).
+# 1) Anciens liens de téléchargement. Les binaires ne sont plus hébergés ici :
+#    ils pesaient 166 Mo sur 168 et repartaient à chaque déploiement. On
+#    redirige vers les Releases GitHub pour que les liens déjà partagés
+#    continuent de fonctionner.
 [[redirects]]
-  from = "/downloads/*"
-  to = "/404.html"
-  status = 404
+  from = "/downloads/:fichier"
+  to = "https://github.com/KVTADM/kanji-vocab-trainer-web/releases/latest/download/:fichier"
+  status = 302
+  force = true
 
 # 2) Ancienne adresse de la présentation, devenue la racine. Redirection
 #    permanente pour ne pas casser les liens déjà partagés.

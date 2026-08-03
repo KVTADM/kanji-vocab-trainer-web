@@ -18,9 +18,12 @@
 # Le script suit automatiquement grâce à $(dirname "$0"), seul ce rappel de
 # chemin était à corriger.
 #
-# Attention : ce script publie le CONTENU DU DOSSIER, pas le dernier commit
-# git. Vérifier que downloads/ contient bien KVT-Mac.dmg et KVT-Windows.exe
-# (gitignorés, présents uniquement en local) avant de déployer.
+# Attention : ce script publie le CONTENU DU DOSSIER, pas le dernier commit git.
+#
+# Depuis le 02/08/2026, les installeurs ne sont plus ici. Ils vivent dans
+# ../KVT-binaires et sont publiés sur les Releases GitHub : ils pesaient 166 Mo
+# sur 168, soit 98,7 % de chaque déploiement, et repartaient en entier même
+# pour une ligne de CSS. Ne les remets pas dans ce dossier.
 cd "$(dirname "$0")"
 npx netlify-cli status >/dev/null 2>&1 || npx netlify-cli login
 npx netlify-cli deploy --prod --dir=. --site=9d064bfe-ee5c-447c-8f22-e8c4c2d3e0d8

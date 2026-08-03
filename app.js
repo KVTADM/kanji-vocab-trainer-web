@@ -1457,6 +1457,10 @@ function detectPlatform() {
 function renderDownload() {
   const detected = detectPlatform();
   const APP_VERSION = '1.1.1';
+  // Les installeurs sont heberges sur les Releases GitHub et non sur Netlify :
+  // ils pesaient 166 Mo sur 168, soit 98,7 % de chaque deploiement, et ils
+  // repartaient en entier a chaque changement d'une ligne de CSS.
+  const RELEASES = 'https://github.com/KVTADM/kanji-vocab-trainer-web/releases/download/v' + APP_VERSION;
   const RELEASE_DATE = '25 juillet 2026';
   $('#view-download').innerHTML = `
     <h2>Applications</h2>
@@ -1479,7 +1483,7 @@ function renderDownload() {
         <h3>macOS</h3>
         <p>Apple Silicon (M1/M2/M3/M4). Fichier .dmg.</p>
         <p class="download-version">Version ${APP_VERSION}</p>
-        <a class="primary download-btn" id="btnDownloadMac" href="/downloads/KVT-Mac.dmg" download>Télécharger pour Mac · v${APP_VERSION}</a>
+        <a class="primary download-btn" id="btnDownloadMac" href="${RELEASES}/KVT-Mac.dmg">Télécharger pour Mac · v${APP_VERSION}</a>
         ${detected === 'mac' ? '<div class="download-tag">Recommandé pour ton appareil</div>' : ''}
       </div>
       <div class="download-card ${detected === 'win' ? 'recommended' : ''}" id="downloadCardWin">
@@ -1487,7 +1491,7 @@ function renderDownload() {
         <h3>Windows</h3>
         <p>Windows 10/11 (64 bits). Fichier .exe.</p>
         <p class="download-version">Version ${APP_VERSION}</p>
-        <a class="primary download-btn" id="btnDownloadWin" href="/downloads/KVT-Windows.exe" download>Télécharger pour Windows · v${APP_VERSION}</a>
+        <a class="primary download-btn" id="btnDownloadWin" href="${RELEASES}/KVT-Windows.exe">Télécharger pour Windows · v${APP_VERSION}</a>
         ${detected === 'win' ? '<div class="download-tag">Recommandé pour ton appareil</div>' : ''}
       </div>
     </div>
@@ -1517,25 +1521,11 @@ function renderDownload() {
     </div>
   `;
 
-  // Si le build Windows n'est pas encore disponible sur le serveur, on
-  // désactive proprement le bouton plutôt que de laisser un lien mort (404).
-  fetch('/downloads/KVT-Windows.exe', { method: 'HEAD' }).then(res => {
-    if (!res.ok) {
-      const btn = $('#btnDownloadWin');
-      const card = $('#downloadCardWin');
-      if (btn) {
-        btn.classList.add('disabled');
-        btn.removeAttribute('href');
-        btn.textContent = 'Bientôt disponible';
-      }
-      if (card) {
-        const tag = document.createElement('div');
-        tag.className = 'download-tag soon';
-        tag.textContent = 'En préparation';
-        card.appendChild(tag);
-      }
-    }
-  }).catch(() => {});
+  // L'ancien test d'existence par requête HEAD a disparu avec le passage aux
+  // Releases GitHub : la requête part vers un autre domaine et se fait bloquer
+  // par la politique d'origine, donc elle échouait toujours et désactivait le
+  // bouton même quand le fichier existait. Les deux binaires sont publiés
+  // ensemble, à la même version : si l'un est là, l'autre aussi.
 }
 
 // ============================================================

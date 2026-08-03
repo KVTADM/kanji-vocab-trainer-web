@@ -1,5 +1,8 @@
 .DS_Store
 .netlify/
 *.log
+# Les installeurs ont quitte ce dossier le 02/08/2026 (voir ../KVT-binaires).
+# On garde la regle : si l'un d'eux revient ici par erreur, il ne partira
+# au moins pas dans le depot.
 downloads/*.dmg
 downloads/*.exe
