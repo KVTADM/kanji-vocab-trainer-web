@@ -2368,3 +2368,62 @@ code {
   color: var(--sur-accent, #fff);
 }
 .kvt-topbar__nav a.kvt-topbar__cta:hover { background: var(--accent-bright); color: var(--sur-accent, #fff); }
+
+/* ---------- Menu « Plus » de la barre haute ----------
+   Les categories rares vivent ici plutot que de faire deborder la barre.
+   `:has()` evite un aller-retour en JavaScript : si l'une des entrees du
+   menu est la vue courante, le bouton s'allume tout seul, sans que app.js
+   ait a connaitre l'existence de ce menu. */
+.kvt-topbar__more { position: relative; }
+.kvt-topbar__more-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  border-radius: 9px;
+  padding: 8px 13px;
+  font-size: 13.5px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.kvt-topbar__more-btn:hover { background: var(--panel); color: var(--ink); }
+.kvt-topbar__more:has(.nav-btn.active) .kvt-topbar__more-btn {
+  border-color: var(--accent);
+  color: var(--accent-bright);
+}
+
+.kvt-topbar__more-panel {
+  display: none;
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  min-width: 210px;
+  padding: 8px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 24px 48px -24px rgba(0, 0, 0, 0.95);
+  z-index: 50;
+}
+.kvt-topbar__more-panel.is-open { display: block; }
+.kvt-topbar__more-panel .nav-btn {
+  width: 100%;
+  text-align: left;
+  white-space: nowrap;
+}
+
+/* Sous 860 px la barre se replie entierement : le menu « Plus » n'a plus de
+   raison d'etre, ses entrees rejoignent la liste depliee. */
+@media (max-width: 860px) {
+  .kvt-topbar__more { position: static; }
+  .kvt-topbar__more-btn { display: none; }
+  .kvt-topbar__more-panel {
+    display: block;
+    position: static;
+    min-width: 0;
+    padding: 0;
+    background: transparent;
+    border: none;
+    box-shadow: none;
+  }
+}

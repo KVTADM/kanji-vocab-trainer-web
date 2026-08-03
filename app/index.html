@@ -36,6 +36,13 @@
           <div class="brand-text">KVT</div>
         </a>
         <button class="kvt-topbar__toggle" type="button" aria-expanded="false" aria-controls="navPrincipale">Menu</button>
+        <!-- Six categories dans la barre, cinq derriere « Plus ». Les onze
+             tenaient techniquement sur une seule ligne, mais debordaient des
+             1360 px de large : la barre devenait un rail a faire defiler
+             horizontalement, sans que rien n'indique qu'il reste des entrees.
+             Une navigation qu'il faut deviner n'en est pas une. Le partage
+             suit l'usage : ce qu'on ouvre a chaque session reste visible, ce
+             qu'on ouvre une fois par mois passe dans le menu. -->
         <nav class="kvt-topbar__nav" id="navPrincipale" aria-label="Navigation principale">
           <button class="nav-btn active" data-view="communaute">Accueil</button>
           <button class="nav-btn" data-view="dashboard">Tableau de bord</button>
@@ -43,11 +50,20 @@
           <button class="nav-btn" data-view="decks">Decks partagés</button>
           <button class="nav-btn" data-view="stats">Statistiques</button>
           <button class="nav-btn" data-view="leaderboard">Classement</button>
-          <button class="nav-btn" data-view="maj">Mises à jour</button>
-          <button class="nav-btn" data-view="download">Applications</button>
-          <button class="nav-btn" data-view="account">Compte</button>
-          <button class="nav-btn" data-view="settings">Réglages</button>
-          <button class="nav-btn" data-view="admin" id="navAdmin" style="display:none;">Admin</button>
+          <!-- Le menu vit DANS la navigation, pas a cote : c'est ce qui lui
+               permet, sous 860 px, de se deplier avec le reste au lieu de
+               former un second menu concurrent. Aucun deplacement de noeud au
+               redimensionnement, donc rien qui puisse se desynchroniser. -->
+          <div class="kvt-topbar__more">
+            <button class="kvt-topbar__more-btn" type="button" aria-expanded="false" aria-haspopup="true" aria-controls="navSecondaire">Plus</button>
+            <div class="kvt-topbar__more-panel" id="navSecondaire" role="menu">
+              <button class="nav-btn" data-view="maj">Mises à jour</button>
+              <button class="nav-btn" data-view="download">Applications</button>
+              <button class="nav-btn" data-view="account">Compte</button>
+              <button class="nav-btn" data-view="settings">Réglages</button>
+              <button class="nav-btn" data-view="admin" id="navAdmin" style="display:none;">Admin</button>
+            </div>
+          </div>
         </nav>
         <div class="kvt-topbar__end">
           <span class="sidebar-footer" id="weekBadge"></span>

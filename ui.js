@@ -78,6 +78,35 @@
         if (e.key === 'Escape') fermer();
       });
     }
+
+    // Menu « Plus » : les categories rares. Sous 860 px il n'existe plus en
+    // tant que menu (le CSS le deplie dans la liste), donc son bouton est
+    // masque et ce code ne sert simplement a rien — pas besoin d'un test de
+    // largeur ici, l'etat visuel fait foi.
+    const plus = barreEl.querySelector('.kvt-topbar__more-btn');
+    const panneau = barreEl.querySelector('.kvt-topbar__more-panel');
+    if (plus && panneau) {
+      const fermerPlus = () => {
+        panneau.classList.remove('is-open');
+        plus.setAttribute('aria-expanded', 'false');
+      };
+      plus.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const ouvert = panneau.classList.toggle('is-open');
+        plus.setAttribute('aria-expanded', ouvert ? 'true' : 'false');
+      });
+      panneau.addEventListener('click', (e) => {
+        if (e.target.closest('.nav-btn')) fermerPlus();
+      });
+      // Un menu qui ne se referme pas en cliquant ailleurs reste en travers
+      // de la page qu'on essayait d'atteindre.
+      document.addEventListener('click', (e) => {
+        if (!e.target.closest('.kvt-topbar__more')) fermerPlus();
+      });
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') fermerPlus();
+      });
+    }
   }
 
   // ----------------------------------------------------------
