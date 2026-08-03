@@ -23,29 +23,37 @@
 </head>
 <body>
   <div class="app">
-    <nav class="sidebar">
-      <div class="brand">
-        <div class="brand-kanji">漢</div>
-        <div class="brand-text">KVT</div>
+    <!-- La navigation vit en haut depuis le 03/08/2026, plus dans une colonne.
+         Les boutons gardent la classe .nav-btn et leur data-view : app.js les
+         retrouve par `.nav-btn[data-view]`, seule leur mise en page change.
+         Le logo remplace le lien texte « Page d'accueil » : il ramène a la
+         page publique, ce qui evite d'avoir deux facons d'appeler « accueil »
+         deux endroits differents. -->
+    <header class="kvt-topbar">
+      <div class="kvt-topbar__inner">
+        <a class="kvt-topbar__brand" href="/" aria-label="KVT — retour a la page d'accueil">
+          <div class="brand-kanji">漢</div>
+          <div class="brand-text">KVT</div>
+        </a>
+        <button class="kvt-topbar__toggle" type="button" aria-expanded="false" aria-controls="navPrincipale">Menu</button>
+        <nav class="kvt-topbar__nav" id="navPrincipale" aria-label="Navigation principale">
+          <button class="nav-btn active" data-view="communaute">Accueil</button>
+          <button class="nav-btn" data-view="dashboard">Tableau de bord</button>
+          <button class="nav-btn" data-view="manage">Vocabulaire</button>
+          <button class="nav-btn" data-view="decks">Decks partagés</button>
+          <button class="nav-btn" data-view="stats">Statistiques</button>
+          <button class="nav-btn" data-view="leaderboard">Classement</button>
+          <button class="nav-btn" data-view="maj">Mises à jour</button>
+          <button class="nav-btn" data-view="download">Applications</button>
+          <button class="nav-btn" data-view="account">Compte</button>
+          <button class="nav-btn" data-view="settings">Réglages</button>
+          <button class="nav-btn" data-view="admin" id="navAdmin" style="display:none;">Admin</button>
+        </nav>
+        <div class="kvt-topbar__end">
+          <span class="sidebar-footer" id="weekBadge"></span>
+        </div>
       </div>
-      <button class="nav-btn active" data-view="communaute">Page d'accueil</button>
-      <button class="nav-btn" data-view="dashboard">Tableau de bord</button>
-      <button class="nav-btn" data-view="manage">Vocabulaire</button>
-      <button class="nav-btn" data-view="stats">Statistiques</button>
-      <button class="nav-btn" data-view="download">Applications</button>
-      <button class="nav-btn" data-view="settings">Réglages</button>
-      <button class="nav-btn" data-view="account">Compte</button>
-      <button class="nav-btn" data-view="leaderboard">Classement</button>
-      <button class="nav-btn" data-view="decks">Decks partagés</button>
-      <button class="nav-btn" data-view="maj">Mises à jour</button>
-      <button class="nav-btn" data-view="admin" id="navAdmin" style="display:none;">Admin</button>
-      <!-- Vraie page servie par le serveur, pas une vue de l'app : c'est un
-           lien, pas un bouton. Placé ici parce que le pied de page est sous
-           un conteneur de 100vh et donc invisible sans défiler. -->
-      <a class="nav-btn nav-link" href="/">L'idée du projet</a>
-      <div class="sidebar-footer" id="weekBadge"></div>
-      <div class="sidebar-legal">© 2026 KVT · Tous droits réservés</div>
-    </nav>
+    </header>
     <main class="content">
       <section id="view-dashboard" class="view">
         <!-- Contenu statique de secours : visible uniquement le temps que app.js charge et
@@ -104,6 +112,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
   <script src="/supabaseClient.js"></script>
   <script src="/webapi.js"></script>
+  <script src="/ui.js"></script>
   <script src="/app.js"></script>
   <script src="/profils.js"></script>
   <script src="/amis.js"></script>

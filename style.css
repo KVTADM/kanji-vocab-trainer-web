@@ -198,6 +198,7 @@ html, body {
 
 .app {
   display: flex;
+  flex-direction: column;
   height: 100vh;
   overflow: hidden;
 }
@@ -287,7 +288,13 @@ html, body {
 .content {
   flex: 1;
   overflow-y: auto;
-  padding: 28px 36px;
+  /* Centre le contenu sous une barre qui va jusqu'aux bords : sans cette
+     limite, les vues s'etalaient sur toute la largeur de l'ecran des que la
+     colonne laterale a disparu. */
+  width: 100%;
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 28px 20px 40px;
 }
 
 .view { display: none; }
@@ -2155,3 +2162,209 @@ code {
   font-size: 11px; color: var(--muted);
   border: 1px dashed var(--border); border-radius: 99px; padding: 0 8px;
 }
+
+/* ============================================================
+   Barre de navigation haute, flottante au défilement
+   ------------------------------------------------------------
+   Remplace la colonne latérale de l'app par une barre en haut,
+   partagée avec les pages éditoriales et la page d'accueil.
+
+   Deux contextes de défilement différents, et c'est le piège :
+   dans l'app, .app fait 100vh et c'est .content qui défile, pas
+   la fenêtre — un `position:sticky` sur la fenêtre ne se
+   déclencherait jamais. Sur les pages éditoriales, c'est la
+   fenêtre qui défile. ui.js écoute le bon élément selon le cas
+   et pose `is-scrolled` ; le CSS ne fait que réagir.
+
+   `backdrop-filter` n'est pas supporté partout : la barre a donc
+   un fond opaque de repli, et le flou vient en supplément quand
+   le navigateur sait le faire.
+   ============================================================ */
+.kvt-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  flex-shrink: 0;
+  background: var(--sidebar);
+  border-bottom: 1px solid transparent;
+  transition: background 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+}
+.kvt-topbar.is-scrolled {
+  border-bottom-color: var(--border);
+  box-shadow: 0 8px 24px -16px rgba(0, 0, 0, 0.9);
+}
+@supports (backdrop-filter: blur(12px)) or (-webkit-backdrop-filter: blur(12px)) {
+  .kvt-topbar.is-scrolled {
+    background: color-mix(in srgb, var(--sidebar) 78%, transparent);
+    -webkit-backdrop-filter: blur(14px) saturate(1.4);
+    backdrop-filter: blur(14px) saturate(1.4);
+  }
+}
+
+.kvt-topbar__inner {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 10px 20px;
+}
+
+/* Le logo EST le lien de retour : il remplace le lien texte
+   « Accueil », qui faisait doublon avec lui. */
+.kvt-topbar__brand {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  text-decoration: none;
+  flex-shrink: 0;
+  border-radius: 10px;
+  padding: 4px 6px;
+  transition: opacity 0.15s ease;
+}
+.kvt-topbar__brand:hover { opacity: 0.75; text-decoration: none; }
+.kvt-topbar__brand .brand-kanji { font-size: 24px; line-height: 1; }
+.kvt-topbar__brand .brand-text { font-size: 12px; letter-spacing: 0.5px; }
+
+.kvt-topbar__nav {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.kvt-topbar__nav::-webkit-scrollbar { display: none; }
+
+/* Les boutons de navigation gardent leur classe .nav-btn : app.js
+   les retrouve par `.nav-btn[data-view]`. Seule leur mise en page
+   change, d'empilée à alignée. */
+.kvt-topbar .nav-btn {
+  width: auto;
+  margin-bottom: 0;
+  padding: 8px 13px;
+  white-space: nowrap;
+  border-radius: 9px;
+  font-size: 13.5px;
+}
+
+.kvt-topbar__end {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.kvt-topbar__toggle {
+  display: none;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--ink);
+  border-radius: 9px;
+  padding: 7px 11px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+/* Sous 860 px la barre ne peut plus tout montrer : la navigation
+   se replie derrière un bouton et s'ouvre en colonne. */
+@media (max-width: 860px) {
+  .kvt-topbar__toggle { display: block; }
+  .kvt-topbar__nav {
+    display: none;
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 100%;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 2px;
+    padding: 10px 16px 16px;
+    background: var(--sidebar);
+    border-bottom: 1px solid var(--border);
+    max-height: 70vh;
+    overflow-y: auto;
+  }
+  .kvt-topbar__nav.is-open { display: flex; }
+  .kvt-topbar .nav-btn { text-align: left; }
+  .kvt-topbar__inner { position: relative; }
+}
+
+/* ------------------------------------------------------------
+   Apparitions au défilement
+   ------------------------------------------------------------
+   Un élément marqué .kvt-fade part légèrement décalé et flou, et
+   se pose quand il entre dans l'écran. L'état de départ n'est
+   applique que si JavaScript est la : sans lui, `.js-anim` sur
+   <html> est absent et tout reste visible. Un contenu ne doit
+   jamais dependre d'une animation pour s'afficher.
+   ------------------------------------------------------------ */
+.js-anim .kvt-fade {
+  opacity: 0;
+  transform: translateY(14px);
+  filter: blur(6px);
+  transition: opacity 0.6s cubic-bezier(0.22, 1, 0.36, 1),
+              transform 0.6s cubic-bezier(0.22, 1, 0.36, 1),
+              filter 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: opacity, transform;
+}
+.js-anim .kvt-fade.is-shown {
+  opacity: 1;
+  transform: none;
+  filter: none;
+}
+
+/* Une liste dont les enfants arrivent l'un après l'autre. Le
+   décalage est posé par ui.js en variable, borné à 6 crans :
+   au-delà, l'attente se voit plus que l'effet. */
+.js-anim .kvt-stagger > * {
+  transition-delay: calc(var(--kvt-rang, 0) * 70ms);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .js-anim .kvt-fade,
+  .js-anim .kvt-fade.is-shown {
+    opacity: 1;
+    transform: none;
+    filter: none;
+    transition: none;
+  }
+  .kvt-topbar { transition: none; }
+}
+
+/* Le badge de semaine venait du bas de la colonne laterale : `margin-top:auto`
+   le poussait alors vers le bas. Dans une barre horizontale, la meme regle le
+   collerait au bas de la ligne. */
+.kvt-topbar .sidebar-footer {
+  margin-top: 0;
+  padding: 0;
+  font-size: 11px;
+  letter-spacing: 0.8px;
+  line-height: 1.3;
+  white-space: nowrap;
+}
+@media (max-width: 700px) {
+  .kvt-topbar .sidebar-footer { display: none; }
+}
+
+/* Les pages editoriales partagent la meme barre. Leur ancien en-tete
+   `.editorial-header` reste defini pour ne rien casser si une page l'utilise
+   encore, mais les pages servies emploient desormais `.kvt-topbar`. */
+.kvt-topbar__nav a {
+  color: var(--muted);
+  text-decoration: none;
+  padding: 8px 13px;
+  border-radius: 9px;
+  font-size: 13.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.kvt-topbar__nav a:hover { background: var(--panel); color: var(--ink); text-decoration: none; }
+.kvt-topbar__nav a.active { color: var(--accent-bright); }
+.kvt-topbar__nav a.kvt-topbar__cta {
+  background: var(--accent);
+  color: var(--sur-accent, #fff);
+}
+.kvt-topbar__nav a.kvt-topbar__cta:hover { background: var(--accent-bright); color: var(--sur-accent, #fff); }

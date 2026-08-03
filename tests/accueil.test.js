@@ -104,6 +104,60 @@ essai('l\'app sait ouvrir une ancre connue', () => {
   if (!src.includes('vuesConnues')) throw new Error('aucun filtrage des ancres inconnues');
 });
 
+// ---- Barre de navigation partagée (03/08/2026) ----
+
+essai('toutes les pages servies portent la barre de navigation', () => {
+  const sans = pagesHtml().filter((p) => !lire(p).includes('kvt-topbar'));
+  if (sans.length) throw new Error('pages sans barre : ' + sans.join(', '));
+});
+
+essai('toutes les pages servies chargent ui.js', () => {
+  const sans = pagesHtml().filter((p) => !lire(p).includes('/ui.js'));
+  if (sans.length) throw new Error('pages sans ui.js : ' + sans.join(', '));
+});
+
+essai('le logo ramène à la page d\'accueil sur chaque page', () => {
+  for (const p of pagesHtml()) {
+    const html = lire(p);
+    const m = html.match(/<a class="kvt-topbar__brand" href="([^"]+)"/);
+    if (!m) throw new Error(`${p} n'a pas de logo cliquable`);
+    if (m[1] !== '/') throw new Error(`${p} : le logo pointe sur ${m[1]}`);
+  }
+});
+
+essai('aucun lien de navigation ne pointe vers une page inexistante', () => {
+  const morts = [];
+  for (const p of pagesHtml()) {
+    for (const m of lire(p).matchAll(/<a[^>]+href="(\/[a-z0-9\-\/]*)"/g)) {
+      const cible = m[1].replace(/\/$/, '');
+      if (cible === '') continue;
+      const dossier = path.join(RACINE, cible);
+      const existe = fs.existsSync(path.join(dossier, 'index.html')) || fs.existsSync(dossier);
+      if (!existe) morts.push(`${p} -> ${m[1]}`);
+    }
+  }
+  if (morts.length) throw new Error(morts.join(', '));
+});
+
+essai('l\'app garde ses boutons de vue après le passage en barre haute', () => {
+  const html = lire(path.join('app', 'index.html'));
+  const vues = Array.from(html.matchAll(/class="nav-btn[^"]*" data-view="([a-z-]+)"/g), (m) => m[1]);
+  for (const attendue of ['communaute', 'dashboard', 'manage', 'decks', 'stats', 'leaderboard', 'maj', 'download', 'account', 'settings']) {
+    if (!vues.includes(attendue)) throw new Error(`le bouton ${attendue} a disparu de la navigation`);
+  }
+  if (html.includes('class="sidebar"')) throw new Error('la colonne latérale est encore là');
+});
+
+essai('les animations ne cachent rien sans JavaScript', () => {
+  const css = lire('style.css');
+  // L'état "caché" doit être conditionné par .js-anim, sinon un visiteur
+  // sans JavaScript ne voit jamais le contenu.
+  const regles = css.match(/^[^\n@}]*\.kvt-fade\b[^{]*\{/gm) || [];
+  const nues = regles.filter((r) => !r.includes('.js-anim'));
+  if (nues.length) throw new Error('règle .kvt-fade non conditionnée : ' + nues.join(' | '));
+  if (!/prefers-reduced-motion/.test(css)) throw new Error('aucun repli prefers-reduced-motion');
+});
+
 let echecs = 0;
 cas.forEach(([v, n]) => { if (v === 'ECHEC') echecs++; console.log(`  ${v.padEnd(7)} ${n}`); });
 console.log(`\n  ${cas.length - echecs}/${cas.length} passent`);
