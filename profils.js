@@ -75,12 +75,35 @@ function avatarHtml(userId, pseudo, taille) {
 }
 
 // Bloc « par Untel », avec photo, utilisable partout.
+//
+// Cliquable depuis le 04/08/2026 : un pseudo n'etait qu'un texte, on voyait
+// passer un deck sans pouvoir savoir ce que son auteur avait fait d'autre.
+// Le clic est capte une seule fois, au niveau du document (voir plus bas) :
+// ces blocs sont regeneres a chaque rendu, et rebrancher un gestionnaire sur
+// chacun a chaque fois finirait par en empiler des centaines.
 function auteurHtml(userId, pseudo, taille) {
+  const nom = escapeHtml((profilDe(userId) || {}).pseudo || pseudo || '');
+  if (!userId) {
+    return `<span class="auteur">${avatarHtml(userId, pseudo, taille || 24)}<span class="auteur-pseudo">${nom}</span></span>`;
+  }
   return `
-    <span class="auteur">
+    <button type="button" class="auteur auteur--lien" data-voir-profil="${escapeHtml(userId)}" title="Voir le profil de ${nom}">
       ${avatarHtml(userId, pseudo, taille || 24)}
-      <span class="auteur-pseudo">${escapeHtml((profilDe(userId) || {}).pseudo || pseudo || '')}</span>
-    </span>`;
+      <span class="auteur-pseudo">${nom}</span>
+    </button>`;
+}
+
+// Un seul ecouteur pour toute l'application, pose au document. Il survit aux
+// re-rendus des listes, qui remplacent leur contenu en bloc.
+if (typeof document !== 'undefined') {
+  document.addEventListener('click', (e) => {
+    const cible = e.target.closest && e.target.closest('[data-voir-profil]');
+    if (!cible) return;
+    if (window.kvtProfilPublic) {
+      if (typeof currentView !== 'undefined') window.kvtProfilPublic.depuis(currentView);
+      window.kvtProfilPublic.ouvrirProfilPublic(cible.dataset.voirProfil);
+    }
+  });
 }
 
 // ---------- Modification de son propre profil ----------

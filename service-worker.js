@@ -2,7 +2,7 @@
 // fois ouverte au moins une fois. Les données de l'utilisateur (vocabulaire,
 // scores) vivent dans IndexedDB (voir webapi.js), pas ici — le cache ne
 // contient que le "coquille" de l'app.
-const CACHE_NAME = 'kanji-vocab-trainer-v63';
+const CACHE_NAME = 'kanji-vocab-trainer-v64';
 const ASSETS = [
   '/',
   '/app/',
@@ -19,6 +19,8 @@ const ASSETS = [
   '/maj.js',
   '/communaute.js',
   '/profils.js',
+  '/creation.js',
+  '/profil-public.js',
   '/amis.js',
   '/admin.js',
   '/seed-data.json',

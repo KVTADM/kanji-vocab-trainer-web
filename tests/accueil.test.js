@@ -196,6 +196,41 @@ essai('un filet montre le contenu si l\'observateur ne se declenche pas', () => 
   }
 });
 
+// ---- Nouvelles vues du 04/08/2026 ----
+
+essai('les nouvelles vues sont declarees, chargees et routees', () => {
+  const html = lire(path.join('app', 'index.html'));
+  const appjs = lire('app.js');
+  const sw = lire('service-worker.js');
+  for (const [vue, fichier, rendu] of [
+    ['creation', '/creation.js', 'renderCreation'],
+    ['profil', '/profil-public.js', 'renderProfilPublic']
+  ]) {
+    if (!html.includes('id="view-' + vue + '"')) throw new Error('section view-' + vue + ' absente');
+    if (!html.includes('src="' + fichier + '"')) throw new Error(fichier + ' non charge');
+    if (!appjs.includes(rendu)) throw new Error(rendu + ' non branche dans renderCurrentView');
+    if (!sw.includes("'" + fichier + "'")) throw new Error(fichier + ' absent du cache hors connexion');
+  }
+});
+
+essai('la creation a sa propre categorie, separee du vocabulaire', () => {
+  const html = lire(path.join('app', 'index.html'));
+  if (!/data-view="creation"/.test(html)) throw new Error('pas de bouton Creation dans la barre');
+  const posVocab = html.indexOf('data-view="manage"');
+  const posCrea = html.indexOf('data-view="creation"');
+  if (posCrea < posVocab) throw new Error('Creation devrait suivre Vocabulaire, pas le preceder');
+});
+
+essai('un auteur affiche quelque part mene a son profil', () => {
+  const src = lire('profils.js');
+  if (!src.includes('data-voir-profil')) throw new Error('le bloc auteur n\'est pas cliquable');
+  // Un ecouteur pose sur chaque bloc a chaque rendu finirait par en empiler
+  // des centaines : la delegation au document est le seul moyen tenable.
+  if (!/document\.addEventListener\('click'/.test(src)) {
+    throw new Error('le clic devrait etre delegue au document, pas rebranche a chaque rendu');
+  }
+});
+
 let echecs = 0;
 cas.forEach(([v, n]) => { if (v === 'ECHEC') echecs++; console.log(`  ${v.padEnd(7)} ${n}`); });
 console.log(`\n  ${cas.length - echecs}/${cas.length} passent`);

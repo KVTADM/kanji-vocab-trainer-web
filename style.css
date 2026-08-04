@@ -2748,3 +2748,129 @@ code {
   margin: 8px 0 10px;
 }
 .pub-avertissement a { font-size: 12.5px; color: var(--accent-bright); }
+
+/* ---------- Profil public d'une personne ---------- */
+.auteur--lien {
+  background: none; border: none; padding: 0; cursor: pointer;
+  font: inherit; color: inherit; display: inline-flex; align-items: center; gap: 6px;
+  border-radius: 8px;
+}
+.auteur--lien:hover .auteur-pseudo { color: var(--accent-bright); text-decoration: underline; }
+
+.profil-entete { padding: 24px; }
+.profil-entete__haut { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+.profil-entete__ident { flex: 1; min-width: 0; }
+.profil-entete__pseudo { margin: 0 0 8px; font-size: 22px; }
+.profil-badges { display: flex; flex-wrap: wrap; gap: 6px; }
+.profil-badge {
+  font-size: 11.5px; padding: 3px 9px; border-radius: 999px;
+  background: var(--panel-alt); border: 1px solid var(--border); color: var(--muted);
+}
+.profil-bio { margin: 16px 0 0; color: var(--ink); font-size: 14px; line-height: 1.6; max-width: 62ch; }
+.profil-chiffres { display: flex; flex-wrap: wrap; gap: 22px; margin-top: 18px; font-size: 12.5px; color: var(--muted); }
+.profil-chiffres strong { color: var(--cream); font-size: 17px; font-variant-numeric: tabular-nums; margin-right: 4px; }
+.profil-ajout { flex: none; }
+
+.profil-onglets { display: flex; gap: 4px; margin: 20px 0 14px; flex-wrap: wrap; }
+.profil-onglet {
+  background: transparent; border: 1px solid transparent; color: var(--muted);
+  padding: 8px 14px; border-radius: 9px; cursor: pointer; font-size: 13.5px;
+}
+.profil-onglet:hover { background: var(--panel); color: var(--ink); }
+.profil-onglet.is-active { background: var(--panel); border-color: var(--border); color: var(--cream); }
+.profil-onglet__n { color: var(--muted); font-size: 12px; margin-left: 3px; }
+
+.profil-grille { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
+.profil-deck { margin-bottom: 0; padding: 16px 18px; }
+.profil-deck__titre { margin: 0 0 4px; font-size: 15px; color: var(--cream); }
+.profil-deck__detail, .profil-deck__note { margin: 0; font-size: 12.5px; color: var(--muted); line-height: 1.7; }
+.profil-deck__actions { display: flex; align-items: center; gap: 12px; margin-top: 12px; }
+.profil-deck__lien { font-size: 12px; color: var(--accent-bright); text-decoration: none; }
+
+.profil-avis-liste { display: flex; flex-direction: column; gap: 14px; }
+.profil-avis { margin: 0; border-left: 3px solid var(--border); padding: 4px 0 4px 16px; }
+.profil-avis__tete { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 4px; }
+.profil-avis__cible { font-size: 12px; color: var(--muted); }
+.profil-avis p { margin: 0; font-size: 14px; line-height: 1.6; }
+
+.profil-amis { display: flex; flex-wrap: wrap; gap: 10px; }
+.profil-ami {
+  display: flex; align-items: center; gap: 8px; cursor: pointer;
+  background: var(--panel); border: 1px solid var(--border); border-radius: 999px;
+  padding: 5px 14px 5px 5px; color: var(--ink); font-size: 13px;
+}
+.profil-ami:hover { border-color: var(--accent); }
+
+.profil-note-vie-privee { margin-top: 22px; font-size: 12px; color: var(--label-dim); }
+
+/* ============================================================
+   Création d'un deck a partir de la banque de kanji
+   ------------------------------------------------------------
+   Meme structure que la publication : les etapes a gauche, ce qui se
+   recapitule a droite. La banque est une grille de pastilles cliquables
+   plutot qu'une liste a cases a cocher — on selectionne des dizaines de
+   kanji d'affilee, et un clic sur une grande cible vaut mieux qu'un clic
+   sur une case de 14 px.
+   ============================================================ */
+.crea-colonnes {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+@media (min-width: 940px) {
+  .crea-colonnes { grid-template-columns: minmax(0, 1fr) 300px; }
+  .crea-cote { position: sticky; top: 74px; }
+}
+.crea-principal, .crea-cote { display: flex; flex-direction: column; gap: 18px; }
+.crea-principal .card, .crea-cote .card { margin-bottom: 0; }
+.crea-bloc { padding: 22px 24px; }
+
+.crea-liste-tete {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; flex-wrap: wrap;
+}
+.crea-liste-actions { display: flex; gap: 8px; }
+
+/* Hauteur bornee : la banque peut contenir plus de mille kanji, et une page
+   qui defile sur trente ecrans ne se parcourt pas. */
+.crea-banque {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
+  gap: 8px;
+  margin-top: 14px;
+  max-height: 460px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+.crea-kanji {
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  background: var(--panel-alt); border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 8px); padding: 10px 6px;
+  cursor: pointer; color: var(--ink); text-align: center;
+  transition: border-color 0.12s ease, background 0.12s ease;
+}
+.crea-kanji:hover { border-color: var(--accent); }
+.crea-kanji.is-choisi { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 18%, var(--panel-alt)); }
+.crea-kanji__glyphe { font-size: 26px; line-height: 1.2; color: var(--cream); }
+.crea-kanji__titre {
+  font-size: 11.5px; color: var(--muted); max-width: 100%;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.crea-kanji__meta { font-size: 10.5px; color: var(--label-dim); }
+
+.crea-recap { padding: 20px 22px; }
+.crea-recap .primary { width: 100%; }
+.crea-choisis { padding: 16px 18px; }
+.crea-choisis-liste { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.crea-puce {
+  background: var(--panel-alt); border: 1px solid var(--border);
+  border-radius: 999px; padding: 4px 10px; font-size: 15px; cursor: pointer;
+  color: var(--ink); line-height: 1.3;
+}
+.crea-puce:hover { border-color: var(--bad); color: var(--pink); }
+.crea-puce span { font-size: 11px; color: var(--muted); margin-left: 2px; }
+
+.crea-message { padding: 14px 18px; font-size: 13.5px; }
+.crea-message--succes { border-left: 3px solid var(--good-bright); }
+.crea-message--erreur { border-left: 3px solid var(--bad); }
