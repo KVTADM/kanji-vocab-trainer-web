@@ -21,7 +21,19 @@
   status = 302
   force = true
 
-# 2) Ancienne adresse de la présentation, devenue la racine. Redirection
+# 2) La racine SERT l'application. Jusqu'au 03/08/2026 un `index.html` séparé
+#    vivait ici : c'était la maquette d'origine, restée en place alors que la
+#    page d'accueil était devenue le premier onglet de l'app. Les deux
+#    affichaient exactement les mêmes cinq sections, avec deux codes
+#    différents — et c'est la version morte que voyait le visiteur. Elle est
+#    supprimée ; la racine réécrit vers l'app, sans redirection visible, pour
+#    que l'adresse partagée reste « / ».
+[[redirects]]
+  from = "/"
+  to = "/app/index.html"
+  status = 200
+
+# 3) Ancienne adresse de la présentation, devenue secondaire. Redirection
 #    permanente pour ne pas casser les liens déjà partagés.
 [[redirects]]
   from = "/decouvrir"
@@ -33,7 +45,7 @@
   to = "/l-idee"
   status = 301
 
-# 3) Filet pour l'app. Elle n'a aucun routage côté client aujourd'hui (aucun
+# 4) Filet pour l'app. Elle n'a aucun routage côté client aujourd'hui (aucun
 #    pushState), donc cette règle ne sert qu'à éviter un 404 sur une sous-adresse
 #    tapée à la main. À conserver si un vrai routage arrive un jour.
 [[redirects]]

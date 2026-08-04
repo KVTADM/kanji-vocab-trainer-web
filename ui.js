@@ -29,18 +29,17 @@
   // ----------------------------------------------------------
   // 1. Barre de navigation
   // ----------------------------------------------------------
-  // Le piège : dans l'app, `.app` fait 100vh et c'est `.content` qui
-  // défile — la fenêtre, elle, ne bouge jamais. Un écouteur posé sur
-  // `window` ne se déclencherait donc pas une seule fois. Sur les pages
-  // éditoriales et la page d'accueil, c'est l'inverse. On choisit le
-  // bon élément plutôt que d'espérer.
+  // Toutes les pages defilent avec la fenetre, app comprise. Ce n'etait pas
+  // le cas au premier jet : `.app` faisait 100vh et `.content` defilait a
+  // l'interieur, ce qui donnait deux ascenseurs et obligeait ce fichier a
+  // deviner lequel ecouter. Une seule surface de defilement vaut mieux
+  // qu'un code qui s'adapte a deux.
   function barre() {
     const barreEl = document.querySelector('.kvt-topbar');
     if (!barreEl) return;
 
-    const defilant = document.querySelector('.app .content');
-    const cible = defilant || window;
-    const position = () => (defilant ? defilant.scrollTop : window.scrollY || 0);
+    const cible = window;
+    const position = () => window.scrollY || 0;
 
     let enAttente = false;
     function auDefilement() {
@@ -76,6 +75,22 @@
       });
       document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') fermer();
+      });
+    }
+
+    // Le logo remplace le bouton « Accueil », qui faisait doublon avec lui.
+    // Dans l'app, cliquer dessus doit changer de vue, pas recharger toute la
+    // page : le `href` reste `/` pour que le lien fonctionne normalement
+    // depuis une page editoriale, en nouvel onglet, ou sans JavaScript.
+    const logo = barreEl.querySelector('.kvt-topbar__brand');
+    if (logo && document.querySelector('.app') && typeof window.switchView === 'function') {
+      logo.addEventListener('click', (e) => {
+        // Un clic milieu, ou avec Cmd/Ctrl, veut dire « nouvel onglet ».
+        // L'intercepter serait voler une intention explicite.
+        if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
+        e.preventDefault();
+        window.switchView('communaute');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
       });
     }
 

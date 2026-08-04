@@ -1744,7 +1744,11 @@ async function init() {
   // d'arriver directement sur une categorie — c'est ce qui rend cliquable le
   // bouton "Parcourir les decks" de la page d'accueil publique. Une ancre
   // inconnue est ignoree plutot que de vider l'ecran.
+  // « communaute » n'a plus de bouton depuis que le logo la remplace : elle
+  // est ajoutee a la main, sinon `/app/#communaute` serait rejete comme une
+  // ancre inconnue.
   const vuesConnues = new Set($$('.nav-btn[data-view]').map(b => b.dataset.view));
+  vuesConnues.add('communaute');
   const ancre = decodeURIComponent(location.hash.replace(/^#/, ''));
   switchView(vuesConnues.has(ancre) ? ancre : 'communaute');
 }

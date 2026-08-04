@@ -3,8 +3,12 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
-<title>KVT — Réviser le vocabulaire japonais</title>
-<meta name="description" content="L'application de révision : quiz par kanji, semestres universitaires et niveaux JLPT N5 à N3." />
+<title>KVT — Kanji Vocab Trainer : réviser le japonais par les kanji</title>
+<meta name="description" content="Réviser le vocabulaire japonais par les kanji : semestres universitaires, JLPT N5 à N3, decks partagés par la communauté et quiz à saisie libre." />
+<!-- Cette page est servie a la fois sur / et sur /app/. La forme canonique
+     est la racine : sans cette ligne, Google verrait deux adresses pour un
+     seul contenu et choisirait lui-meme laquelle ignorer. -->
+<link rel="canonical" href="https://kanji-vocab-trainer.netlify.app/" />
 
 <!-- PWA : installable sur iPhone/iPad via Safari > Partager > Sur l'écran d'accueil -->
 <link rel="manifest" href="/manifest.json" />
@@ -44,7 +48,6 @@
              suit l'usage : ce qu'on ouvre a chaque session reste visible, ce
              qu'on ouvre une fois par mois passe dans le menu. -->
         <nav class="kvt-topbar__nav" id="navPrincipale" aria-label="Navigation principale">
-          <button class="nav-btn active" data-view="communaute">Accueil</button>
           <button class="nav-btn" data-view="dashboard">Tableau de bord</button>
           <button class="nav-btn" data-view="manage">Vocabulaire</button>
           <button class="nav-btn" data-view="decks">Decks partagés</button>

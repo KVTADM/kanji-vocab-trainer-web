@@ -196,11 +196,15 @@ html, body {
   color: var(--ink);
 }
 
+/* Un seul ascenseur. `.app` faisait 100vh avec `overflow:hidden`, et
+   `.content` defilait a l'interieur : comme le pied de page vit SOUS `.app`,
+   la fenetre defilait aussi. Deux ascenseurs pour une meme page, dont un qui
+   ne descendait jamais jusqu'au pied de page. C'est la fenetre qui defile,
+   point — et `position:sticky` sur la barre marche alors tout seul. */
 .app {
   display: flex;
   flex-direction: column;
-  height: 100vh;
-  overflow: hidden;
+  min-height: 100vh;
 }
 
 /* ---------- Sidebar ---------- */
@@ -287,7 +291,6 @@ html, body {
 /* ---------- Content ---------- */
 .content {
   flex: 1;
-  overflow-y: auto;
   /* Centre le contenu sous une barre qui va jusqu'aux bords : sans cette
      limite, les vues s'etalaient sur toute la largeur de l'ecran des que la
      colonne laterale a disparu. */
@@ -2226,16 +2229,18 @@ code {
 .kvt-topbar__brand .brand-kanji { font-size: 24px; line-height: 1; }
 .kvt-topbar__brand .brand-text { font-size: 12px; letter-spacing: 0.5px; }
 
+/* Surtout PAS d'`overflow` ici : le menu « Plus » est un enfant absolu de
+   cette barre, et un conteneur qui rogne son debordement rognerait le menu
+   avec. Il s'ouvrait correctement, mais invisible sous le bord de la barre —
+   le bouton semblait ne rien faire. C'est pour ca que la barre ne contient
+   que six entrees : elle ne peut pas defiler, donc elle doit tenir. */
 .kvt-topbar__nav {
   display: flex;
   align-items: center;
   gap: 2px;
   flex: 1;
   min-width: 0;
-  overflow-x: auto;
-  scrollbar-width: none;
 }
-.kvt-topbar__nav::-webkit-scrollbar { display: none; }
 
 /* Les boutons de navigation gardent leur classe .nav-btn : app.js
    les retrouve par `.nav-btn[data-view]`. Seule leur mise en page

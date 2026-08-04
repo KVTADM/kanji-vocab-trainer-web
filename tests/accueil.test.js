@@ -8,10 +8,17 @@
 // place. Personne ne l'a vu parce qu'un chiffre plausible ne ressemble pas à
 // un bug.
 //
-// Ces contrôles vérifient trois choses qu'aucune relecture ne fait
-// fiablement : que les constantes de contenu correspondent aux vraies
-// données, qu'aucune page servie ne contient de syntaxe de gabarit non
-// interprétée, et qu'aucun lien de la page d'accueil ne pointe dans le vide.
+// Le 3 août au soir, la cause profonde est apparue : cette page en double
+// n'aurait jamais dû exister. La page d'accueil était devenue le premier
+// onglet de l'app (`communaute.js`), mais l'`index.html` de la maquette était
+// resté à la racine et rendait les mêmes cinq sections avec un second code.
+// C'est la version morte que voyaient les visiteurs. Les deux fichiers ont
+// été supprimés et la racine sert désormais l'app.
+//
+// Ces contrôles vérifient ce qu'aucune relecture ne fait fiablement :
+// qu'aucune page servie ne contient de syntaxe de gabarit non interprétée,
+// qu'aucun lien ne pointe dans le vide, et qu'une seule page d'accueil
+// existe.
 //
 // À lancer depuis la racine du dépôt : node tests/accueil.test.js
 
@@ -39,39 +46,77 @@ function pagesHtml(dir = RACINE, sortie = []) {
   return sortie;
 }
 
-essai('les constantes de contenu correspondent à seed-data.json', () => {
-  const seed = JSON.parse(lire('seed-data.json'));
-  const src = lire('accueil.js');
-  const m = src.match(/const CONTENU = \{\s*kanji:\s*(\d+),\s*mots:\s*(\d+)\s*\}/);
-  if (!m) throw new Error('CONTENU introuvable dans accueil.js');
-  const kanji = Number(m[1]);
-  const mots = Number(m[2]);
-  if (kanji !== seed.kanjiGroups.length) {
-    throw new Error(`CONTENU.kanji vaut ${kanji}, seed-data.json en a ${seed.kanjiGroups.length}`);
+essai('une seule page d\'accueil existe', () => {
+  if (fs.existsSync(path.join(RACINE, 'index.html'))) {
+    throw new Error('index.html est revenu a la racine : deuxieme page d\'accueil');
   }
-  if (mots !== seed.vocab.length) {
-    throw new Error(`CONTENU.mots vaut ${mots}, seed-data.json en a ${seed.vocab.length}`);
+  if (fs.existsSync(path.join(RACINE, 'accueil.js'))) {
+    throw new Error('accueil.js est revenu : deuxieme rendu de la page d\'accueil');
+  }
+  if (!lire('communaute.js').includes('renderCommunaute')) {
+    throw new Error('communaute.js ne rend plus la page d\'accueil');
   }
 });
 
-essai('les trois compteurs de la page d\'accueil ont leur élément', () => {
-  const html = lire('index.html');
-  for (const id of ['nbKanji', 'nbMots', 'nbDecks']) {
-    if (!html.includes(`id="${id}"`)) throw new Error(`#${id} absent d'index.html`);
-  }
-  const src = lire('accueil.js');
-  for (const id of ['nbKanji', 'nbMots', 'nbDecks']) {
-    if (!src.includes(`'${id}'`)) throw new Error(`accueil.js ne remplit pas #${id}`);
+essai('la racine sert bien l\'application', () => {
+  const toml = lire('netlify.toml');
+  if (!/from = "\/"\s*\n\s*to = "\/app\/index\.html"\s*\n\s*status = 200/.test(toml)) {
+    throw new Error('aucune reecriture de / vers l\'app : la racine renverrait un 404');
   }
 });
 
-essai('aucun chiffre inventé de la maquette ne subsiste', () => {
-  // Les valeurs exactes qui étaient affichées en production, avec l'espace
-  // fine insécable du HTML d'origine comme avec une espace ordinaire.
-  const interdits = ['2 136', '2 136', '341', '4 802', '4 802'];
-  const html = lire('index.html');
-  for (const n of interdits) {
-    if (html.includes(`>${n}<`)) throw new Error(`la valeur ${n} est écrite en dur dans index.html`);
+essai('la page servie a deux adresses declare une seule forme canonique', () => {
+  const html = lire(path.join('app', 'index.html'));
+  const m = html.match(/rel="canonical" href="([^"]+)"/);
+  if (!m) throw new Error('pas de canonical : / et /app/ seraient deux pages pour Google');
+  if (!/netlify\.app\/$/.test(m[1])) throw new Error('la forme canonique doit etre la racine, pas ' + m[1]);
+});
+
+essai('le service worker ne garde pas en cache des fichiers supprimes', () => {
+  const sw = lire('service-worker.js');
+  for (const mort of ['/index.html', '/accueil.js']) {
+    if (sw.includes("'" + mort + "'")) throw new Error(sw + ' met en cache ' + mort + ', qui n\'existe plus');
+  }
+  // Un asset absent fait echouer `cache.addAll` en entier : l'app perdrait
+  // tout son fonctionnement hors connexion, silencieusement.
+  const listes = sw.match(/const ASSETS = \[([\s\S]*?)\]/);
+  for (const m of listes[1].matchAll(/'(\/[^']*)'/g)) {
+    const rel = m[1] === '/' || m[1].endsWith('/') ? null : m[1].slice(1);
+    if (rel && !fs.existsSync(path.join(RACINE, rel))) {
+      throw new Error('le cache liste ' + m[1] + ', absent du dossier');
+    }
+  }
+});
+
+essai('un seul ascenseur par page', () => {
+  const css = lire('style.css');
+  const app = css.match(/\.app \{[^}]*\}/);
+  if (!app) throw new Error('.app introuvable');
+  // `min-height` est justement la bonne forme : c'est `height` seul qui
+  // enferme. Le controle doit faire la difference, sinon il refuse le correctif.
+  if (/overflow:\s*hidden/.test(app[0]) || /(^|[^-])height:\s*100vh/m.test(app[0])) {
+    throw new Error('.app enferme la page : la fenetre et .content defileraient tous les deux');
+  }
+  const content = css.match(/\.content \{[^}]*\}/);
+  if (/overflow-y:\s*auto/.test(content[0])) throw new Error('.content defile en plus de la fenetre');
+});
+
+essai('le menu deroulant n\'est rogne par aucun conteneur', () => {
+  const css = lire('style.css');
+  const nav = css.match(/\.kvt-topbar__nav \{[^}]*\}/);
+  if (!nav) throw new Error('.kvt-topbar__nav introuvable');
+  if (/overflow/.test(nav[0])) {
+    throw new Error('overflow sur .kvt-topbar__nav : le menu Plus serait invisible sous le bord');
+  }
+});
+
+essai('le logo ne fait pas doublon avec un bouton Accueil', () => {
+  const html = lire(path.join('app', 'index.html'));
+  if (/data-view="communaute"/.test(html)) {
+    throw new Error('le bouton Accueil est revenu alors que le logo le remplace');
+  }
+  if (!lire('app.js').includes("vuesConnues.add('communaute')")) {
+    throw new Error('sans bouton, communaute doit etre ajoutee a la main aux vues connues');
   }
 });
 
@@ -82,20 +127,6 @@ essai('aucune page servie ne contient de gabarit non interprété', () => {
     if (/<sc-[a-z]/.test(html) || /\{\{[^}]*\}\}/.test(html)) fautifs.push(page);
   }
   if (fautifs.length) throw new Error('restes de maquette dans ' + fautifs.join(', '));
-});
-
-essai('aucun lien mort dans la page d\'accueil', () => {
-  const html = lire('index.html');
-  if (/href="#"/.test(html)) throw new Error('un href="#" subsiste : le lien ne mène nulle part');
-});
-
-essai('les liens de la page d\'accueil visent des vues connues', () => {
-  const html = lire('index.html');
-  const app = lire(path.join('app', 'index.html'));
-  const vues = new Set(Array.from(app.matchAll(/data-view="([a-z-]+)"/g), m => m[1]));
-  for (const m of html.matchAll(/href="\/app\/#([a-z-]+)"/g)) {
-    if (!vues.has(m[1])) throw new Error(`#${m[1]} n'est pas une vue de l'app`);
-  }
 });
 
 essai('l\'app sait ouvrir une ancre connue', () => {
@@ -142,7 +173,7 @@ essai('aucun lien de navigation ne pointe vers une page inexistante', () => {
 essai('l\'app garde ses boutons de vue après le passage en barre haute', () => {
   const html = lire(path.join('app', 'index.html'));
   const vues = Array.from(html.matchAll(/class="nav-btn[^"]*" data-view="([a-z-]+)"/g), (m) => m[1]);
-  for (const attendue of ['communaute', 'dashboard', 'manage', 'decks', 'stats', 'leaderboard', 'maj', 'download', 'account', 'settings']) {
+  for (const attendue of ['dashboard', 'manage', 'decks', 'stats', 'leaderboard', 'maj', 'download', 'account', 'settings']) {
     if (!vues.includes(attendue)) throw new Error(`le bouton ${attendue} a disparu de la navigation`);
   }
   if (html.includes('class="sidebar"')) throw new Error('la colonne latérale est encore là');
