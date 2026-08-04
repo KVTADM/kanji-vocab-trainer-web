@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Comment utiliser KVT : le guide complet</title>
-<meta name="description" content="Découvrez comment utiliser KVT, entre suivi du cursus universitaire et préparation au JLPT." />
+<meta name="description" content="Comment l'application est organisée et pourquoi : le principe kanji-d'abord, les deux pistes cursus et JLPT, le barème progressif, l'import, la création de decks et le partage." />
 <link rel="canonical" href="https://kanji-vocab-trainer.netlify.app/blog/guide-complet" />
 <link rel="manifest" href="/manifest.json" />
 <meta name="theme-color" content="#16162a" />
@@ -37,15 +37,165 @@
   <main class="editorial-main">
     <div class="editorial-eyebrow">Blog</div>
     <h1>Comment utiliser KVT : le guide complet</h1>
-    <p>KVT propose deux façons distinctes de progresser, et il est utile de savoir laquelle correspond à ta situation avant de commencer.</p>
-    <p><strong>Si tu es étudiant en licence de japonais (LLCER ou équivalent)</strong>, la section "Cursus" suit le découpage semestre par semaine de ta formation — de Semestre 0 (L0) jusqu'au Semestre 6. Chaque semaine correspond à un vrai contenu de cours : kanji et vocabulaire à maîtriser, dans l'ordre où tu les rencontres réellement en classe.</p>
-    <p><strong>Si tu prépares le JLPT</strong> (avec ou sans être en licence), la section "JLPT" propose un parcours indépendant organisé par niveau : N5, N4, N3 pour l'instant, d'autres niveaux à venir.</p>
-    <p>Depuis le Tableau de bord, tu retrouves en un coup d'œil ta progression sur l'ensemble des semestres et niveaux, avec la possibilité de reprendre exactement où tu t'es arrêté.</p>
-    <p>La section Vocabulaire te permet de parcourir ou d'importer du contenu, la section Statistiques de suivre tes progrès dans le temps, et le Classement de comparer ta progression à celle des autres utilisateurs (fonctionnalité liée à un compte).</p>
-    <p>Tout est pensé pour être utilisable immédiatement, sans configuration complexe : choisis ta piste (Cursus ou JLPT), une semaine, et commence.</p>
-<a class="editorial-back" href="/blog">← Retour au blog</a>
+
+    <p>
+      La plupart des applications de japonais te demandent de choisir un parcours au
+      premier écran, puis te laissent avancer dedans jusqu'à la fin. KVT part d'un
+      constat différent : la plupart des gens qui apprennent le japonais ne suivent
+      pas <em>un</em> programme. Ils suivent celui de leur cours, avec un examen en
+      ligne de mire, et parfois une liste personnelle de mots croisés dans un manga
+      ou une série. Ces trois choses ne se rangent pas dans la même case.
+    </p>
+    <p>
+      Ce guide décrit comment l'application est organisée, et surtout <em>pourquoi</em>
+      elle l'est ainsi. Savoir ce qu'un outil refuse de faire est souvent plus utile
+      que de savoir tout ce qu'il fait.
+    </p>
+
+    <h2>Le principe : le kanji d'abord, le mot ensuite</h2>
+    <p>
+      Une liste de vocabulaire classique est plate. 学校 (がっこう, l'école), 学生
+      (がくせい, l'étudiant), 大学 (だいがく, l'université) y figurent comme trois
+      entrées séparées, à mémoriser trois fois. Pourtant elles partagent 学, et ce
+      caractère porte à lui seul l'idée d'étude. Qui le connaît devine la moitié du
+      sens des trois mots avant même de les avoir appris.
+    </p>
+    <p>
+      KVT regroupe donc le vocabulaire autour des kanji qui le composent. Chaque
+      semaine de contenu part d'un ensemble de caractères, et chaque caractère arrive
+      accompagné des mots qui l'emploient. On n'apprend pas trente mots isolés : on
+      apprend huit caractères, et les trente mots viennent avec.
+    </p>
+    <p>
+      Ce n'est pas une théorie de l'apprentissage, c'est une observation banale :
+      au-delà de quelques centaines de mots, la mémoire ne retient plus des formes
+      séparées. Elle retient des liens. Le kanji est le lien qui existe déjà dans la
+      langue — autant s'en servir.
+    </p>
+
+    <h2>Deux pistes qui ne se mélangent pas</h2>
+    <p>
+      La section <strong>Cursus</strong> suit le découpage réel d'une licence, semaine
+      par semaine, du semestre débutant jusqu'aux semestres avancés. Ce qui y figure
+      en semaine 3 est ce qu'un étudiant voit en semaine 3 : ni plus tôt, ni plus
+      tard. C'est ce qui permet de réviser <em>avant</em> un contrôle plutôt qu'après.
+    </p>
+    <p>
+      La section <strong>JLPT</strong> propose un parcours indépendant par niveau —
+      N5, N4 et N3 aujourd'hui. Elle ne suit aucun cours : elle suit la liste
+      officielle de l'examen, découpée en semaines de taille raisonnable.
+    </p>
+    <p>
+      Les deux ne sont volontairement pas fusionnées. Un semestre universitaire est
+      construit autour de situations (se présenter, décrire sa journée) ; le JLPT est
+      construit autour de seuils. Mélanger les deux donnerait une liste sans logique,
+      où l'on ne saurait plus pourquoi tel mot arrive à tel moment. Si tu veux
+      comprendre en détail ce que chaque piste apporte et laisse dans l'angle mort,
+      c'est l'objet de <a href="/blog/cursus-ou-jlpt">cet article-là</a>.
+    </p>
+
+    <h2>Le quiz : pourquoi il ne dit pas simplement « faux »</h2>
+    <p>
+      Le quiz te demande d'écrire la lecture d'un mot en hiragana ou en katakana. Pas
+      de choisir parmi quatre propositions : reconnaître une bonne réponse dans une
+      liste est beaucoup plus facile que de la produire, et c'est produire qu'il faut
+      savoir faire le jour de l'examen — ou dans une conversation.
+    </p>
+    <p>
+      La correction ne fonctionne pas en tout-ou-rien. Chaque réponse est comparée à
+      la solution attendue par une mesure de ressemblance, et notée en fonction de
+      l'écart. Écrire がっこう pour がこう ne vaut pas la même chose qu'écrire un mot
+      complètement différent. Dans le premier cas tu as la structure et il te manque
+      une petite tsu ; dans le second tu ne connais pas le mot.
+    </p>
+    <p>
+      Un système binaire mettrait les deux à zéro et t'apprendrait la même chose des
+      deux, c'est-à-dire rien. Le barème progressif te montre à quelle distance tu es,
+      et cette distance est exactement l'information dont tu as besoin pour corriger.
+    </p>
+    <p>
+      Un mode d'aide existe pour les moments de blocage : un calque fantôme affiche la
+      réponse en transparence. L'utiliser ne coûte rien sinon les points de la
+      question — ce qui est le but. Une aide gratuite serait utilisée tout le temps ;
+      une aide interdite serait contournée en ouvrant un onglet à côté.
+    </p>
+
+    <h2>Ce que tu peux ajouter toi-même</h2>
+    <p>
+      Trois façons d'enrichir ta base, dans l'ordre de l'effort demandé.
+    </p>
+    <p>
+      <strong>L'import</strong> reprend une liste que tu as déjà, sous forme de texte
+      collé, une ligne par mot. C'est le chemin le plus court si tu viens d'Anki ou
+      d'un tableur — la procédure exacte est décrite dans
+      <a href="/blog/import-anki">le guide d'import</a>.
+    </p>
+    <p>
+      <strong>La création</strong> fabrique un deck à partir de ce qui est déjà dans
+      l'application. Tu choisis des kanji — par catégorie, par recherche, ou parmi
+      ceux que tes résultats désignent comme mal retenus — tu les répartis sur le
+      nombre de semaines que tu veux, et tu obtiens un deck révisable comme les
+      autres. C'est le moyen de fabriquer une session de rattrapage ciblée sans
+      ressaisir une seule ligne.
+    </p>
+    <p>
+      <strong>La saisie manuelle</strong> reste possible dans la section Vocabulaire,
+      pour ajouter un mot croisé la veille au soir.
+    </p>
+
+    <h2>Partager, ou pas</h2>
+    <p>
+      Un deck que tu as constitué peut être publié. Il reçoit alors une adresse
+      publique, lisible sans compte, que tu peux envoyer à qui tu veux. Les autres
+      peuvent l'importer, le noter, le commenter.
+    </p>
+    <p>
+      Publier n'a rien d'obligatoire, et deux règles encadrent ce qui l'est. Un deck
+      doit contenir au moins cinq kanji — en dessous il encombre la liste sans rendre
+      service à personne. Et il doit être nommé par un cursus ou un niveau, jamais par
+      un manuel : la sélection des mots d'un chapitre et leur ordre appartiennent à
+      son éditeur, même reformulés. Un kanji, sa lecture et son sens sont des faits
+      que personne ne possède ; le choix de vingt mots parmi mille, si.
+    </p>
+
+    <h2>Le compte : ce qu'il change, et ce qu'il ne change pas</h2>
+    <p>
+      L'application fonctionne sans compte. Tes données vivent alors dans ton
+      navigateur, sur cet appareil-là, et nulle part ailleurs. Les versions
+      installables pour Mac et Windows fonctionnent entièrement hors connexion sur ce
+      principe.
+    </p>
+    <p>
+      Un compte gratuit ajoute trois choses : la sauvegarde en ligne, donc la
+      possibilité de reprendre sur un autre appareil ; le classement, qui compare ta
+      progression hebdomadaire à celle des autres, par pseudo uniquement ; et la
+      publication de decks, qui suppose une identité stable pour que ton nom
+      apparaisse comme auteur.
+    </p>
+    <p>
+      Ce qu'un compte ne change pas : le contenu. Les semestres, les modules JLPT, le
+      quiz, les statistiques sont identiques avec ou sans. Rien de pédagogique n'est
+      derrière une inscription.
+    </p>
+
+    <h2>Par où commencer, concrètement</h2>
+    <p>
+      Si tu es en cours de japonais : ouvre le semestre qui correspond au tien, va à
+      la semaine où en est ton cours, et fais le quiz. Tu sauras en quatre minutes ce
+      qui tient et ce qui ne tient pas. Recommence deux jours plus tard sur la même
+      semaine : c'est l'écart entre les deux essais qui compte, pas le score du
+      premier.
+    </p>
+    <p>
+      Si tu prépares le JLPT sans cours : ouvre le module de ton niveau, fais la
+      semaine 1, et tiens un rythme plutôt qu'un volume. Trois séances de dix minutes
+      dans la semaine valent mieux qu'une séance d'une heure le dimanche, et cette
+      phrase-là n'est pas un slogan : c'est ce que montrent tes propres statistiques
+      au bout d'un mois.
+    </p>
+
     <div class="editorial-cta">
-      <p>Prêt à commencer ?</p>
+      <p>Les deux pistes, l'import et la création sont dans KVT, gratuitement.</p>
       <a href="/app">Ouvrir KVT</a>
     </div>
   </main>

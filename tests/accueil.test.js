@@ -231,6 +231,58 @@ essai('un auteur affiche quelque part mene a son profil', () => {
   }
 });
 
+// ---- Contenu editorial ----
+
+function motsDe(html) {
+  const m = html.match(/<main[\s\S]*?<\/main>/);
+  if (!m) return 0;
+  return m[0].replace(/<[^>]+>/g, ' ')
+    .replace(/&[a-z]+;|&#\d+;/g, ' ')
+    .split(/\s+/).filter(Boolean).length;
+}
+
+essai('chaque article de blog fait au moins mille mots', () => {
+  // Le refus AdSense visait le « contenu a faible valeur » : les articles
+  // faisaient 120 a 320 mots. Ce controle empeche qu'un article soit remis
+  // en ligne amputé sans que personne ne le voie.
+  const courts = [];
+  for (const p of pagesHtml()) {
+    if (!/^blog\/[^/]+\/index\.html$/.test(p.replace(/\\/g, '/'))) continue;
+    const n = motsDe(lire(p));
+    if (n < 1000) courts.push(p + ' (' + n + ' mots)');
+  }
+  if (courts.length) throw new Error('articles trop courts : ' + courts.join(', '));
+});
+
+essai('l\'index du blog annonce les vrais titres des articles', () => {
+  // Deux textes qui derivent l'un de l'autre finissent par se contredire :
+  // l'index promettait encore d'anciens titres apres reecriture.
+  const index = lire(path.join('blog', 'index.html'));
+  for (const p of pagesHtml()) {
+    const rel = p.replace(/\\/g, '/');
+    const m = rel.match(/^blog\/([^/]+)\/index\.html$/);
+    if (!m) continue;
+    const article = lire(p);
+    const titre = article.match(/<title>([^<]*)<\/title>/)[1];
+    if (!index.includes('href="/blog/' + m[1] + '"')) {
+      throw new Error(m[1] + ' n\'est pas liste dans l\'index du blog');
+    }
+    if (!index.includes(titre)) {
+      throw new Error("l'index n'annonce pas le titre reel de " + m[1]);
+    }
+  }
+});
+
+essai('chaque article declare sa forme canonique et une description', () => {
+  for (const p of pagesHtml()) {
+    if (!/^blog\/[^/]+\/index\.html$/.test(p.replace(/\\/g, '/'))) continue;
+    const html = lire(p);
+    if (!/rel="canonical"/.test(html)) throw new Error(p + ' sans canonical');
+    const d = html.match(/name="description" content="([^"]*)"/);
+    if (!d || d[1].length < 60) throw new Error(p + ' : description absente ou trop courte');
+  }
+});
+
 let echecs = 0;
 cas.forEach(([v, n]) => { if (v === 'ECHEC') echecs++; console.log(`  ${v.padEnd(7)} ${n}`); });
 console.log(`\n  ${cas.length - echecs}/${cas.length} passent`);

@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Importer son vocabulaire depuis Anki : mode d'emploi</title>
-<meta name="description" content="Guide pas à pas pour importer vos decks Anki ou vos listes de vocabulaire dans KVT." />
+<title>Importer son vocabulaire depuis Anki, un tableur ou une liste de cours</title>
+<meta name="description" content="Le format attendu, comment sortir ses données d'Anki, et les trois pièges qui font échouer un import sur deux : le point-virgule dans le sens, la colonne kanji vide, les lectures en rōmaji." />
 <link rel="canonical" href="https://kanji-vocab-trainer.netlify.app/blog/import-anki" />
 <link rel="manifest" href="/manifest.json" />
 <meta name="theme-color" content="#16162a" />
@@ -36,19 +36,170 @@
   </header>
   <main class="editorial-main">
     <div class="editorial-eyebrow">Blog</div>
-    <h1>Importer son vocabulaire depuis Anki : mode d'emploi</h1>
-    <p>Si tu as déjà des decks Anki ou toute autre liste de vocabulaire, tu peux les importer directement dans KVT plutôt que de ressaisir manuellement.</p>
-    <p><strong>Étapes :</strong></p>
-    <ol>
-      <li>Va dans la section Vocabulaire.</li>
-      <li>Prépare ton fichier au format demandé : une ligne par mot, colonnes séparées par point-virgule, dans l'ordre <code>Semestre;Semaine;Kanji;Titre/Mot;Lecture;Sens</code>. Un exemple est affiché directement sur la page.</li>
-      <li>Colle ton contenu dans la zone prévue, clique "Analyser" pour vérifier que le format est reconnu, puis "Importer" pour valider.</li>
-      <li>Optionnel : un second import (au format <code>Semestre;Semaine;Kanji;Onyomi;Kunyomi;Bushu;Phrase;Traduction;Memo;Attention</code>) permet d'ajouter les fiches d'aide associées, indépendamment du vocabulaire principal.</li>
-    </ol>
-    <p>Si tu exportes depuis Anki, il faudra reformater tes colonnes pour correspondre à cette structure — un tableur (Excel, Numbers, Google Sheets) fait très bien l'affaire pour réorganiser les colonnes avant de copier-coller.</p>
-<a class="editorial-back" href="/blog">← Retour au blog</a>
+    <h1>Importer son vocabulaire depuis Anki, un tableur ou une liste de cours</h1>
+
+    <p>
+      Si tu apprends le japonais depuis un moment, tu as déjà une liste quelque part.
+      Un deck Anki, un tableur partagé par un camarade, un fichier texte accumulé
+      pendant deux semestres. La ressaisir mot à mot n'a aucun intérêt : ce qui suit
+      décrit comment la faire entrer dans KVT, et surtout comment éviter les trois
+      pièges qui font échouer un import sur deux.
+    </p>
+
+    <h2>Le format attendu</h2>
+    <p>
+      L'import se fait par collage de texte, une ligne par mot, colonnes séparées par
+      des points-virgules, dans cet ordre :
+    </p>
+    <p><code>Semestre;Semaine;Kanji;Mot;Lecture;Sens</code></p>
+    <p>
+      Concrètement :
+    </p>
+    <p>
+      <code>S2;3;学;学校;がっこう;l'école</code><br />
+      <code>S2;3;学;学生;がくせい;l'étudiant</code><br />
+      <code>S2;3;先;先生;せんせい;l'enseignant</code>
+    </p>
+    <p>
+      Les deux premières colonnes servent au découpage : elles disent à quel semestre
+      et à quelle semaine le mot appartient. La troisième indique le kanji porteur —
+      c'est elle qui permet le regroupement, et c'est la colonne qu'on oublie le plus
+      souvent. Les trois dernières sont le mot lui-même, sa lecture en kana, et sa
+      traduction.
+    </p>
+    <p>
+      Plusieurs lignes peuvent partager le même kanji : c'est même le cas normal. Trois
+      mots contenant 学 donnent trois lignes avec 学 en troisième colonne, et
+      l'application les regroupe.
+    </p>
+
+    <h2>Sortir ses données d'Anki</h2>
+    <p>
+      Dans Anki, ouvre <em>Fichier → Exporter</em>, choisis le deck concerné, et prends
+      le format « Notes en texte brut ». Décoche l'inclusion des balises HTML si
+      l'option t'est proposée : elles produisent du texte parasite dans les champs.
+    </p>
+    <p>
+      Anki sépare ses colonnes par des tabulations, pas par des points-virgules. Un
+      passage par un tableur règle le problème : ouvre le fichier exporté, vérifie que
+      les colonnes tombent au bon endroit, réordonne-les si besoin, puis enregistre en
+      CSV avec le point-virgule comme séparateur. Si ton tableur est en anglais,
+      l'option s'appelle souvent « semicolon ».
+    </p>
+    <p>
+      Anki n'a pas de colonne « semestre » ni « semaine » : c'est à toi de les ajouter.
+      Deux colonnes en tête, remplies vers le bas, prennent deux minutes. Si ton deck
+      Anki n'a pas de découpage naturel, mets tout en semaine 1 et redécoupe ensuite
+      depuis la section Création, qui permet de répartir un ensemble de kanji sur le
+      nombre de semaines que tu veux.
+    </p>
+
+    <h2>Les trois pièges</h2>
+    <p>
+      <strong>Le point-virgule dans le sens.</strong> C'est le plus fréquent. Une
+      traduction comme « l'école ; l'établissement » contient le séparateur, et la
+      ligne se coupe en deux au mauvais endroit. Remplace ces points-virgules par des
+      virgules ou des barres obliques avant d'importer. La prévisualisation les rend
+      visibles immédiatement : une ligne qui affiche une colonne de trop vient
+      presque toujours de là.
+    </p>
+    <p>
+      <strong>La colonne kanji laissée vide.</strong> Sans elle, chaque mot devient son
+      propre groupe, et tu retombes exactement sur la liste plate que tu essayais de
+      quitter. Si un mot est écrit uniquement en kana — comme たくさん — il n'a pas de
+      kanji porteur : dans ce cas, choisis un kanji thématique de la même semaine
+      plutôt que de laisser vide, ou regroupe ces mots dans un groupe dédié.
+    </p>
+    <p>
+      <strong>Les lectures en rōmaji.</strong> Le quiz attend des kana. Une lettre
+      latine dans la colonne lecture rendra la question impossible à valider, quelle
+      que soit ta réponse. Convertis avant d'importer : la plupart des tableurs ne le
+      font pas, mais un convertisseur en ligne traite une colonne entière d'un coup.
+    </p>
+
+    <h2>La procédure</h2>
+    <p>
+      Va dans la section <strong>Vocabulaire</strong>. Un exemple du format attendu est
+      affiché directement sur la page, avec de vraies lignes plutôt qu'une description
+      abstraite — c'est plus rapide à comparer avec ton propre fichier.
+    </p>
+    <p>
+      Colle ton texte dans la zone prévue, puis clique <strong>Analyser</strong>.
+      Rien n'est encore enregistré à ce stade : l'analyse te montre ce qui a été
+      compris, combien de kanji et de mots seront créés, et signale les lignes
+      illisibles. Lis ce récapitulatif avant d'aller plus loin. Un import à l'aveugle
+      qui crée trois cents entrées mal découpées se défait beaucoup plus lentement
+      qu'il ne se fait.
+    </p>
+    <p>
+      Si le compte est bon, clique <strong>Importer</strong>. Le contenu rejoint tes
+      semestres et devient révisable immédiatement.
+    </p>
+
+    <h2>Le second import, celui des fiches</h2>
+    <p>
+      Un deuxième format, facultatif, ajoute les détails de chaque kanji plutôt que les
+      mots :
+    </p>
+    <p><code>Semestre;Semaine;Kanji;Onyomi;Kunyomi;Radical;Phrase;Traduction</code></p>
+    <p>
+      Il alimente les fiches d'aide : lectures on et kun, radical, phrase d'exemple.
+      Ces informations ne sont jamais demandées pendant le quiz — elles servent à
+      comprendre avant de se tester. Rien n'oblige à les fournir, et un deck sans
+      fiches fonctionne parfaitement.
+    </p>
+    <p>
+      L'ordre compte : importe d'abord les mots, ensuite les fiches. L'inverse crée des
+      fiches rattachées à des kanji qui n'existent pas encore.
+    </p>
+
+    <h2>Après l'import</h2>
+    <p>
+      Fais une première session de quiz tout de suite, sur une seule semaine. C'est le
+      moyen le plus rapide de repérer une colonne décalée : si les sens ne
+      correspondent pas aux mots, l'erreur saute aux yeux en trois questions, alors
+      qu'elle passerait inaperçue dans une liste.
+    </p>
+    <p>
+      Ton import reste chez toi tant que tu ne fais rien de plus. Si tu veux le
+      partager, la publication est une étape distincte, à déclencher explicitement
+      depuis la liste des decks — avec une réserve à connaître : ne publie pas une
+      liste recopiée d'un manuel. La sélection des mots d'un chapitre et leur ordre
+      appartiennent à son éditeur, même reformulés. Ta propre liste, constituée au fil
+      de tes cours, ne pose aucun problème.
+    </p>
+
+    <h2>Et si tu n'as rien à importer</h2>
+    <p>
+      Il arrive qu'on veuille un deck sans avoir de fichier à recycler : rattraper les
+      caractères d'un contrôle raté, préparer une liste courte avant un oral,
+      rassembler ce qu'on confond depuis trois semaines. Ressaisir des mots qui sont
+      déjà dans l'application n'aurait aucun sens.
+    </p>
+    <p>
+      La section <strong>Création</strong> sert exactement à ça. Elle donne accès à la
+      banque de kanji déjà présente — celle des semestres et des modules JLPT — et
+      permet d'en choisir un sous-ensemble de trois façons : en parcourant une
+      catégorie, en cherchant un caractère ou un sens, ou en laissant l'application
+      proposer ceux que tes résultats désignent comme mal retenus.
+    </p>
+    <p>
+      Ce troisième mode mérite un mot. Sélectionner à la main « les kanji que je ne
+      retiens pas » suppose qu'on s'en souvienne, or c'est précisément ce qu'on ne fait
+      pas : on se rappelle des échecs marquants, pas des tièdes. L'application, elle,
+      a les scores. Elle remonte les semaines passées sous un certain seuil, de la
+      plus ratée à la moins ratée, et tu n'as plus qu'à décocher ce que tu as
+      entre-temps assimilé.
+    </p>
+    <p>
+      Les mots sont copiés, pas partagés : réviser le deck créé ne modifie pas le
+      semestre d'origine, et le supprimer ne le vide pas. Tu choisis la répartition —
+      d'un seul bloc, ou par paquets de cinq à trente kanji par semaine — et le
+      résultat se comporte comme n'importe quel autre semestre.
+    </p>
+
     <div class="editorial-cta">
-      <p>Prêt à commencer ?</p>
+      <p>L'import se trouve dans la section Vocabulaire.</p>
       <a href="/app">Ouvrir KVT</a>
     </div>
   </main>
