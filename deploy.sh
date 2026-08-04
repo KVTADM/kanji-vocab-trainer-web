@@ -24,6 +24,17 @@
 # ../KVT-binaires et sont publiés sur les Releases GitHub : ils pesaient 166 Mo
 # sur 168, soit 98,7 % de chaque déploiement, et repartaient en entier même
 # pour une ligne de CSS. Ne les remets pas dans ce dossier.
+#
+# 04/08/2026 — le script s'est bloqué sans rien afficher, plusieurs minutes,
+# curseur figé. Cause : `npx` demande « Need to install the following
+# packages… Ok to proceed? (y) » quand son cache a été vidé (redémarrage du
+# Mac), et la ligne de vérification envoyait TOUTE sa sortie vers /dev/null.
+# La question était posée dans le vide, et le script attendait une réponse
+# qu'on ne pouvait pas voir. Deux corrections : `--yes` répond d'avance, et
+# on ne fait plus taire la sortie d'erreur. Une commande silencieuse qui
+# attend est pire qu'une commande bavarde.
 cd "$(dirname "$0")"
-npx netlify-cli status >/dev/null 2>&1 || npx netlify-cli login
-npx netlify-cli deploy --prod --dir=. --site=9d064bfe-ee5c-447c-8f22-e8c4c2d3e0d8
+echo "Vérification de la connexion Netlify…"
+npx --yes netlify-cli status >/dev/null || npx --yes netlify-cli login
+echo "Publication du contenu du dossier…"
+npx --yes netlify-cli deploy --prod --dir=. --site=9d064bfe-ee5c-447c-8f22-e8c4c2d3e0d8
