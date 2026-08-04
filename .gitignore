@@ -6,3 +6,9 @@
 # au moins pas dans le depot.
 downloads/*.dmg
 downloads/*.exe
+
+# Pages generees a chaque deploiement depuis la base (outils/generer-pages-deck.js).
+# Les versionner ferait un commit de bruit a chaque avis poste, et la version
+# du depot serait de toute facon perimee : la verite est en base.
+/deck/
+/sitemap.xml

@@ -2432,3 +2432,131 @@ code {
     box-shadow: none;
   }
 }
+
+/* ---------- Pages publiques d'un deck : /deck/<slug>/ ----------
+   Noms en `deck-fiche__` et non `deck-page__` : `.deck-page-tete` et
+   `.deck-page-actions` existent deja dans l'app. Les selecteurs de classe ne
+   se confondent pas entre eux, mais deux familles au nom presque identique
+   dans un meme fichier finissent par etre editees l'une pour l'autre.
+
+   Ces pages sont servies a des visiteurs qui n'ont jamais vu KVT : elles
+   heritent de `.editorial-main`, comme la FAQ et les articles, plutot que du
+   style de l'app. */
+.deck-fiche__auteur {
+  color: var(--muted);
+  font-size: 13px;
+  margin: -8px 0 20px;
+}
+.deck-fiche__resume {
+  font-size: 17px;
+  line-height: 1.7;
+  color: var(--cream);
+  max-width: 62ch;
+}
+.deck-fiche__faits {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 0;
+  margin: 24px 0 8px;
+}
+.deck-fiche__faits li {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 18px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.deck-fiche__faits strong {
+  display: block;
+  font-size: 22px;
+  color: var(--cream);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+.deck-fiche__note { color: var(--muted); font-size: 13px; }
+.deck-fiche__note strong { color: var(--accent-bright); font-size: 16px; }
+
+.deck-fiche__action { margin: 28px 0 36px; }
+.deck-fiche__action .primary {
+  display: inline-block;
+  background: var(--accent);
+  color: var(--sur-accent, #fff);
+  padding: 12px 24px;
+  border-radius: 10px;
+  font-weight: 600;
+  text-decoration: none;
+}
+.deck-fiche__action .primary:hover { background: var(--accent-bright); text-decoration: none; }
+
+.deck-fiche__avis-item {
+  border-left: 3px solid var(--border);
+  margin: 0 0 18px;
+  padding: 2px 0 2px 18px;
+}
+.deck-fiche__avis-item p { margin: 0 0 6px; }
+.deck-fiche__avis-item cite {
+  color: var(--muted);
+  font-size: 12.5px;
+  font-style: normal;
+}
+
+.deck-fiche__contexte { margin-top: 40px; }
+
+/* ---------- Index de tous les decks : /deck/ ---------- */
+.deck-index { list-style: none; padding: 0; margin: 28px 0; }
+.deck-index__item { margin-bottom: 10px; }
+.deck-index__item a {
+  display: block;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 20px;
+  text-decoration: none;
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+.deck-index__item a:hover {
+  border-color: var(--accent);
+  transform: translateY(-1px);
+  text-decoration: none;
+}
+.deck-index__titre {
+  display: block;
+  color: var(--cream);
+  font-weight: 600;
+  font-size: 16px;
+}
+.deck-index__detail {
+  display: block;
+  color: var(--muted);
+  font-size: 12.5px;
+  margin-top: 3px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .deck-index__item a:hover { transform: none; }
+}
+
+/* Adresse publique d'un deck, montree dans l'app. Elle doit etre lisible et
+   selectionnable a la main : la copie automatique est refusee hors HTTPS et
+   dans certains navigateurs, et un bouton qui echoue en silence est pire que
+   pas de bouton. */
+.deck-partage {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 14px 0 0;
+}
+.deck-partage__url {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12.5px;
+  color: var(--muted);
+  background: var(--panel-alt);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px 10px;
+  user-select: all;
+  word-break: break-all;
+}

@@ -33,8 +33,18 @@
 # qu'on ne pouvait pas voir. Deux corrections : `--yes` répond d'avance, et
 # on ne fait plus taire la sortie d'erreur. Une commande silencieuse qui
 # attend est pire qu'une commande bavarde.
+set -e   # une etape qui echoue arrete tout : mieux vaut ne rien publier
+         # que publier un site amputé de ses pages de deck.
 cd "$(dirname "$0")"
-echo "Vérification de la connexion Netlify…"
+
+# Les pages /deck/<slug>/ sont fabriquees a partir de la base, juste avant la
+# publication : elles doivent refleter les decks du moment. Ce sont les seules
+# pages du site dont le texte existe dans le HTML servi, donc les seules que
+# Google peut lire — tout le reste est genere dans le navigateur.
+echo "Generation des pages de deck..."
+node outils/generer-pages-deck.js
+
+echo "Verification de la connexion Netlify..."
 npx --yes netlify-cli status >/dev/null || npx --yes netlify-cli login
-echo "Publication du contenu du dossier…"
+echo "Publication du contenu du dossier..."
 npx --yes netlify-cli deploy --prod --dir=. --site=9d064bfe-ee5c-447c-8f22-e8c4c2d3e0d8

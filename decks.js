@@ -53,6 +53,15 @@ let pubEtat = {
 // On ne demande jamais la colonne "contenu" ici : un deck pèse plus de cent
 // kilo-octets et la liste en afficherait cinquante. Le contenu n'est chargé
 // qu'au moment de l'import, deck par deck.
+// L'adresse publique d'un deck. Passer par une constante plutot que par
+// `location.origin` directement dans un gabarit : les controles s'executent
+// hors navigateur, ou `location` n'existe pas, et un gabarit qui suppose un
+// environnement complet devient intestable.
+const ORIGINE = (typeof location !== 'undefined' && location.origin)
+  ? location.origin
+  : 'https://kanji-vocab-trainer.netlify.app';
+const urlPubliqueDeck = (slug) => ORIGINE + '/deck/' + slug;
+
 const CHAMPS_LISTE = 'id,slug,titre,description,pseudo,auteur_id,officiel,semester_id,type,cursus,niveau,decoupage,nb_kanji,nb_mots,nb_semaines,note_moyenne,nb_notes,created_at';
 
 async function chargerDecks() {
@@ -696,6 +705,13 @@ function renderDeck() {
         ${formatDeck(d).map(t => `<span class="deck-etiquette">${escapeHtml(t)}</span>`).join('')}
       </div>
       <p class="deck-description ${d.description ? '' : 'est-vide'}">${d.description ? escapeHtml(d.description) : "L'auteur n'a pas écrit de description."}</p>
+      <!-- Un deck sans adresse ne se partage pas. Celle-ci mene a une vraie
+           page HTML, generee au deploiement : elle s'ouvre sans compte, sans
+           JavaScript, et un moteur de recherche peut la lire. -->
+      <p class="deck-partage">
+        <span class="deck-partage__url" id="deckPartageUrl">${escapeHtml(urlPubliqueDeck(d.slug))}</span>
+        <button type="button" class="small" id="btnCopierLien">Copier le lien</button>
+      </p>
       <div class="deck-page-actions">
         ${d.officiel
           ? `<button class="primary" id="btnReviserPage">Réviser</button>`
@@ -775,6 +791,30 @@ function renderDeck() {
     </div>`;
 
   $('#btnRetourListe').onclick = () => { decksCache = null; switchView('decks'); };
+
+  const btnCopier = $('#btnCopierLien');
+  if (btnCopier) {
+    btnCopier.onclick = async () => {
+      const url = urlPubliqueDeck(d.slug);
+      try {
+        await navigator.clipboard.writeText(url);
+        showToast('Lien copié');
+      } catch (e) {
+        // Le presse-papiers est refusé hors HTTPS et dans certains
+        // navigateurs. Plutôt qu'échouer en silence, on sélectionne
+        // l'adresse : il reste un Cmd+C à faire, mais rien n'est perdu.
+        const span = $('#deckPartageUrl');
+        if (span) {
+          const plage = document.createRange();
+          plage.selectNodeContents(span);
+          const sel = window.getSelection();
+          sel.removeAllRanges();
+          sel.addRange(plage);
+        }
+        showToast('Copie automatique refusée : le lien est sélectionné');
+      }
+    };
+  }
 
   const bImp = $('#btnImporterPage');
   if (bImp && !res) bImp.onclick = () => importerDeck(d.id, bImp, d.contenu);

@@ -298,3 +298,23 @@ essai('le résultat d\'un deck officiel se lit sous son vrai identifiant', () =>
   // et surtout : pas sous « deck-jlpt-n3 », qui n'existe pas
   if (DB.settings.semesters.some(s => s.id === 'deck-jlpt-n3')) throw new Error('un semestre parasite a été créé');
 });
+
+essai("la fiche d'un deck montre son adresse publique et permet de la copier", () => {
+  // Le partage par lien etait l'etape 2 de la feuille de route communaute,
+  // jamais faite : un deck vivait dans l'app et n'avait aucune adresse, donc
+  // aucun moyen de l'envoyer a quelqu'un.
+  window.accountUser = null;
+  deckDetailErreur = null;
+  deckDetail = {
+    deck: { ...DECK_A, id: 'p2', slug: 'semestre-3', titre: 'Semestre 3',
+            auteur_id: 'u1', visible: true,
+            contenu: { kanjiGroups: [{ kanji: '支', titre: 'soutenir', week: 1 }], vocab: [] } },
+    avis: []
+  };
+  commentaires = []; mesVotes = {}; reponseA = null; brouillons = {};
+  monAvis = { note: 0, texte: '', envoi: false };
+  renderDeck();
+  const html = trouve('#view-deck').innerHTML;
+  if (!html.includes('/deck/semestre-3')) throw new Error('adresse publique absente de la fiche');
+  if (!html.includes('btnCopierLien')) throw new Error('aucun moyen de copier le lien');
+});
