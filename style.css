@@ -1698,6 +1698,9 @@ code {
 }
 .lien-retour:hover { color: var(--accent); }
 
+/* .pub-form : la largeur qui rendait le formulaire etroit et dense. Le
+   formulaire utilise desormais .pub-colonnes. Regle conservee au cas ou
+   une autre vue l'emploierait encore. */
 .pub-form { max-width: 620px; }
 .pub-label {
   display: block; font-size: 13px; color: var(--muted);
@@ -2084,7 +2087,12 @@ code {
 /* Colonne centree dans la zone de contenu, et non collee a gauche. 940 px :
    assez large pour que les cartes respirent, assez etroit pour que l'oeil
    retrouve le debut de la ligne suivante. */
-#view-communaute { max-width: 940px; margin-left: auto; margin-right: auto; }
+/* La page d'accueil occupe toute la largeur de contenu (1180 px) : elle est
+   faite de colonnes qui se repartissent, pas d'un texte suivi. Elle tenait
+   auparavant dans 940 px, ce qui laissait deux tiers de l'ecran vides sur un
+   grand affichage et forcait a defiler pour des cartes qui tenaient cote a
+   cote. Les blocs de lecture, eux, gardent leur limite ligne par ligne. */
+#view-communaute { max-width: none; }
 .comm-grille .card { margin-bottom: 0; }
 
 .comm-etat-vide {
@@ -2560,3 +2568,183 @@ code {
   user-select: all;
   word-break: break-all;
 }
+
+/* ============================================================
+   Page d'accueil de l'app
+   ------------------------------------------------------------
+   Trois etages, du plus large au plus dense : une entete centree qui dit ce
+   qu'est KVT, deux colonnes pour ce qui bouge, les videos en pleine largeur.
+   ============================================================ */
+.accueil-entete {
+  text-align: center;
+  max-width: 680px;
+  margin: 8px auto 36px;
+  padding: 0 4px;
+}
+.accueil-surtitre {
+  margin: 0 0 12px;
+  font-size: 12px;
+  letter-spacing: 1.6px;
+  text-transform: uppercase;
+  color: var(--accent-bright);
+  font-weight: 600;
+}
+.accueil-titre {
+  margin: 0;
+  font-size: clamp(26px, 3.4vw, 40px);
+  line-height: 1.25;
+  font-weight: 700;
+  color: var(--cream);
+  letter-spacing: -0.4px;
+  /* `text-wrap: balance` egalise les lignes d'un titre au lieu de laisser un
+     mot seul en bas. Ignore par les navigateurs qui ne le connaissent pas,
+     donc sans repli a prevoir. */
+  text-wrap: balance;
+}
+.accueil-pitch {
+  margin: 16px auto 0;
+  max-width: 56ch;
+  font-size: 15px;
+  line-height: 1.7;
+  color: var(--muted);
+}
+
+.accueil-chiffres {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-top: 28px;
+}
+.accueil-chiffre {
+  flex: 1 1 150px;
+  max-width: 200px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 14px;
+}
+.accueil-chiffre__valeur {
+  display: block;
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--cream);
+  font-variant-numeric: tabular-nums;
+}
+.accueil-chiffre__libelle {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+/* Deux colonnes des qu'il y a la place. `auto-fit` avec un minimum : la
+   grille decide seule du nombre de colonnes selon la largeur reelle, sans
+   qu'on ait a deviner des points de rupture. */
+.accueil-grille {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 18px;
+  align-items: start;
+}
+.accueil-grille .card { margin-bottom: 0; }
+
+.accueil-lien-tout {
+  margin: 14px 0 0;
+  font-size: 13px;
+}
+.accueil-lien-tout a { color: var(--accent-bright); text-decoration: none; }
+.accueil-lien-tout a:hover { text-decoration: underline; }
+
+/* Le proverbe du jour et les videos gardent la pleine largeur, mais leur
+   texte reste lisible : une ligne de 120 caracteres ne se lit pas. */
+#view-communaute .proverb-card { max-width: 680px; margin-left: auto; margin-right: auto; }
+
+@media (max-width: 640px) {
+  .accueil-entete { margin-bottom: 26px; }
+  .accueil-chiffre { flex-basis: 100px; padding: 12px 10px; }
+  .accueil-chiffre__valeur { font-size: 20px; }
+}
+
+/* ============================================================
+   Formulaire de publication d'un deck
+   ------------------------------------------------------------
+   Il tenait dans une seule carte de huit champs empiles sur 620 px : aucun
+   repere pour savoir ou l'on en est, et l'avertissement juridique perdu au
+   milieu du parcours. Trois etapes numerotees, et sur le cote ce qui ne se
+   remplit pas — le recapitulatif de ce qui part, et la regle de nommage,
+   lisible au moment ou l'on nomme son deck.
+   ============================================================ */
+.pub-colonnes {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+@media (min-width: 940px) {
+  .pub-colonnes { grid-template-columns: minmax(0, 1fr) 300px; }
+  /* Le recapitulatif suit le regard pendant qu'on remplit : sans ca, il faut
+     redescendre pour verifier ce qu'on envoie. */
+  .pub-cote { position: sticky; top: 74px; }
+}
+.pub-principal { display: flex; flex-direction: column; gap: 18px; }
+.pub-cote { display: flex; flex-direction: column; gap: 18px; }
+.pub-principal .card, .pub-cote .card { margin-bottom: 0; }
+
+.pub-etape { padding: 22px 24px; }
+.pub-etape__titre {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 6px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--cream);
+}
+.pub-etape__num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--sur-accent, #fff);
+  font-size: 12.5px;
+  font-weight: 700;
+}
+.pub-etape .pub-label { margin-top: 20px; }
+
+.pub-recap-carte { padding: 20px 22px; }
+.pub-recap__ligne {
+  display: block;
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.9;
+}
+.pub-recap__ligne strong {
+  color: var(--cream);
+  font-size: 20px;
+  font-variant-numeric: tabular-nums;
+  margin-right: 6px;
+}
+.pub-recap-carte .pub-actions { margin-top: 16px; }
+.pub-recap-carte .primary { width: 100%; }
+
+/* L'avertissement devient une carte a part : au milieu du formulaire, il
+   etait lu comme un champ de plus et donc saute. */
+.pub-avertissement {
+  padding: 18px 20px;
+  border-left: 3px solid var(--warn);
+}
+.pub-avertissement strong { display: block; font-size: 13.5px; color: var(--cream); }
+.pub-avertissement p {
+  font-size: 12.5px;
+  line-height: 1.65;
+  color: var(--muted);
+  margin: 8px 0 10px;
+}
+.pub-avertissement a { font-size: 12.5px; color: var(--accent-bright); }

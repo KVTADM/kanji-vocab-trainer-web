@@ -318,3 +318,93 @@ essai("la fiche d'un deck montre son adresse publique et permet de la copier", (
   if (!html.includes('/deck/semestre-3')) throw new Error('adresse publique absente de la fiche');
   if (!html.includes('btnCopierLien')) throw new Error('aucun moyen de copier le lien');
 });
+
+essai("le formulaire de publication est decoupe en etapes, pas en un seul bloc", () => {
+  // Il tenait dans une seule carte de huit champs empiles : aucun repere,
+  // et l'avertissement juridique noye au milieu du parcours.
+  window.accountUser = { id: 'u1', pseudo: 'Polus' };
+  DB.settings.semesters = [{ id: 's1', label: 'Semestre 1', weeks: 8 }];
+  DB.kanjiGroups = [{ id: 'k1', semesterId: 's1', week: 1, kanji: '日' }];
+  DB.vocab = [{ id: 'v1', kanjiGroupId: 'k1', word: '日本', reading: 'にほん' }];
+  pubEtat.semesterId = 's1'; pubEtat.portee = 'tout'; pubEtat.type = 'cursus';
+  pubEtat.decoupage = 'semaines'; pubEtat.erreur = null; pubEtat.envoi = false;
+  renderPublier();
+  const html = trouve('#view-publier').innerHTML;
+  const etapes = (html.match(/pub-etape__num/g) || []).length;
+  if (etapes !== 3) throw new Error('il faut trois etapes, il y en a ' + etapes);
+  // La regle de nommage doit etre lisible LA ou l'on nomme son deck.
+  if (!html.includes('jamais par un manuel')) throw new Error('la regle de nommage a disparu');
+  // Les identifiants dont dependent les gestionnaires ne doivent pas bouger.
+  for (const id of ['pubSemestre', 'pubTitre', 'pubDescription', 'btnPublier', 'btnRetourDecks']) {
+    if (!html.includes('id="' + id + '"')) throw new Error(id + ' a disparu du formulaire');
+  }
+});
+
+essai("le tri par note tient compte du nombre d'avis, pas seulement de la moyenne", () => {
+  // Mon premier controle affirmait qu'un seul avis a 5 ne devait jamais
+  // passer devant cinquante avis a 4,8. C'est faux, et aucune valeur de
+  // POIDS_PRIOR ne le produirait : la moyenne bayesienne tire une note vers
+  // la moyenne du site sans jamais la faire traverser. Si tout le site est
+  // note 4,8, un 5 isole vaut effectivement un peu mieux que 4,8.
+  //
+  // Ce que la moyenne bayesienne empeche vraiment, c'est qu'un avis unique
+  // domine un catalogue ou les notes s'etalent. C'est le cas reel, et c'est
+  // celui-ci qu'on verifie.
+  const liste = [
+    { id: 'unique', titre: 'Un seul avis a 5', nb_notes: 1, note_moyenne: 5, nb_kanji: 10, created_at: '2026-01-01', type: 'cursus' },
+    { id: 'solide', titre: 'Cinquante avis a 4,9', nb_notes: 50, note_moyenne: 4.9, nb_kanji: 10, created_at: '2026-01-02', type: 'cursus' },
+    { id: 'faible', titre: 'Trente avis a 2,5', nb_notes: 30, note_moyenne: 2.5, nb_kanji: 10, created_at: '2026-01-03', type: 'cursus' },
+    { id: 'moyen', titre: 'Vingt avis a 3', nb_notes: 20, note_moyenne: 3, nb_kanji: 10, created_at: '2026-01-04', type: 'cursus' },
+    { id: 'jamais', titre: 'Jamais note', nb_notes: 0, note_moyenne: null, nb_kanji: 99, created_at: '2026-01-05', type: 'cursus' }
+  ];
+  decksTri = 'note';
+  const ordre = trierDecks(liste).map(d => d.id);
+  if (ordre[0] !== 'solide') {
+    throw new Error('un avis unique domine le classement : ' + ordre.join(','));
+  }
+  if (ordre[ordre.length - 1] !== 'jamais') {
+    throw new Error('un deck jamais note doit rester en fin de liste, pas sous les mauvais');
+  }
+  // Une moyenne brute aurait mis « unique » en tete : c'est exactement la
+  // difference que ce tri doit produire.
+  const brut = liste.slice().sort((a, b) => (b.note_moyenne || 0) - (a.note_moyenne || 0));
+  if (brut[0].id !== 'unique') throw new Error('le scenario ne teste plus rien');
+  decksTri = 'recents';
+});
+
+essai("on peut filtrer les decks officiels et ceux de la communaute", () => {
+  decksCache = [
+    { id: 'o', titre: 'Officiel', officiel: true, type: 'cursus', description: '', cursus: '', niveau: '', pseudo: 'KVT' },
+    { id: 'c', titre: 'Communaute', officiel: false, type: 'jlpt', description: '', cursus: '', niveau: 'N3', pseudo: 'Polus' }
+  ];
+  decksRecherche = '';
+  decksFiltre = 'officiel';
+  let v = decksVisibles();
+  if (v.length !== 1 || v[0].id !== 'o') throw new Error('filtre officiel : ' + v.map(d => d.id));
+  decksFiltre = 'communaute';
+  v = decksVisibles();
+  if (v.length !== 1 || v[0].id !== 'c') throw new Error('filtre communaute : ' + v.map(d => d.id));
+  // Le filtre par type doit continuer de marcher : « officiel » n'est pas un
+  // type, et confondre les deux donnerait une liste vide sans explication.
+  decksFiltre = 'jlpt';
+  v = decksVisibles();
+  if (v.length !== 1 || v[0].id !== 'c') throw new Error('filtre par type casse');
+  decksFiltre = 'tous';
+});
+
+essai("un deck de moins de cinq kanji est refuse a la publication", async () => {
+  window.accountUser = { id: 'u1', pseudo: 'Polus' };
+  DB.settings.semesters = [{ id: 'mini', label: 'Mini', weeks: 1 }];
+  DB.kanjiGroups = [
+    { id: 'k1', semesterId: 'mini', week: 1, kanji: '日' },
+    { id: 'k2', semesterId: 'mini', week: 1, kanji: '月' }
+  ];
+  DB.vocab = [{ id: 'v1', kanjiGroupId: 'k1', word: '日本', reading: 'にほん' }];
+  pubEtat.semesterId = 'mini'; pubEtat.portee = 'tout'; pubEtat.type = 'cursus';
+  pubEtat.cursus = 'LLCER'; pubEtat.titre = 'Un tout petit deck';
+  pubEtat.decoupage = 'bloc'; pubEtat.erreur = null; pubEtat.envoi = false;
+  await publierDeck();
+  if (!pubEtat.erreur) throw new Error('un deck de deux kanji a ete accepte');
+  if (!/au moins 5 kanji/.test(pubEtat.erreur)) throw new Error('message peu clair : ' + pubEtat.erreur);
+  if (!/il en manque 3/.test(pubEtat.erreur)) throw new Error('le message doit dire combien il manque');
+});

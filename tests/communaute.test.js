@@ -15,14 +15,20 @@ const SRC=fs.readFileSync('communaute.js','utf8');
 const cas=[];
 global.essai=(n,f)=>{try{f();cas.push(['OK',n]);}catch(e){cas.push(['ECHEC',n+' -> '+e.message]);}};
 eval(SRC+`
-essai("tout vide : la banniere et les avis d'exemple prennent le relais", ()=>{
-  commData={avis:[],decks:[],arrive:[],demandes:[],videos:[]};
+essai("tout vide : l'entete et les avis d'exemple prennent le relais", ()=>{
+  commData={avis:[],decks:[],arrive:[],demandes:[],videos:[],nbDecks:null};
   renderCommunaute();
   const h=trouve('#view-communaute').innerHTML;
-  if(!h.includes('comm-banniere')) throw new Error('banniere absente');
+  if(!h.includes('accueil-entete')) throw new Error('entete absente');
   if(!h.includes('proverb-card')) throw new Error('proverbe du jour absent');
   if(!h.includes('七転び八起き')) throw new Error('texte du proverbe absent');
-  if(!h.includes("Page d'accueil")) throw new Error('titre absent');
+  if(!h.includes("Le kanji d'abord")) throw new Error('accroche absente');
+  // Sans base locale ni comptage, les trois chiffres doivent afficher un
+  // tiret : jamais une valeur inventee, jamais un zero qui ferait croire
+  // que le site est vide alors qu'on n'a simplement pas pu compter.
+  if((h.match(/accueil-chiffre__valeur">—/g)||[]).length!==3) {
+    throw new Error('un compteur sans donnee doit afficher un tiret');
+  }
   if((h.match(/est-exemple/g)||[]).length!==2) throw new Error('il faut deux exemples');
   if((h.match(/comm-exemple-marque/g)||[]).length!==2) throw new Error('les exemples ne sont pas marques comme tels');
   // les quatre autres sections restent en etat vide

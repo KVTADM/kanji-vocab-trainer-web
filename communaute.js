@@ -23,7 +23,7 @@ async function chargerCommunaute() {
   if (!window.sb) { commErreur = "La connexion au serveur n'est pas disponible."; return; }
   commEnCours = true;
   commErreur = null;
-  const res = { avis: [], decks: [], arrive: [], demandes: [], videos: [] };
+  const res = { avis: [], decks: [], arrive: [], demandes: [], videos: [], nbDecks: null };
   try {
     // Cinq requêtes indépendantes : si l'une échoue, les autres s'affichent
     // quand même. Une section vide vaut mieux qu'une page blanche.
@@ -42,7 +42,12 @@ async function chargerCommunaute() {
         .then(r => { res.demandes = r.data || []; }),
       sb.from('videos').select('youtube_id,titre,pseudo,score').eq('statut', 'publiee')
         .order('score', { ascending: false }).limit(3)
-        .then(r => { res.videos = r.data || []; })
+        .then(r => { res.videos = r.data || []; }),
+      // Le nombre total de decks, et non la longueur de la liste ci-dessus :
+      // celle-ci s'arrete a quatre. Un compteur qui compte l'echantillon
+      // plutot que l'ensemble est un chiffre faux, pas une approximation.
+      sb.from('decks').select('id', { count: 'exact', head: true }).eq('visible', true)
+        .then(r => { res.nbDecks = (r && typeof r.count === 'number') ? r.count : null; })
     ];
     await Promise.allSettled(requetes);
     commData = res;
@@ -160,54 +165,83 @@ function renderCommunaute() {
     </a>`).join('')}</div>`
     : commVide("Aucune vidéo partagée pour l'instant.");
 
+  // ------------------------------------------------------------
+  // Mise en page. Trois etages, du plus large au plus dense :
+  //   1. une entete centree qui dit ce qu'est KVT et ce qu'il contient ;
+  //   2. deux colonnes pour ce qui bouge (avis, decks, a venir, demandes) ;
+  //   3. les videos en pleine largeur.
+  //
+  // La page tenait dans une colonne de 940 px collee au centre, avec quatre
+  // cartes empilees : sur un ecran large, deux tiers de la surface ne
+  // servaient a rien et il fallait defiler pour voir des choses qui
+  // tenaient cote a cote.
+  //
+  // Les chiffres viennent des donnees reellement chargees : le vocabulaire
+  // local pour le contenu, un comptage en base pour les decks. Aucun n'est
+  // ecrit en dur — c'est la faute qui a laisse « 4 802 membres » en
+  // production pendant deux jours.
+  // ------------------------------------------------------------
+  const nb = (n) => Number(n).toLocaleString('fr-FR').replace(/\u202f|\u00a0/g, ' ');
+  // `DB` est la base locale, remplie par app.js. Passer par `typeof` plutot
+  // que de la supposer presente : les controles evaluent ce fichier sans
+  // l'app autour, et un compteur ne doit jamais empecher la page de
+  // s'afficher.
+  const base = (typeof DB !== 'undefined' && DB) ? DB : null;
+  const nbKanji = (base && base.kanjiGroups) ? base.kanjiGroups.length : null;
+  const nbMots = (base && base.vocab) ? base.vocab.length : null;
+  const chiffre = (valeur, libelle) => `
+    <div class="accueil-chiffre">
+      <span class="accueil-chiffre__valeur">${valeur == null ? '—' : nb(valeur)}</span>
+      <span class="accueil-chiffre__libelle">${libelle}</span>
+    </div>`;
+
+  const proverbe = (typeof getProverbOfDay === 'function') ? getProverbOfDay() : null;
+
   el.innerHTML = `
-    <div class="decks-head">
-      <div>
-        <h2>Page d'accueil</h2>
-        <p class="decks-sous-titre">Ce qui a bougé depuis ta dernière session : les avis, les decks, ce qui arrive.</p>
+    <section class="accueil-entete kvt-fade">
+      <p class="accueil-surtitre">Le kanji d'abord, le mot ensuite</p>
+      <h2 class="accueil-titre">Un caractère revu aujourd'hui<br />rappelle les mots qui le contiennent.</h2>
+      <p class="accueil-pitch">
+        Réviser mot par mot, c'est apprendre des formes sans lien entre elles. KVT regroupe
+        le vocabulaire autour des kanji qui le composent, semaine après semaine.
+      </p>
+      <div class="accueil-chiffres">
+        ${chiffre(nbKanji, 'kanji dans ta base')}
+        ${chiffre(nbMots, 'mots de vocabulaire')}
+        ${chiffre(d.nbDecks, 'decks publiés')}
       </div>
-    </div>
+    </section>
 
     ${commErreur ? `<div class="card"><p>Chargement partiel : ${escapeHtml(commErreur)}</p></div>` : ''}
 
-    ${typeof getProverbOfDay === 'function' ? (() => {
-      const p = getProverbOfDay();
-      return `
-      <div class="card proverb-card">
-        <div class="proverb-kanji">${escapeHtml(p.kanji)}</div>
-        <div class="proverb-lecture">${escapeHtml(p.lecture)}</div>
-        <div class="proverb-sens">${escapeHtml(p.sens)}</div>
-      </div>`;
-    })() : ''}
+    ${proverbe ? `
+    <div class="card proverb-card kvt-fade">
+      <div class="proverb-kanji">${escapeHtml(proverbe.kanji)}</div>
+      <div class="proverb-lecture">${escapeHtml(proverbe.lecture)}</div>
+      <div class="proverb-sens">${escapeHtml(proverbe.sens)}</div>
+    </div>` : ''}
 
-    <div class="comm-banniere">
-      <span class="comm-banniere-kanji" aria-hidden="true">語</span>
-      <div class="comm-banniere-texte">
-        <strong>Le kanji d'abord, le mot ensuite.</strong>
-        <span>Un caractère revu aujourd'hui rappelle les trois ou quatre mots qui le contiennent.</span>
-      </div>
-    </div>
-
-    <div class="comm-grille">
-      <div class="card">
+    <div class="accueil-grille kvt-stagger">
+      <div class="card kvt-fade">
         <h3 class="deck-section-titre">Derniers avis</h3>
         ${avis}
       </div>
-      <div class="card">
+      <div class="card kvt-fade">
         <h3 class="deck-section-titre">Derniers decks</h3>
         ${decks}
+        <p class="accueil-lien-tout"><a href="/deck/">Voir tous les decks publiés</a></p>
       </div>
-      <div class="card">
+      <div class="card kvt-fade">
         <h3 class="deck-section-titre">Ce qui arrive</h3>
         ${arrive}
       </div>
-      <div class="card">
+      <div class="card kvt-fade">
         <h3 class="deck-section-titre">Les plus demandés</h3>
         ${demandes}
       </div>
     </div>
 
-    <div class="card">
+    <div class="card kvt-fade">
       <h3 class="deck-section-titre">Vidéos partagées</h3>
       ${videos}
     </div>`;

@@ -62,6 +62,31 @@ const ORIGINE = (typeof location !== 'undefined' && location.origin)
   : 'https://kanji-vocab-trainer.netlify.app';
 const urlPubliqueDeck = (slug) => ORIGINE + '/deck/' + slug;
 
+// Nombre minimum de kanji pour qu'un deck puisse etre publie. En dessous,
+// il encombre la liste sans rendre service.
+const MIN_KANJI_PUBLICATION = 5;
+
+// Moyenne bayesienne : elle empeche un deck note 5 par une seule personne de
+// passer devant un deck note 4,8 par cinquante. Chaque deck part avec
+// POIDS_PRIOR votes fictifs a la note moyenne du site ; plus il recoit de
+// vrais votes, plus ceux-ci pesent. C'est le tri « mieux notes » attendu :
+// sans ca, le classement recompense la rarete des avis, pas la qualite.
+const POIDS_PRIOR = 5;
+
+function noteBayesienne(deck, moyenneSite) {
+  const n = deck.nb_notes || 0;
+  const moyenne = n ? Number(deck.note_moyenne) : 0;
+  return (POIDS_PRIOR * moyenneSite + n * moyenne) / (POIDS_PRIOR + n);
+}
+
+function moyenneDuSite(liste) {
+  const notes = liste.filter(d => d.nb_notes > 0);
+  if (!notes.length) return 0;
+  const total = notes.reduce((s, d) => s + Number(d.note_moyenne) * d.nb_notes, 0);
+  const votes = notes.reduce((s, d) => s + d.nb_notes, 0);
+  return total / votes;
+}
+
 const CHAMPS_LISTE = 'id,slug,titre,description,pseudo,auteur_id,officiel,semester_id,type,cursus,niveau,decoupage,nb_kanji,nb_mots,nb_semaines,note_moyenne,nb_notes,created_at';
 
 async function chargerDecks() {
@@ -115,7 +140,12 @@ function decksVisibles() {
   const liste = decksCache || [];
   const q = decksRecherche.trim().toLowerCase();
   return liste.filter(d => {
-    if (decksFiltre !== 'tous' && d.type !== decksFiltre) return false;
+    // « officiel » et « communaute » ne sont pas des types de deck mais une
+    // origine : ils se filtrent sur un autre champ. Les melanger dans le
+    // meme test que `type` donnerait une liste vide sans rien dire.
+    if (decksFiltre === 'officiel') { if (!d.officiel) return false; }
+    else if (decksFiltre === 'communaute') { if (d.officiel) return false; }
+    else if (decksFiltre !== 'tous' && d.type !== decksFiltre) return false;
     if (!q) return true;
     return (d.titre + ' ' + d.description + ' ' + d.cursus + ' ' + d.niveau + ' ' + d.pseudo)
       .toLowerCase().includes(q);
@@ -144,12 +174,17 @@ function monResultat(deck) {
 function trierDecks(liste) {
   const copie = liste.slice();
   if (decksTri === 'note') {
-    // Un deck sans note ne passe pas devant un deck noté : il part en fin de
-    // liste plutôt que de compter pour zéro.
+    // Classement par moyenne bayesienne, pas par moyenne brute : un seul
+    // avis a 5 ne doit pas devancer cinquante avis a 4,8. Un deck jamais
+    // note reste derriere tous les decks notes, plutot que de compter pour
+    // zero et de tomber sous les plus mauvais.
+    const m = moyenneDuSite(liste);
     copie.sort((a, b) => {
-      const na = a.nb_notes ? Number(a.note_moyenne) : -1;
-      const nb = b.nb_notes ? Number(b.note_moyenne) : -1;
-      if (nb !== na) return nb - na;
+      const sansA = !a.nb_notes, sansB = !b.nb_notes;
+      if (sansA !== sansB) return sansA ? 1 : -1;
+      if (sansA && sansB) return (b.nb_kanji || 0) - (a.nb_kanji || 0);
+      const diff = noteBayesienne(b, m) - noteBayesienne(a, m);
+      if (Math.abs(diff) > 1e-9) return diff;
       return (b.nb_notes || 0) - (a.nb_notes || 0);
     });
   } else if (decksTri === 'kanji') {
@@ -233,13 +268,14 @@ function renderDecks() {
   const filtres = `
     <div class="decks-barre">
       <div class="decks-filtres">
-        ${[['tous', 'Tous'], ['cursus', 'Cursus'], ['jlpt', 'JLPT']].map(([v, lib]) => `
+        ${[['tous', 'Tous'], ['cursus', 'Cursus'], ['jlpt', 'JLPT'],
+           ['officiel', 'Officiels KVT'], ['communaute', 'Communauté']].map(([v, lib]) => `
           <button class="deck-filtre ${decksFiltre === v ? 'is-active' : ''}" data-filtre="${v}">${lib}</button>`).join('')}
       </div>
       <input type="search" id="decksRecherche" class="decks-recherche" placeholder="Rechercher un deck, un cursus, un auteur…" value="${escapeHtml(decksRecherche)}" />
       <label class="decks-tri-label" for="decksTri">Trier par</label>
       <select id="decksTri" class="decks-tri">
-        ${[['recents', 'Plus récents'], ['note', 'Mieux notés'], ['kanji', 'Plus de kanji'], ['titre', 'Ordre alphabétique']]
+        ${[['recents', 'Nouveautés'], ['note', 'Mieux notés'], ['kanji', 'Plus de kanji'], ['titre', 'Ordre alphabétique']]
           .map(([v, lib]) => `<option value="${v}" ${decksTri === v ? 'selected' : ''}>${lib}</option>`).join('')}
       </select>
     </div>`;
@@ -425,85 +461,125 @@ function renderPublier() {
     ? apercu.kanjiGroups.reduce((m, g) => Math.max(m, g.week), 0)
     : 0;
 
+  // ------------------------------------------------------------
+  // Le formulaire etait une seule carte de huit champs empiles dans 620 px :
+  // aucun repere, aucune respiration, et l'avertissement juridique noye au
+  // milieu. Il est decoupe en trois etapes numerotees — ce que tu publies,
+  // comment c'est decoupe, comment ca s'appelle — avec le recapitulatif et
+  // les regles a cote plutot qu'en travers du parcours.
+  //
+  // Aucun identifiant ni attribut de donnees n'a change : les gestionnaires
+  // plus bas retrouvent exactement les memes elements.
+  // ------------------------------------------------------------
   el.innerHTML = `
     <div class="pub-fil"><button class="lien-retour" id="btnRetourDecks">← Tous les decks</button></div>
     <h2>Publier un deck</h2>
     <p class="decks-sous-titre">Tu publies une copie de l'un de tes semestres. Ton exemplaire n'est pas modifié, et tu peux retirer le deck à tout moment.</p>
 
-    <div class="card pub-form">
+    <div class="pub-colonnes">
+      <div class="pub-principal">
 
-      <label class="pub-label" for="pubSemestre">Quel semestre publier ?</label>
-      <select id="pubSemestre" class="pub-champ">
-        ${dispo.map(x => `<option value="${x.sem.id}" ${x.sem.id === pubEtat.semesterId ? 'selected' : ''}>${escapeHtml(x.sem.label)} — ${x.nbKanji} kanji, ${x.nbMots} mots</option>`).join('')}
-      </select>
+        <section class="card pub-etape">
+          <h3 class="pub-etape__titre"><span class="pub-etape__num">1</span> Ce que tu publies</h3>
 
-      <div class="pub-label">Quelle partie ?</div>
-      <div class="pub-choix">
-        <button class="pub-option ${pubEtat.portee === 'tout' ? 'is-active' : ''}" data-portee="tout">Tout le semestre</button>
-        <button class="pub-option ${pubEtat.portee === 'plage' ? 'is-active' : ''}" data-portee="plage">Certaines semaines</button>
+          <label class="pub-label" for="pubSemestre">Quel semestre ?</label>
+          <select id="pubSemestre" class="pub-champ">
+            ${dispo.map(x => `<option value="${x.sem.id}" ${x.sem.id === pubEtat.semesterId ? 'selected' : ''}>${escapeHtml(x.sem.label)} — ${x.nbKanji} kanji, ${x.nbMots} mots</option>`).join('')}
+          </select>
+
+          <div class="pub-label">Quelle partie ?</div>
+          <div class="pub-choix">
+            <button class="pub-option ${pubEtat.portee === 'tout' ? 'is-active' : ''}" data-portee="tout">Tout le semestre</button>
+            <button class="pub-option ${pubEtat.portee === 'plage' ? 'is-active' : ''}" data-portee="plage">Certaines semaines</button>
+          </div>
+          ${pubEtat.portee === 'plage' ? `
+            <div class="pub-plage">
+              <label for="pubSemDebut">De la semaine</label>
+              <select id="pubSemDebut" class="pub-champ pub-champ-court">
+                ${Array.from({ length: Math.max(1, choisi.semaines) }, (_, i) => i + 1)
+                  .map(w => `<option value="${w}" ${plage && plage.debut === w ? 'selected' : ''}>${w}</option>`).join('')}
+              </select>
+              <label for="pubSemFin">à</label>
+              <select id="pubSemFin" class="pub-champ pub-champ-court">
+                ${Array.from({ length: Math.max(1, choisi.semaines) }, (_, i) => i + 1)
+                  .map(w => `<option value="${w}" ${plage && plage.fin === w ? 'selected' : ''}>${w}</option>`).join('')}
+              </select>
+            </div>
+            <p class="pub-aide">Les semaines sont renumérotées à partir de 1 chez celui qui importe.</p>` : ''}
+        </section>
+
+        <section class="card pub-etape">
+          <h3 class="pub-etape__titre"><span class="pub-etape__num">2</span> Comment c'est organisé</h3>
+
+          <div class="pub-label">De quoi s'agit-il ?</div>
+          <div class="pub-choix">
+            <button class="pub-option ${estJlpt ? '' : 'is-active'}" data-type="cursus">Un cursus</button>
+            <button class="pub-option ${estJlpt ? 'is-active' : ''}" data-type="jlpt">Un niveau JLPT</button>
+          </div>
+          <p class="pub-aide">Un cursus suit un programme réel. Un niveau JLPT suit la liste officielle de l'examen.</p>
+
+          ${estJlpt ? `
+            <label class="pub-label" for="pubNiveau">Niveau</label>
+            <select id="pubNiveau" class="pub-champ">
+              ${['N5', 'N4', 'N3', 'N2', 'N1'].map(n => `<option value="${n}" ${pubEtat.niveau === n ? 'selected' : ''}>${n}</option>`).join('')}
+            </select>`
+          : `
+            <label class="pub-label" for="pubCursus">Cursus</label>
+            <input type="text" id="pubCursus" class="pub-champ" maxlength="80" placeholder="LLCER Japonais, LEA, autodidacte…" value="${escapeHtml(pubEtat.cursus)}" />`}
+
+          <div class="pub-label">Découpage</div>
+          <div class="pub-choix">
+            <button class="pub-option ${parSemaines ? 'is-active' : ''}" data-decoupage="semaines">Par semaines</button>
+            <button class="pub-option ${parSemaines ? '' : 'is-active'}" data-decoupage="bloc">D'un seul bloc</button>
+          </div>
+          <p class="pub-aide">${parSemaines
+            ? `Le découpage est conservé : ${nbSemainesEnvoyees} semaine${nbSemainesEnvoyees > 1 ? 's' : ''}.`
+            : `Tout le vocabulaire arrivera en une seule semaine chez celui qui importe.`}</p>
+        </section>
+
+        <section class="card pub-etape">
+          <h3 class="pub-etape__titre"><span class="pub-etape__num">3</span> Comment ça s'appelle</h3>
+
+          <label class="pub-label" for="pubTitre">Titre du deck</label>
+          <input type="text" id="pubTitre" class="pub-champ" maxlength="120" placeholder="Semestre 2 — LLCER Japonais" value="${escapeHtml(pubEtat.titre)}" />
+          <p class="pub-aide">Le nom que les autres verront dans la liste.</p>
+
+          <label class="pub-label" for="pubDescription">Description</label>
+          <textarea id="pubDescription" class="pub-champ pub-zone" maxlength="2000" rows="4" placeholder="Ce que contient ce deck, et pour qui il est utile.">${escapeHtml(pubEtat.description)}</textarea>
+          <p class="pub-aide">C'est ce texte qui apparaîtra sur la page publique du deck, lisible sans compte.</p>
+        </section>
       </div>
-      ${pubEtat.portee === 'plage' ? `
-        <div class="pub-plage">
-          <label for="pubSemDebut">De la semaine</label>
-          <select id="pubSemDebut" class="pub-champ pub-champ-court">
-            ${Array.from({ length: Math.max(1, choisi.semaines) }, (_, i) => i + 1)
-              .map(w => `<option value="${w}" ${plage && plage.debut === w ? 'selected' : ''}>${w}</option>`).join('')}
-          </select>
-          <label for="pubSemFin">à</label>
-          <select id="pubSemFin" class="pub-champ pub-champ-court">
-            ${Array.from({ length: Math.max(1, choisi.semaines) }, (_, i) => i + 1)
-              .map(w => `<option value="${w}" ${plage && plage.fin === w ? 'selected' : ''}>${w}</option>`).join('')}
-          </select>
+
+      <aside class="pub-cote">
+        <div class="card pub-recap-carte">
+          <h3 class="pub-etape__titre">Ce qui va partir</h3>
+          <div class="pub-recap">
+            <span class="pub-recap__ligne"><strong>${apercu.kanjiGroups.length}</strong> kanji</span>
+            <span class="pub-recap__ligne"><strong>${apercu.vocab.length}</strong> mots</span>
+            ${parSemaines ? `<span class="pub-recap__ligne"><strong>${nbSemainesEnvoyees}</strong> semaine${nbSemainesEnvoyees > 1 ? 's' : ''}</span>` : ''}
+          </div>
+          ${plage ? `<p class="pub-aide">Semaines ${plage.debut} à ${plage.fin} du semestre.</p>` : ''}
+
+          ${pubEtat.erreur ? `<div class="pub-erreur">${escapeHtml(pubEtat.erreur)}</div>` : ''}
+
+          <div class="pub-actions">
+            <button class="primary" id="btnPublier" ${pubEtat.envoi ? 'disabled' : ''}>${pubEtat.envoi ? 'Publication…' : 'Publier'}</button>
+          </div>
+          <p class="pub-aide">Tu pourras le retirer à tout moment depuis la liste.</p>
         </div>
-        <p class="pub-aide">Les semaines sont renumérotées à partir de 1 chez celui qui importe.</p>` : ''}
 
-      <div class="pub-label">Que publies-tu ?</div>
-      <div class="pub-choix">
-        <button class="pub-option ${estJlpt ? '' : 'is-active'}" data-type="cursus">Un cursus</button>
-        <button class="pub-option ${estJlpt ? 'is-active' : ''}" data-type="jlpt">Un niveau JLPT</button>
-      </div>
-      <p class="pub-aide">Un cursus suit un programme réel. Un niveau JLPT suit la liste officielle de l'examen.</p>
-
-      ${estJlpt ? `
-        <label class="pub-label" for="pubNiveau">Niveau</label>
-        <select id="pubNiveau" class="pub-champ">
-          ${['N5', 'N4', 'N3', 'N2', 'N1'].map(n => `<option value="${n}" ${pubEtat.niveau === n ? 'selected' : ''}>${n}</option>`).join('')}
-        </select>`
-      : `
-        <label class="pub-label" for="pubCursus">Cursus</label>
-        <input type="text" id="pubCursus" class="pub-champ" maxlength="80" placeholder="LLCER Japonais, LEA, autodidacte…" value="${escapeHtml(pubEtat.cursus)}" />`}
-
-      <label class="pub-label" for="pubTitre">Titre du deck</label>
-      <input type="text" id="pubTitre" class="pub-champ" maxlength="120" placeholder="Semestre 2 — LLCER Japonais" value="${escapeHtml(pubEtat.titre)}" />
-      <div class="pub-avertissement">
-        Nomme ton deck par le cursus ou le niveau, <strong>jamais par un manuel</strong>.
-        « Genki chapitre 3 » ou « Minna no Nihongo leçon 12 » ne sont pas acceptés :
-        la sélection et l'ordre d'un chapitre appartiennent à son éditeur.
-        <a href="/regles-de-publication" target="_blank" rel="noopener">Les règles en entier</a>
-      </div>
-
-      <label class="pub-label" for="pubDescription">Description</label>
-      <textarea id="pubDescription" class="pub-champ pub-zone" maxlength="2000" rows="3" placeholder="Ce que contient ce deck, et pour qui il est utile.">${escapeHtml(pubEtat.description)}</textarea>
-
-      <div class="pub-label">Découpage</div>
-      <div class="pub-choix">
-        <button class="pub-option ${parSemaines ? 'is-active' : ''}" data-decoupage="semaines">Par semaines</button>
-        <button class="pub-option ${parSemaines ? '' : 'is-active'}" data-decoupage="bloc">D'un seul bloc</button>
-      </div>
-      <p class="pub-aide">${parSemaines
-        ? `Le découpage est conservé : ${nbSemainesEnvoyees} semaine${nbSemainesEnvoyees > 1 ? 's' : ''}.`
-        : `Tout le vocabulaire arrivera en une seule semaine chez celui qui importe.`}</p>
-
-      <div class="pub-recap">
-        Ce deck contiendra <strong>${apercu.kanjiGroups.length} kanji</strong> et <strong>${apercu.vocab.length} mots</strong>${parSemaines ? `, sur <strong>${nbSemainesEnvoyees} semaine${nbSemainesEnvoyees > 1 ? 's' : ''}</strong>` : ''}${plage ? ` (semaines ${plage.debut} à ${plage.fin} du semestre)` : ''}.
-      </div>
-
-      ${pubEtat.erreur ? `<div class="pub-erreur">${escapeHtml(pubEtat.erreur)}</div>` : ''}
-
-      <div class="pub-actions">
-        <button class="primary" id="btnPublier" ${pubEtat.envoi ? 'disabled' : ''}>${pubEtat.envoi ? 'Publication…' : 'Publier'}</button>
-        <span class="pub-aide">Tu pourras le retirer à tout moment depuis la liste.</span>
-      </div>
+        <!-- La regle de nommage se lit ICI, au moment ou l'on nomme son deck,
+             et pas seulement sur une page dediee qu'on ouvre une fois. -->
+        <div class="card pub-avertissement">
+          <strong>Nomme ton deck par le cursus ou le niveau, jamais par un manuel.</strong>
+          <p>
+            « Genki chapitre 3 » ou « Minna no Nihongo leçon 12 » ne sont pas acceptés :
+            la sélection des mots et leur ordre appartiennent à l'éditeur du manuel, même
+            reformulés. Un kanji, sa lecture et son sens sont des faits que personne ne possède.
+          </p>
+          <a href="/regles-de-publication" target="_blank" rel="noopener">Les règles en entier</a>
+        </div>
+      </aside>
     </div>`;
 
   // Les champs de texte ne redessinent pas la vue à chaque frappe : on lit
@@ -1040,6 +1116,16 @@ async function publierDeck() {
     pubEtat.erreur = pubEtat.portee === 'plage'
       ? "Ces semaines ne contiennent aucun kanji. Choisis une autre plage."
       : 'Ce semestre est vide.';
+    return renderPublier();
+  }
+  // Seuil de qualite. Un deck de deux kanji encombre la liste sans rendre
+  // service : celui qui le voit perd son temps, et celui qui l'a publie
+  // n'aura jamais d'avis. Le refus est explicite et dit combien il manque,
+  // plutot qu'un « impossible » qui laisse deviner.
+  if (contenu.kanjiGroups.length < MIN_KANJI_PUBLICATION) {
+    const manque = MIN_KANJI_PUBLICATION - contenu.kanjiGroups.length;
+    pubEtat.erreur = `Un deck publié doit contenir au moins ${MIN_KANJI_PUBLICATION} kanji `
+      + `— il en manque ${manque}. Élargis la plage de semaines, ou ajoute du vocabulaire.`;
     return renderPublier();
   }
 
