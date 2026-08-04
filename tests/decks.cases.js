@@ -408,3 +408,34 @@ essai("un deck de moins de cinq kanji est refuse a la publication", async () => 
   if (!/au moins 5 kanji/.test(pubEtat.erreur)) throw new Error('message peu clair : ' + pubEtat.erreur);
   if (!/il en manque 3/.test(pubEtat.erreur)) throw new Error('le message doit dire combien il manque');
 });
+
+essai("le vote rapide s'affiche dans la liste et dans la fiche", () => {
+  // Les etoiles demandent d'ecrire un avis. Le vote rapide, non : c'est un
+  // geste different qui dit une chose differente, et les deux coexistent.
+  decksCache = [{ id: 'u1', slug: 'u', titre: 'Un deck', pseudo: 'A', officiel: false,
+                  type: 'cursus', description: '', cursus: '', niveau: '',
+                  nb_kanji: 10, nb_mots: 20, nb_semaines: 1, nb_notes: 0,
+                  note_moyenne: null, nb_upvotes: 7, created_at: '2026-01-01' }];
+  decksFiltre = 'tous'; decksRecherche = ''; decksTri = 'recents'; decksErreur = null;
+  renderDecks();
+  const liste = trouve('#view-decks').innerHTML;
+  if (!liste.includes('data-upvote="u1"')) throw new Error('pas de bouton dans la liste');
+  if (!liste.includes('>▲</span> 7')) throw new Error('le compteur ne montre pas 7');
+});
+
+essai("le tri Tendances passe devant ce qui bouge, pas ce qui est vieux", () => {
+  const liste = [
+    { id: 'vieux', titre: 'Vieux mais actif', created_at: '2026-01-01', type: 'cursus' },
+    { id: 'neuf', titre: 'Neuf et calme', created_at: '2026-08-01', type: 'cursus' }
+  ];
+  eval("tendances = { vieux: 12 };");
+  decksTri = 'tendances';
+  const ordre = trierDecks(liste).map(d => d.id);
+  if (ordre[0] !== 'vieux') throw new Error('ordre : ' + ordre.join(','));
+  // Sans donnee de tendance, le tri doit retomber sur la date plutot que de
+  // rendre une liste au hasard.
+  eval("tendances = null;");
+  const secours = trierDecks(liste).map(d => d.id);
+  if (secours[0] !== 'neuf') throw new Error('sans tendances, le plus recent devrait passer devant');
+  decksTri = 'recents';
+});

@@ -19,6 +19,8 @@ let decksTri = 'recents';     // 'recents' | 'note' | 'kanji' | 'titre'
 let decksRecherche = '';
 let decksEnCours = false;
 let mesNotes = {};            // deck_id -> note posée par l'utilisateur connecté
+let mesUpvotes = new Set();   // deck_id sur lesquels j'ai appuyé
+let tendances = null;         // deck_id -> score recent, ou null tant qu'on n'a rien
 let recordsDecks = {};        // deck_id -> { pseudo, user_id, pct, points, max_points }
 
 // État du formulaire de publication. Conservé entre deux rendus pour que
@@ -87,7 +89,7 @@ function moyenneDuSite(liste) {
   return total / votes;
 }
 
-const CHAMPS_LISTE = 'id,slug,titre,description,pseudo,auteur_id,officiel,semester_id,type,cursus,niveau,decoupage,nb_kanji,nb_mots,nb_semaines,note_moyenne,nb_notes,created_at';
+const CHAMPS_LISTE = 'id,slug,titre,description,pseudo,auteur_id,officiel,semester_id,type,cursus,niveau,decoupage,nb_kanji,nb_mots,nb_semaines,note_moyenne,nb_notes,nb_upvotes,nb_imports,created_at';
 
 async function chargerDecks() {
   if (!window.sb) { decksErreur = "La connexion au serveur n'est pas disponible."; return; }
@@ -111,6 +113,12 @@ async function chargerDecks() {
       const { data: notes } = await window.sb
         .from('deck_notes').select('deck_id,note').eq('user_id', window.accountUser.id);
       (notes || []).forEach(n => { mesNotes[n.deck_id] = n.note; });
+
+      // Mes votes rapides. Lus une fois avec la liste : sans ca, chaque
+      // bouton devrait demander a la base s'il est deja enfonce.
+      const { data: votes } = await window.sb
+        .from('deck_upvotes').select('deck_id').eq('user_id', window.accountUser.id);
+      mesUpvotes = new Set((votes || []).map(v => v.deck_id));
     }
 
     // Le meilleur score de la communauté sur chaque deck. La vue s'appuie sur
@@ -128,12 +136,56 @@ async function chargerDecks() {
     if (window.kvtProfils) {
       await window.kvtProfils.chargerProfils(decksCache.filter(d => d.auteur_id).map(d => d.auteur_id));
     }
+    // Les tendances viennent d'un agregat : le detail de qui a importe quoi
+    // ne sort jamais de la base. Un echec ici ne doit pas vider la liste —
+    // le tri retombe alors sur la date.
+    try {
+      const { data: t } = await window.sb.rpc('kvt_tendances', { p_jours: 14 });
+      tendances = {};
+      (t || []).forEach(l => { tendances[l.deck_id] = l.score; });
+    } catch (e) {
+      tendances = {};
+    }
   } catch (err) {
     decksCache = [];
     decksErreur = err && err.message ? err.message : String(err);
   } finally {
     decksEnCours = false;
   }
+}
+
+// Vote rapide. Le basculement se fait en base : c'est elle qui sait si le
+// vote existe deja, et la cle primaire garantit un seul vote par personne et
+// par deck — pas une verification cote client qu'on pourrait contourner.
+async function basculerUpvote(deckId, bouton) {
+  if (!window.accountUser) { showToast('Connecte-toi pour voter'); return; }
+  if (bouton) bouton.disabled = true;
+  const avait = mesUpvotes.has(deckId);
+  try {
+    const { data, error } = await window.sb.rpc('kvt_basculer_upvote', { p_deck: deckId });
+    if (error) throw error;
+    if (avait) mesUpvotes.delete(deckId); else mesUpvotes.add(deckId);
+    const deck = (decksCache || []).find(d => d.id === deckId);
+    if (deck && typeof data === 'number') deck.nb_upvotes = data;
+    if (deckDetail && deckDetail.deck && deckDetail.deck.id === deckId && typeof data === 'number') {
+      deckDetail.deck.nb_upvotes = data;
+    }
+    if (currentView === 'deck') renderDeck(); else renderDecks();
+  } catch (e) {
+    showToast('Vote impossible : ' + (e.message || e));
+    if (bouton) bouton.disabled = false;
+  }
+}
+
+// Le bouton, partout pareil. Il dit ce qu'il fera au clic, pas ce qu'il a
+// fait : « Utile » / « Utile ✓ » se lit sans avoir a comparer deux etats.
+function htmlUpvote(deck) {
+  const actif = mesUpvotes.has(deck.id);
+  return `<button type="button" class="deck-upvote ${actif ? 'is-actif' : ''}"
+      data-upvote="${escapeHtml(deck.id)}" aria-pressed="${actif}"
+      title="${actif ? 'Retirer mon vote' : 'Marquer ce deck comme utile'}">
+      <span aria-hidden="true">▲</span> ${deck.nb_upvotes || 0}
+    </button>`;
 }
 
 function decksVisibles() {
@@ -186,6 +238,16 @@ function trierDecks(liste) {
       const diff = noteBayesienne(b, m) - noteBayesienne(a, m);
       if (Math.abs(diff) > 1e-9) return diff;
       return (b.nb_notes || 0) - (a.nb_notes || 0);
+    });
+  } else if (decksTri === 'tendances') {
+    // Ce qui bouge en ce moment, pas ce qui est bon depuis toujours. Un deck
+    // sans activite recente passe derriere, classe par date : un catalogue
+    // ou rien ne bouge doit rester lisible plutot que de paraitre vide.
+    const t = tendances || {};
+    copie.sort((a, b) => {
+      const sa = t[a.id] || 0, sb = t[b.id] || 0;
+      if (sb !== sa) return sb - sa;
+      return String(b.created_at).localeCompare(String(a.created_at));
     });
   } else if (decksTri === 'kanji') {
     copie.sort((a, b) => (b.nb_kanji || 0) - (a.nb_kanji || 0));
@@ -275,7 +337,7 @@ function renderDecks() {
       <input type="search" id="decksRecherche" class="decks-recherche" placeholder="Rechercher un deck, un cursus, un auteur…" value="${escapeHtml(decksRecherche)}" />
       <label class="decks-tri-label" for="decksTri">Trier par</label>
       <select id="decksTri" class="decks-tri">
-        ${[['recents', 'Nouveautés'], ['note', 'Mieux notés'], ['kanji', 'Plus de kanji'], ['titre', 'Ordre alphabétique']]
+        ${[['recents', 'Nouveautés'], ['tendances', 'Tendances'], ['note', 'Mieux notés'], ['kanji', 'Plus de kanji'], ['titre', 'Ordre alphabétique']]
           .map(([v, lib]) => `<option value="${v}" ${decksTri === v ? 'selected' : ''}>${lib}</option>`).join('')}
       </select>
     </div>`;
@@ -327,6 +389,10 @@ function renderDecks() {
             <span class="deck-mesure-titre">Note</span>
             ${etoiles(d)}
           </div>
+          <div class="deck-mesure">
+            <span class="deck-mesure-titre">Utile</span>
+            ${htmlUpvote(d)}
+          </div>
         </div>
         <div class="deck-actions">
           ${d.officiel
@@ -373,6 +439,12 @@ function renderDecks() {
 
   const tri = $('#decksTri');
   if (tri) tri.onchange = () => { decksTri = tri.value; renderDecks(); };
+
+  // Le vote rapide, dans la liste comme dans la fiche : meme attribut, donc
+  // un seul branchement a maintenir.
+  $$('[data-upvote]', el).forEach(b => {
+    b.onclick = (e) => { e.stopPropagation(); basculerUpvote(b.dataset.upvote, b); };
+  });
 
   $$('[data-noter]', el).forEach(groupe => {
     $$('.deck-etoile', groupe).forEach(et => {
@@ -789,6 +861,7 @@ function renderDeck() {
         <button type="button" class="small" id="btnCopierLien">Copier le lien</button>
       </p>
       <div class="deck-page-actions">
+        ${htmlUpvote(d)}
         ${d.officiel
           ? `<button class="primary" id="btnReviserPage">Réviser</button>`
           : `<button class="primary" id="btnImporterPage" ${res ? 'disabled' : ''}>${res ? 'Déjà importé' : 'Importer ce deck'}</button>`}
@@ -867,6 +940,10 @@ function renderDeck() {
     </div>`;
 
   $('#btnRetourListe').onclick = () => { decksCache = null; switchView('decks'); };
+
+  $$('[data-upvote]', el).forEach(b => {
+    b.onclick = (e) => { e.stopPropagation(); basculerUpvote(b.dataset.upvote, b); };
+  });
 
   const btnCopier = $('#btnCopierLien');
   if (btnCopier) {
@@ -1280,6 +1357,12 @@ async function importerDeck(id, bouton, contenuDejaLa) {
     if (!res.ok) { showToast(res.raison); return; }
 
     await persist();
+    // L'import est note en base pour alimenter le tri « Tendances ». Un
+    // echec ici ne doit pas transformer un import reussi en erreur : le deck
+    // est deja chez l'utilisateur, c'est ca qui compte.
+    if (window.accountUser) {
+      try { await window.sb.rpc('kvt_noter_import', { p_deck: deck.id }); } catch (e) { /* sans effet visible */ }
+    }
     showToast(`« ${deck.titre} » importé : ${res.nbKanji} kanji, ${res.nbMots} mots`);
     if (currentView === 'deck') renderDeck(); else renderDecks();
   } catch (err) {

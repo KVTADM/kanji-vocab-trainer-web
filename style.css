@@ -2874,3 +2874,20 @@ code {
 .crea-message { padding: 14px 18px; font-size: 13.5px; }
 .crea-message--succes { border-left: 3px solid var(--good-bright); }
 .crea-message--erreur { border-left: 3px solid var(--bad); }
+
+/* Vote rapide. Il vit a cote des etoiles : l'un demande d'ecrire, l'autre
+   non, et les deux disent des choses differentes. « ▲ 12 » se lit d'un coup
+   d'oeil, ce qui est tout l'interet du geste. */
+.deck-upvote {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: var(--panel-alt); border: 1px solid var(--border);
+  color: var(--muted); border-radius: 999px; padding: 4px 12px;
+  font-size: 13px; cursor: pointer; font-variant-numeric: tabular-nums;
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+.deck-upvote:hover { border-color: var(--accent); color: var(--ink); }
+.deck-upvote.is-actif {
+  border-color: var(--accent); color: var(--accent-bright);
+  background: color-mix(in srgb, var(--accent) 16%, var(--panel-alt));
+}
+.deck-upvote:disabled { opacity: 0.6; cursor: default; }
