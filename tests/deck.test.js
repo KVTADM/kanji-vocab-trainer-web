@@ -158,6 +158,16 @@ essai('le generateur est branche dans le deploiement', () => {
   if (avantGen > avantDeploy) throw new Error('la generation doit passer AVANT la publication');
 });
 
+essai('les pages generees comptent aussi dans la mesure d\'audience', () => {
+  // Ces pages sont les seules atteignables directement depuis un lien
+  // partage : les exclure du comptage reviendrait a ne pas mesurer
+  // precisement ce qu'on partage.
+  for (const html of [pageDeck(DECK, []), pageIndex([DECK])]) {
+    if (!html.includes('/mesure.js')) throw new Error('mesure.js absent d\'une page generee');
+    if (!html.includes('/supabaseClient.js')) throw new Error('la mesure ne peut pas joindre la base sans le client');
+  }
+});
+
 let echecs = 0;
 cas.forEach(([v, n]) => { if (v === 'ECHEC') echecs++; console.log(`  ${v.padEnd(7)} ${n}`); });
 console.log(`\n  ${cas.length - echecs}/${cas.length} passent`);

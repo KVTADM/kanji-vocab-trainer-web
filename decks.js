@@ -1226,6 +1226,7 @@ async function publierDeck() {
     pubEtat.description = '';
     decksCache = null;
     showToast('Deck publié : ' + (data && data.titre ? data.titre : titre));
+    if (window.kvtMesure) window.kvtMesure.noter('deck_publie');
     switchView('decks');
   } catch (err) {
     pubEtat.envoi = false;
@@ -1364,6 +1365,7 @@ async function importerDeck(id, bouton, contenuDejaLa) {
       try { await window.sb.rpc('kvt_noter_import', { p_deck: deck.id }); } catch (e) { /* sans effet visible */ }
     }
     showToast(`« ${deck.titre} » importé : ${res.nbKanji} kanji, ${res.nbMots} mots`);
+    if (window.kvtMesure) window.kvtMesure.noter('deck_importe');
     if (currentView === 'deck') renderDeck(); else renderDecks();
   } catch (err) {
     showToast('Import impossible : ' + (err.message || err));

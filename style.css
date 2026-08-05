@@ -2891,3 +2891,14 @@ code {
   background: color-mix(in srgb, var(--accent) 16%, var(--panel-alt));
 }
 .deck-upvote:disabled { opacity: 0.6; cursor: default; }
+
+/* Tableau d'audience de l'onglet Admin. Une ligne par provenance : ce qu'on
+   compare, ce sont des sources entre elles, pas des jours. */
+.admin-audience { width: 100%; border-collapse: collapse; font-size: 13px; }
+.admin-audience th, .admin-audience td {
+  padding: 8px 12px; text-align: right; border-bottom: 1px solid var(--border);
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.admin-audience th { color: var(--muted); font-weight: 600; font-size: 12px; }
+.admin-audience th:first-child, .admin-audience td:first-child { text-align: left; }
+.admin-audience tbody tr:hover { background: var(--panel-alt); }

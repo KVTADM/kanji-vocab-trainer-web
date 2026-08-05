@@ -308,6 +308,9 @@ function renderAccount() {
         email, password, options: { data: { pseudo } }
       });
       if (error) { $('#acctError').textContent = error.message; return; }
+      // Compte cree : c'est l'evenement le plus cher a obtenir, donc
+      // celui qui sert de reference pour comparer deux publications.
+      if (window.kvtMesure) window.kvtMesure.noter('compte_cree');
       if (data.session) {
         showToast('Compte créé et connecté');
       } else {

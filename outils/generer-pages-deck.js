@@ -220,6 +220,9 @@ function pageDeck(deck, avis) {
     </p>
     <p>© 2026 KVT (Kanji Vocab Trainer). Tous droits réservés.</p>
   </footer>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <script src="/supabaseClient.js"></script>
+  <script src="/mesure.js"></script>
   <script src="/ui.js"></script>
 </body>
 </html>
@@ -294,6 +297,9 @@ ${lignes}
     </p>
     <p>© 2026 KVT (Kanji Vocab Trainer). Tous droits réservés.</p>
   </footer>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <script src="/supabaseClient.js"></script>
+  <script src="/mesure.js"></script>
   <script src="/ui.js"></script>
 </body>
 </html>

@@ -1090,6 +1090,9 @@ function renderReview() {
     const prevBest = DB.scores[key] ? DB.scores[key].best.pct : null;
     const improved = prevBest === null || pct > prevBest;
     recordSessionResult(quizSession.semesterId, quizSession.week, points, maxPoints, pct);
+    // Le palier qui compte vraiment : quelqu'un a fait un quiz en entier.
+    // Une visite qui va jusque-la n'est plus un passage, c'est un essai.
+    if (window.kvtMesure) window.kvtMesure.noter('quiz_fini');
     clearInProgress(quizSession.semesterId, quizSession.week);
     persist();
     // Pousse le meilleur score de cette semaine vers le classement de classe
@@ -1753,6 +1756,11 @@ async function init() {
   vuesConnues.add('communaute');
   const ancre = decodeURIComponent(location.hash.replace(/^#/, ''));
   switchView(vuesConnues.has(ancre) ? ancre : 'communaute');
+
+  // Signal de mesure : quelqu'un a ouvert l'application, pas seulement
+  // affiche une page. C'est le premier palier qui distingue un visiteur
+  // curieux d'un simple clic paye.
+  if (window.kvtMesure) window.kvtMesure.noter('app_ouverte');
 }
 
 document.addEventListener('DOMContentLoaded', init);

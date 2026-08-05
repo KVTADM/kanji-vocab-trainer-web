@@ -38,6 +38,11 @@ function essai(nom, fn) {
 function pagesHtml(dir = RACINE, sortie = []) {
   for (const nom of fs.readdirSync(dir)) {
     if (nom === '.git' || nom === 'node_modules' || nom === 'tests') continue;
+    // `deck/` est genere a chaque deploiement depuis la base et ignore par
+    // git : ce qui traine ici est la sortie du deploiement precedent. Juger
+    // une sortie perimee ferait echouer la suite a chaque evolution du
+    // gabarit. C'est le gabarit qu'on controle, dans tests/deck.test.js.
+    if (nom === 'deck' && dir === RACINE) continue;
     const p = path.join(dir, nom);
     const st = fs.statSync(p);
     if (st.isDirectory()) pagesHtml(p, sortie);
@@ -280,6 +285,50 @@ essai('chaque article declare sa forme canonique et une description', () => {
     if (!/rel="canonical"/.test(html)) throw new Error(p + ' sans canonical');
     const d = html.match(/name="description" content="([^"]*)"/);
     if (!d || d[1].length < 60) throw new Error(p + ' : description absente ou trop courte');
+  }
+});
+
+// ---- Comptage d'audience ----
+
+essai('la mesure est chargee sur toutes les pages servies', () => {
+  const sans = pagesHtml().filter((p) => !lire(p).includes('/mesure.js'));
+  if (sans.length) throw new Error('pages sans mesure : ' + sans.join(', '));
+});
+
+essai('la mesure ne peut pas casser la page qu\'elle mesure', () => {
+  const src = lire('mesure.js');
+  // Un echec reseau, une extension qui bloque, une base indisponible : dans
+  // tous les cas la page doit continuer. Sans ces gardes, une mesure qui
+  // tombe emporterait le script qui la suit.
+  if (!/try\s*\{/.test(src)) throw new Error('aucun garde-fou autour des appels');
+  if (!/if\s*\(!window\.sb/.test(src)) throw new Error('la mesure suppose Supabase present');
+});
+
+essai('la mesure n\'enregistre aucune donnee personnelle', () => {
+  const src = lire('mesure.js');
+  // Ce controle protege une promesse faite aux visiteurs : sans donnee
+  // personnelle, pas de consentement a demander. Le jour ou quelqu'un
+  // ajoute un identifiant ici, la promesse tombe en silence.
+  for (const interdit of ['accountUser', 'user_id', 'localStorage', 'document.cookie', 'navigator.userAgent']) {
+    if (src.includes(interdit)) throw new Error('la mesure touche a ' + interdit);
+  }
+  // Le referent complet peut contenir n'importe quoi : seul le domaine sort.
+  if (!src.includes('hostname')) throw new Error('le referent devrait etre reduit a son domaine');
+});
+
+essai('les paliers mesures sont branches la ou ils se produisent', () => {
+  const attendus = {
+    'app.js': ['app_ouverte', 'quiz_fini'],
+    'account.js': ['compte_cree'],
+    'decks.js': ['deck_importe', 'deck_publie']
+  };
+  for (const [fichier, evenements] of Object.entries(attendus)) {
+    const src = lire(fichier);
+    for (const e of evenements) {
+      if (!src.includes("noter('" + e + "')")) {
+        throw new Error(e + ' n\'est pas signale depuis ' + fichier);
+      }
+    }
   }
 });
 
