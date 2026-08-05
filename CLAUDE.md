@@ -45,7 +45,11 @@ Adapté de [andrej-karpathy-skills](https://github.com/multica-ai/andrej-karpath
 
 **Définir le critère de réussite avant d'agir, et le vérifier vraiment.**
 
-KVT n'a pas de tests automatisés. « Ça devrait marcher » n'est donc pas une conclusion — il faut un contrôle concret, tiré de la nature du changement :
+« Ça devrait marcher » n'est pas une conclusion — il faut un contrôle concret, tiré de la nature du changement.
+
+KVT a une suite de tests depuis le 02/08/2026 : `tests/*.test.js`, lancés par `node tests/<nom>.test.js` depuis la racine du dépôt. La lancer entièrement avant toute conclusion. Les fichiers suivent le motif `*.test.js` (le harnais) + `*.cases.js` (les scénarios), **évalués ensemble dans un seul `eval`** — un `let` ou `const` déclaré dans un `eval` reste invisible à l'extérieur, et des scénarios évalués à part créent des variables homonymes qui testent du vide.
+
+Les tests ne remplacent pas les contrôles ci-dessous, ils s'y ajoutent :
 
 | Changement | Vérification attendue |
 |---|---|
@@ -81,7 +85,9 @@ Toute session non triviale se termine par une entrée dans `00 - Notes projet/03
 - `leaderboard.js` : classement de classe (Supabase).
 - `ads.js` : Google AdSense + bandeau de consentement cookies RGPD maison — aucune requête pub tant que le consentement n'est pas donné, aucune pub si compte Pro.
 - `manifest.json` / `service-worker.js` : PWA installable.
-- `downloads/` : contient les binaires téléchargeables (`KVT-Mac.dmg`, `KVT-Windows.exe`) — **gitignorés** (trop gros pour git), placés et mis à jour manuellement, jamais poussés sur GitHub.
+- `outils/generer-pages-deck.js` : génère `/deck/<slug>/` et `sitemap.xml` depuis Supabase, lancé par `deploy.sh` avant la publication. Ces pages sont les seules du site dont le texte existe dans le HTML servi — tout le reste est fabriqué dans le navigateur. `/deck/` et `sitemap.xml` sont gitignorés (régénérés à chaque déploiement).
+- `mesure.js` : comptage d'audience anonyme (page, provenance `?ref=`, cinq paliers) vers la table `visites`. Aucune donnée personnelle, donc aucun consentement à demander — ne jamais y ajouter d'identifiant de compte ni de stockage persistant.
+- **Les binaires ne sont plus dans ce dépôt.** Depuis le 02/08/2026, `KVT-Mac.dmg` et `KVT-Windows.exe` vivent dans `../KVT-binaires/` et sont distribués par les **Releases GitHub** (`releases/download/v<APP_VERSION>/`). Ils pesaient 166 Mo sur 168 et repartaient en entier à chaque déploiement. `downloads/` n'existe plus ; une redirection 302 dans `netlify.toml` garde les anciens liens vivants.
 
 ## Abonnement Pro
 
@@ -91,7 +97,9 @@ Stripe **Managed Payments** (pas d'intégration API custom côté client) : bout
 
 - `bash deploy.sh` : script déjà configuré avec l'id du site Netlify — le plus simple, gère aussi la connexion CLI si besoin (`npx netlify-cli login` au premier lancement).
 - Sinon manuellement : `npx netlify-cli deploy --prod` depuis ce dossier (le CLI `netlify` n'est pas forcément installé globalement sur la machine — toujours passer par `npx`).
-- **Important** : les fichiers dans `downloads/` ne sont jamais dans git (gitignorés) — un déploiement Netlify les prend directement depuis le disque local. Donc avant de redéployer après un nouveau build Mac/Windows, bien vérifier que le bon fichier (bonne édition, bonne version) est physiquement dans `downloads/` sous le bon nom (`KVT-Mac.dmg` / `KVT-Windows.exe`) — piège déjà rencontré : `KVT-Mac.dmg` contenait en fait l'édition "amis" au lieu de la principale.
+- **Important** : `deploy.sh` publie le **contenu du dossier**, pas le dernier commit git. Un push GitHub ne déploie rien. Tout fichier posé dans ce dossier part en production — un `.zip` de travail oublié à la racine serait publié.
+- Le script commence par générer les pages de deck (`set -e` : si ça échoue, rien ne part). Il ne fonctionne que depuis le Mac de Paul : `api.netlify.com` est injoignable depuis le bac à sable.
+- **Nouveaux binaires** : ils ne passent plus par le déploiement. Reconstruire, poser les fichiers dans `../KVT-binaires/`, créer une Release GitHub étiquetée `v<APP_VERSION>` (voir `app.js`) et y déposer les deux fichiers **sous leurs noms exacts** — piège déjà rencontré : `KVT-Mac.dmg` contenait en fait l'édition « amis ». Vérifier par SHA-256, le nom de fichier ne prouve rien.
 - Le déploiement est en mode **CLI manuel**, pas de lien Git→Netlify : un push GitHub ne redéploie pas le site tout seul.
 
 ## Contexte de session (bac à sable Claude)
