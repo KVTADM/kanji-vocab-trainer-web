@@ -2,6 +2,23 @@
 
 Version navigateur (PWA installable) du même quiz de vocabulaire japonais que `kanji-vocab-trainer` (édition Mac). Contrairement aux éditions Electron, celle-ci a des comptes utilisateurs, un abonnement Pro payant, un leaderboard de classe, et sert aussi de vitrine de téléchargement pour les deux éditions desktop (Mac + Windows).
 
+## Objectif commercial (priorité actuelle)
+
+KVT ne se finance pas encore lui-même. Chaque jour sans revenu supplémentaire est un coût, pas un statu quo neutre — c'est le cadre à garder pour toute session tant que cette section reste en place. Face à plusieurs pistes possibles, celle qui rapproche le projet de son autofinancement passe avant celle qui ne le fait pas, même si l'autre est plus intéressante à construire.
+
+La base d'utilisateurs actuelle est petite parce que la promotion n'a pas encore été faite, pas parce que le produit ne marche pas — ne jamais présenter le chiffre du moment comme un verdict. C'est une boucle, pas un mur : **optimiser le site → faire la promotion à grande échelle → mesurer qui vient et ce qu'il fait → ajuster et recommencer.** Le levier principal est organique et déjà en préparation, pas Reddit/Discord/entourage (trop petit, quelques dizaines de personnes au mieux) : une campagne de cinq vidéos courtes TikTok/Instagram (`00 - Notes projet/18 - Cinq videos TikTok-Instagram`), calendrier de publication à partir de la semaine du 11 août, 30 € de budget réservés pour booster la vidéo qui aura marché toute seule plutôt que pariée à l'aveugle sur une seule. Les canaux gratuits à faible portée (Reddit, Discord, entourage) restent utiles en complément, pas comme le plan principal. Le comptage anonyme (`mesure.js` → table `visites`, en place depuis le 05/08/2026), le paramètre `?ref=` par vidéo, et les comptes/scores Supabase donnent déjà les chiffres pour boucler cette mesure — s'en servir activement, pas les lire une fois pour conclure que c'est trop tôt.
+
+Ordre de priorité par défaut :
+
+1. **Faire tourner la boucle : optimiser, promouvoir à grande échelle, mesurer.** C'est le seul levier qui débloque tous les revenus à la fois — Pro, pub, notebook — parce qu'ils butent tous sur la même limite : le nombre de personnes qui utilisent KVT, pas le prix ni la plateforme. Exécuter la campagne vidéo déjà écrite et déjà en tournage plutôt que la laisser dormir compte comme priorité 1, pas comme option.
+2. Ce qui réduit un coût récurrent.
+3. Ce qui prépare un revenu futur sans engager de coût immédiat (ex. vitrine Lulu gratuite plutôt qu'abonnement Shopify tant que le volume ne le justifie pas — voir `00 - Notes projet/20 - Boutique Lulu, SEO et AdSense`).
+4. Le reste — améliorations, idées, esthétique — attend son tour.
+
+*Repère chiffré (06/08/2026, lu en base)* : 5 comptes web, 2 abonnés Pro, 4 utilisateurs actifs au quiz. À relire à chaque session pour voir si la boucle tourne, jamais pour justifier l'inaction.
+
+**Ce que ça ne change pas.** Les lignes déjà posées par Paul restent des limites dures, pas des variables d'ajustement selon l'urgence commerciale : publication sous pseudonyme uniquement, pas de démarchage de professeur tant qu'il n'y a pas d'usage réel, pas de flyers, consentement RGPD réel avant toute pub, pas de pub sur les écrans d'outil (quiz/stats/réglages/compte/import). L'objectif est de devenir rentable *dans* ces limites, pas de les repousser pour aller plus vite. Une fois KVT autofinancé, ces mêmes limites redeviennent la priorité par défaut sans discussion — ce n'est pas une parenthèse qu'on rouvre plus tard, c'est déjà la règle, seulement en concurrence temporaire avec l'urgence de rentabilité.
+
 ## Méthode de travail
 
 Ces règles priment sur la vitesse. Pour une tâche triviale (coquille, one-liner évident), juge par toi-même — l'objectif est d'éviter les erreurs coûteuses sur le travail non trivial, pas de ralentir le reste.
