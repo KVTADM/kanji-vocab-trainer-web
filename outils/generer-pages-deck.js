@@ -216,7 +216,7 @@ function pageDeck(deck, avis) {
       <a href="/deck/">Tous les decks</a> · <a href="/l-idee">L'idée</a> · <a href="/a-propos">À propos</a> ·
       <a href="/faq">FAQ</a> · <a href="/blog">Blog</a> ·
       <a href="/regles-de-publication">Règles de publication</a> · <a href="/signaler">Signaler</a> ·
-      <a href="/confidentialite">Confidentialité</a>
+      <a href="/confidentialite">Confidentialité</a> · <a href="/contact">Contact</a>
     </p>
     <p>© 2026 KVT (Kanji Vocab Trainer). Tous droits réservés.</p>
   </footer>
@@ -293,7 +293,8 @@ ${lignes}
     <p>
       <a href="/l-idee">L'idée</a> · <a href="/a-propos">À propos</a> · <a href="/faq">FAQ</a> ·
       <a href="/blog">Blog</a> · <a href="/regles-de-publication">Règles de publication</a> ·
-      <a href="/signaler">Signaler</a> · <a href="/confidentialite">Confidentialité</a>
+      <a href="/signaler">Signaler</a> · <a href="/confidentialite">Confidentialité</a> ·
+      <a href="/contact">Contact</a>
     </p>
     <p>© 2026 KVT (Kanji Vocab Trainer). Tous droits réservés.</p>
   </footer>
@@ -310,7 +311,7 @@ function sitemap(decks) {
   const fixes = ['/', '/deck/', '/l-idee', '/a-propos', '/faq', '/blog',
     '/blog/cursus-ou-jlpt', '/blog/guide-complet', '/blog/import-anki',
     '/blog/vocabulaire-kanji', '/blog/classement-stats',
-    '/regles-de-publication', '/signaler', '/confidentialite'];
+    '/regles-de-publication', '/signaler', '/confidentialite', '/contact'];
   const urls = fixes.concat(decks.map((d) => '/deck/' + d.slug));
   return `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">

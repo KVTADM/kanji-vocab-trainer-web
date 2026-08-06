@@ -639,7 +639,7 @@ function renderDashboard() {
       <div class="mode-toggle">
         ${onglets.map(o => `
           <button class="mode-toggle-btn ${dashboardMode === o.id ? 'active' : ''}" data-onglet="${o.id}">${escapeHtml(o.label)}</button>`).join('')}
-        <button class="mode-toggle-btn mode-toggle-plus" id="btnNouvelleCategorie" title="Nouvelle catégorie">+</button>
+        <button class="mode-toggle-btn mode-toggle-plus" id="btnNouvelleCategorie" title="Nouvelle catégorie" aria-label="Nouvelle catégorie">+</button>
       </div>
     </div>
     ${ongletCourant && !ongletCourant.integre ? `
@@ -1185,7 +1185,7 @@ function renderReview() {
             <input id="answerInput" type="text" placeholder="Écris la lecture en hiragana/katakana" style="margin-top:16px; width:280px; text-align:center; font-size:18px;"/>
             ${!quizSession.hardcore && DB.settings.spectralMode ? `
               <div id="spectralOverlay" class="spectral-overlay">${escapeHtml(v.lecture)}</div>
-              <button type="button" id="btnSpectralEye" class="spectral-eye" title="Maintenir pour voir la réponse — ce mot ne rapportera aucun point">👁</button>
+              <button type="button" id="btnSpectralEye" class="spectral-eye" title="Maintenir pour voir la réponse — ce mot ne rapportera aucun point" aria-label="Maintenir pour voir la réponse — ce mot ne rapportera aucun point">👁</button>
             ` : ''}
           </div>
         ` : quizSession.hardcore ? `

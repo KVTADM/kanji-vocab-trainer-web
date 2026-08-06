@@ -14,7 +14,7 @@
   --muted: #8383b2;
   --muted-dim: #8181c0;
   --label-dim: #8383b7;
-  --accent: #2980b9;
+  --accent: #26739f;
   --accent-bright: #5bc8f5;
   --pink: #ff7a8a;
   --pink-dim: #c04060;
@@ -26,10 +26,15 @@
   --border: #2a2a50;
   --radius: 12px;
   --sur-accent: #ffffff;
+  /* Indique au navigateur de peindre en sombre ce qu'il dessine lui-même :
+     ascenseurs, champs natifs, menus déroulants. Les thèmes clairs le
+     redéfinissent ; les autres sont sombres et héritent d'ici. */
+  color-scheme: dark;
 }
 
 /* ---------- Thèmes alternatifs (Pro) ---------- */
 :root[data-theme="light"] {
+  color-scheme: light;
   --bg: #f5f3ee;
   --panel: #ffffff;
   --panel-alt: #f0ede6;
@@ -39,7 +44,7 @@
   --muted: #6b6b8a;
   --muted-dim: #6868a1;
   --label-dim: #6666a6;
-  --accent: #2980b9;
+  --accent: #26739f;
   --accent-bright: #1f6f9e;
   --pink: #d6455a;
   --pink-dim: #c04060;
@@ -90,6 +95,7 @@
 
 /* Sumi — encre et papier washi */
 :root[data-theme="sumi"] {
+  color-scheme: light;
   --bg: #f2ede3;
   --panel: #fcf9f3;
   --panel-alt: #e7dfd0;
@@ -191,6 +197,9 @@ html, body {
   margin: 0;
   padding: 0;
   height: 100%;
+  /* Supprime le délai de 300 ms que les navigateurs mobiles réservent au
+     double-tap. Dans un quiz, chaque validation le subissait. */
+  touch-action: manipulation;
   font-family: "Helvetica Neue", "Helvetica", "Arial", -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Meiryo", sans-serif;
   background: var(--bg);
   color: var(--ink);
@@ -646,9 +655,14 @@ input, select, textarea {
   background: var(--panel-alt);
   color: var(--ink);
 }
-input:focus, select:focus, textarea:focus {
+/* `:focus-visible` et non `:focus` : un champ cliqué à la souris n'a pas
+   besoin de l'anneau. Même anneau que les cartes de deck, pour rester
+   cohérent — un `outline: none` seul laisserait la navigation au clavier
+   sans repère visible. */
+input:focus-visible, select:focus-visible, textarea:focus-visible {
   outline: none;
-  border-color: var(--accent);
+  border-color: var(--accent-bright);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-bright) 18%, transparent);
 }
 input::placeholder, textarea::placeholder { color: var(--muted-dim); }
 
@@ -705,7 +719,7 @@ code {
   font-size: 13px;
   opacity: 0;
   transform: translateY(10px);
-  transition: all 0.2s ease;
+  transition: opacity 0.2s ease, transform 0.2s ease;
   pointer-events: none;
 }
 .toast.show { opacity: 1; transform: translateY(0); }

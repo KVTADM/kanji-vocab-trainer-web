@@ -159,7 +159,7 @@ function renderCommunaute() {
   // pas cliqué.
   const videos = d.videos.length ? `<div class="comm-videos">${d.videos.map(v => `
     <a class="comm-video" href="https://www.youtube.com/watch?v=${escapeHtml(v.youtube_id)}" target="_blank" rel="noopener">
-      <img src="https://i.ytimg.com/vi/${escapeHtml(v.youtube_id)}/mqdefault.jpg" alt="" loading="lazy" />
+      <img src="https://i.ytimg.com/vi/${escapeHtml(v.youtube_id)}/mqdefault.jpg" alt="" loading="lazy" width="320" height="180" />
       <span class="comm-video-titre">${escapeHtml(v.titre)}</span>
       <span class="comm-source">partagé par ${escapeHtml(v.pseudo)} · ▲ ${v.score}</span>
     </a>`).join('')}</div>`
