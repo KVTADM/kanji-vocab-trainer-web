@@ -33,7 +33,7 @@ async function chargerProfils(ids) {
   if (!manquants.length || !window.sb) return;
   try {
     const { data, error } = await window.sb
-      .from('profiles').select('id,pseudo,avatar_url,niveau,bio').in('id', manquants);
+      .from('profiles').select('id,pseudo,avatar_url,niveau,bio,banniere_active').in('id', manquants);
     if (error) throw error;
     (data || []).forEach(p => profilsCache.set(p.id, p));
     // Un identifiant sans profil est mis en cache vide, sinon on le
@@ -261,5 +261,5 @@ function brancherBlocProfil() {
 
 window.kvtProfils = {
   chargerProfils, profilDe, avatarHtml, auteurHtml, libelleNiveau,
-  chargerMonProfil, htmlBlocProfil, brancherBlocProfil
+  chargerMonProfil, htmlBlocProfil, brancherBlocProfil, enregistrerProfil
 };

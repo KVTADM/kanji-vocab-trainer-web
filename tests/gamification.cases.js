@@ -1,7 +1,10 @@
 // Scénarios de gamification.js. Concaténés au harnais avant évaluation.
 
 function baseGamif() {
-  return { xp: 0, pieces: 0, streak: { compte: 0, record: 0, dernierJour: null }, inventaire: [], titreActif: null };
+  return {
+    xp: 0, pieces: 0, streak: { compte: 0, record: 0, dernierJour: null }, inventaire: [], titreActif: null,
+    collationActive: null, banniereActive: null, boostXpJusqua: null
+  };
 }
 
 // ---------- Niveau ----------
@@ -249,4 +252,161 @@ essai('widgetGamification ne plante pas et affiche le niveau', () => {
   DB = { gamification: { ...baseGamif(), xp: 60 } };
   const html = widgetGamification();
   if (!html.includes('Niv. 2')) throw new Error('niveau absent du widget : ' + html);
+});
+
+// ---------- v6 (25/08/2026) : boost XP temporaire ----------
+
+essai('assurerGamification initialise tous les nouveaux champs par défaut', () => {
+  DB = {};
+  const g = assurerGamification();
+  if (g.collationActive !== null || g.banniereActive !== null || g.boostXpJusqua !== null) throw new Error(JSON.stringify(g));
+});
+
+essai('activerBoostXp active un boost de 20 minutes, et un rachat pendant qu\'il tourne prolonge (n\'empile pas le multiplicateur)', () => {
+  DB = { gamification: baseGamif() };
+  activerBoostXp();
+  const premiere = DB.gamification.boostXpJusqua;
+  if (!boostXpActif()) throw new Error('le boost devrait être actif juste après achat');
+  activerBoostXp(); // racheté immédiatement, doit prolonger depuis la fin précédente, pas depuis maintenant
+  const seconde = DB.gamification.boostXpJusqua;
+  const ecart = seconde - premiere;
+  if (Math.abs(ecart - GAMIF_BOOST_XP_DUREE_MS) > 50) throw new Error('écart=' + ecart + ' (attendu ~' + GAMIF_BOOST_XP_DUREE_MS + ')');
+});
+
+essai('boostXpActif/boostXpRestantMs reflètent l\'absence de boost et un boost expiré', () => {
+  DB = { gamification: baseGamif() };
+  if (boostXpActif()) throw new Error('aucun boost ne devrait être actif au départ');
+  if (boostXpRestantMs() !== 0) throw new Error('temps restant devrait être 0 sans boost');
+  DB.gamification.boostXpJusqua = Date.now() - 1000; // expiré il y a 1s
+  if (boostXpActif()) throw new Error('un boost expiré ne devrait plus être actif');
+  if (boostXpRestantMs() !== 0) throw new Error('temps restant devrait être 0 pour un boost expiré');
+});
+
+essai('gagnerXp double le gain pendant un boost actif, sans affecter gagnerPieces ni bonusFinSession', () => {
+  DB = { gamification: baseGamif() };
+  window.accountUser = null;
+  DB.gamification.boostXpJusqua = Date.now() + 60000;
+  const gainXp = gagnerXp(10);
+  if (gainXp !== 20) throw new Error('gainXp=' + gainXp + ' (attendu 20 avec le boost ×2)');
+  const gainPieces = gagnerPieces(6);
+  if (gainPieces !== 2) throw new Error('gainPieces=' + gainPieces + ' (le boost XP ne doit pas toucher aux pièces)');
+  const gainBonus = bonusFinSession(80);
+  if (gainBonus !== 15) throw new Error('gainBonus=' + gainBonus + ' (le boost XP ne doit pas toucher au bonus de session)');
+});
+
+essai('acheterObjet sur un boost ne l\'ajoute jamais à l\'inventaire et reste rachetable', () => {
+  DB = { gamification: { ...baseGamif(), pieces: 100 } };
+  window.accountUser = null;
+  const premier = acheterObjet('boost-xp-20');
+  if (!premier.ok) throw new Error(JSON.stringify(premier));
+  if (DB.gamification.inventaire.includes('boost-xp-20')) throw new Error('un boost ne doit jamais entrer dans l\'inventaire');
+  if (DB.gamification.pieces !== 70) throw new Error('pièces restantes=' + DB.gamification.pieces);
+  const second = acheterObjet('boost-xp-20'); // rachat immédiat, ne doit pas être bloqué par "déjà possédé"
+  if (!second.ok) throw new Error(JSON.stringify(second));
+  if (DB.gamification.pieces !== 40) throw new Error('pièces restantes après le 2e achat=' + DB.gamification.pieces);
+});
+
+// ---------- v6 : collation pendant les révisions ----------
+
+essai('equiperCollation refuse un objet non possédé, accepte un objet possédé et son retrait', () => {
+  DB = { gamification: { ...baseGamif(), inventaire: ['collation-cookie'] } };
+  const refuse = equiperCollation('collation-lait');
+  if (refuse.ok) throw new Error('une collation non possédée a pu être équipée');
+  const accepte = equiperCollation('collation-cookie');
+  if (!accepte.ok || DB.gamification.collationActive !== 'collation-cookie') throw new Error(JSON.stringify(DB.gamification));
+  const retrait = equiperCollation(null);
+  if (!retrait.ok || DB.gamification.collationActive !== null) throw new Error('le retrait de la collation a échoué');
+});
+
+essai('collationHtml n\'affiche rien sans collation équipée, affiche son nom sinon', () => {
+  DB = { gamification: baseGamif() };
+  if (collationHtml() !== '') throw new Error('devrait être vide sans collation équipée');
+  DB.gamification.collationActive = 'collation-cookie';
+  DB.gamification.inventaire = ['collation-cookie'];
+  const html = collationHtml();
+  if (!html.includes('Cookie') || !html.includes('🍪')) throw new Error('collation absente du rendu : ' + html);
+});
+
+// ---------- v6 : thèmes du site achetables avec des pièces ----------
+
+essai('themeDebloqueParPieces reflète l\'inventaire (achat = débloqué comme si on avait le Pro)', () => {
+  DB = { gamification: baseGamif() };
+  if (themeDebloqueParPieces('sakura')) throw new Error('sakura ne devrait pas être débloqué sans achat');
+  DB.gamification.inventaire = ['theme-sakura'];
+  if (!themeDebloqueParPieces('sakura')) throw new Error('sakura devrait être débloqué après achat de theme-sakura');
+  if (themeDebloqueParPieces('sumi')) throw new Error('un autre thème ne doit pas être débloqué par erreur');
+});
+
+// ---------- v6 : bannières de profil ----------
+
+essai('classeBanniere retourne la bonne classe CSS, et une chaîne vide sans bannière ou pour un id invalide', () => {
+  if (classeBanniere(null) !== '') throw new Error('null devrait donner une chaîne vide');
+  if (classeBanniere('') !== '') throw new Error('chaîne vide devrait donner une chaîne vide');
+  if (classeBanniere('objet-inconnu') !== '') throw new Error('un id inconnu ne doit pas planter, juste rien afficher');
+  if (classeBanniere('titre-motive') !== '') throw new Error('un objet qui n\'est pas une bannière ne doit pas produire de classe');
+  if (classeBanniere('banniere-or') !== 'profil-banniere--or') throw new Error('classe incorrecte : ' + classeBanniere('banniere-or'));
+});
+
+essai('equiperBanniere refuse un objet non possédé', async () => {
+  DB = { gamification: { ...baseGamif(), inventaire: [] } };
+  window.accountUser = null;
+  const res = await equiperBanniere('banniere-or');
+  if (res.ok) throw new Error('une bannière non possédée a pu être équipée');
+});
+
+essai('equiperBanniere s\'équipe seulement en local sans compte connecté (rien à synchroniser)', async () => {
+  DB = { gamification: { ...baseGamif(), inventaire: ['banniere-or'] } };
+  window.accountUser = null;
+  const res = await equiperBanniere('banniere-or');
+  if (!res.ok || DB.gamification.banniereActive !== 'banniere-or') throw new Error(JSON.stringify(res));
+});
+
+essai('equiperBanniere synchronise vers Supabase quand un compte est connecté', async () => {
+  DB = { gamification: { ...baseGamif(), inventaire: ['banniere-or'] } };
+  window.accountUser = { id: 'u1' };
+  let recu = null;
+  window.kvtProfils = { enregistrerProfil: async (champs) => { recu = champs; return { ok: true }; } };
+  const res = await equiperBanniere('banniere-or');
+  if (!res.ok) throw new Error(JSON.stringify(res));
+  if (!recu || recu.banniere_active !== 'banniere-or') throw new Error('enregistrerProfil n\'a pas reçu le bon champ : ' + JSON.stringify(recu));
+  window.accountUser = null;
+  window.kvtProfils = { enregistrerProfil: async () => ({ ok: true }) };
+});
+
+essai('equiperBanniere annule le changement si la synchronisation Supabase échoue', async () => {
+  DB = { gamification: { ...baseGamif(), inventaire: ['banniere-or'], banniereActive: null } };
+  window.accountUser = { id: 'u1' };
+  window.kvtProfils = { enregistrerProfil: async () => ({ ok: false, erreur: 'réseau' }) };
+  const res = await equiperBanniere('banniere-or');
+  if (res.ok || res.motif !== 'sync-echouee') throw new Error(JSON.stringify(res));
+  if (DB.gamification.banniereActive !== null) throw new Error('banniereActive aurait dû revenir à sa valeur précédente');
+  window.accountUser = null;
+  window.kvtProfils = { enregistrerProfil: async () => ({ ok: true }) };
+});
+
+essai('equiperBanniere accepte le retrait (id=null) sans tenter de synchroniser sans compte', async () => {
+  DB = { gamification: { ...baseGamif(), banniereActive: 'banniere-or' } };
+  window.accountUser = null;
+  const res = await equiperBanniere(null);
+  if (!res.ok || DB.gamification.banniereActive !== null) throw new Error(JSON.stringify(res));
+});
+
+// ---------- v6 : rendu boutique étendu (fumée) ----------
+
+essai('renderBoutique affiche les nouvelles sections (collations, thèmes, bannières, boosts)', () => {
+  DB = { gamification: { ...baseGamif(), pieces: 5000, xp: xpPourNiveau(10) } };
+  window.accountUser = null;
+  renderBoutique();
+  const html = $('#view-boutique').innerHTML;
+  ['Pendant les révisions', 'Thèmes du site', 'Bannières de profil', 'Boosts'].forEach(titre => {
+    if (!html.includes(titre)) throw new Error('section absente du rendu : ' + titre);
+  });
+});
+
+essai('renderBoutique affiche "Débloqué" pour un thème déjà acheté au lieu d\'un bouton d\'achat', () => {
+  DB = { gamification: { ...baseGamif(), pieces: 5000, xp: xpPourNiveau(10), inventaire: ['theme-sakura'] } };
+  window.accountUser = null;
+  renderBoutique();
+  const html = $('#view-boutique').innerHTML;
+  if (!html.includes('Débloqué')) throw new Error('le badge "Débloqué" n\'apparaît pas pour un thème déjà acheté');
 });

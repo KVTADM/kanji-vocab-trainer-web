@@ -115,13 +115,19 @@ const JLPT_N4_SEED = {"kanjiGroups":[{"id":"kg-hu66go90952pa","semesterId":"jlpt
     if (typeof data.settings.spectralMode !== 'boolean') data.settings.spectralMode = false;
     if (!data.wordStats || typeof data.wordStats !== 'object') data.wordStats = {};
     if (!data.inProgress || typeof data.inProgress !== 'object') data.inProgress = {};
-    // Niveaux/XP/pièces d'or/boutique (24/08/2026) — non-destructif : un
+    // Niveaux/XP/pièces d'or/boutique (24/08/2026, étendu 25/08/2026 :
+    // boosts XP, collations, bannières de profil) — non-destructif : un
     // compte déjà existant sans cette section démarre juste à zéro, comme
     // un compte neuf. `titreActif` peut valoir un id retiré du catalogue
-    // (voir gamification.js) — géré à l'affichage, pas ici.
+    // (voir gamification.js) — géré à l'affichage, pas ici. Les comptes
+    // migrés avant le 25/08/2026 ont déjà `data.gamification` mais sans les
+    // trois nouveaux champs : on les ajoute un par un sans toucher au reste.
     if (!data.gamification || typeof data.gamification !== 'object') {
-      data.gamification = { xp: 0, pieces: 0, streak: { compte: 0, record: 0, dernierJour: null }, inventaire: [], titreActif: null };
+      data.gamification = { xp: 0, pieces: 0, streak: { compte: 0, record: 0, dernierJour: null }, inventaire: [], titreActif: null, collationActive: null, banniereActive: null, boostXpJusqua: null };
     }
+    if (typeof data.gamification.collationActive === 'undefined') data.gamification.collationActive = null;
+    if (typeof data.gamification.banniereActive === 'undefined') data.gamification.banniereActive = null;
+    if (typeof data.gamification.boostXpJusqua === 'undefined') data.gamification.boostXpJusqua = null;
     if (!data.settings.theme) data.settings.theme = 'dark';
     // Barème universel et fixe (voir Réglages) : identique pour l'app Mac,
     // la version amis et le web, pour que le classement de la classe reste

@@ -30,7 +30,7 @@ async function chargerProfilPublic(userId) {
   const res = { profil: null, decks: [], avis: [], amis: null };
   try {
     const requetes = [
-      window.sb.from('profiles').select('id,pseudo,avatar_url,niveau,bio,created_at')
+      window.sb.from('profiles').select('id,pseudo,avatar_url,niveau,bio,created_at,banniere_active')
         .eq('id', userId).maybeSingle()
         .then(r => { res.profil = r.data || null; }),
 
@@ -190,6 +190,7 @@ function renderProfilPublic() {
   el.innerHTML = `
     ${retour}
     <header class="profil-entete card">
+      ${typeof classeBanniere === 'function' && classeBanniere(profil.banniere_active) ? `<div class="profil-banniere ${classeBanniere(profil.banniere_active)}"></div>` : ''}
       <div class="profil-entete__haut">
         ${window.kvtProfils ? window.kvtProfils.avatarHtml(profil.id, profil.pseudo, 72) : ''}
         <div class="profil-entete__ident">

@@ -2771,7 +2771,7 @@ code {
 }
 .auteur--lien:hover .auteur-pseudo { color: var(--accent-bright); text-decoration: underline; }
 
-.profil-entete { padding: 24px; }
+.profil-entete { padding: 24px; overflow: hidden; }
 .profil-entete__haut { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
 .profil-entete__ident { flex: 1; min-width: 0; }
 .profil-entete__pseudo { margin: 0 0 8px; font-size: 22px; }
@@ -3019,3 +3019,63 @@ code {
 .boutique-item button {
   width: 100%;
 }
+
+/* ---------- Boutique v6 (25/08/2026) : collations, boosts, thèmes,
+   bannières de profil ---------- */
+.gamif-collation {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--muted);
+  background: var(--panel-alt);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 4px 12px;
+  margin: 10px 0 0;
+  width: fit-content;
+}
+.gamif-boost {
+  white-space: nowrap;
+  color: var(--accent-bright);
+  font-size: 13px;
+}
+.boutique-section__titre {
+  margin: 26px 0 4px;
+  font-size: 16px;
+}
+.boutique-section__titre:first-of-type {
+  margin-top: 18px;
+}
+.boutique-section__aide {
+  margin: 0 0 12px;
+  font-size: 12.5px;
+  color: var(--muted);
+  max-width: 62ch;
+}
+.boutique-item__debloque {
+  display: inline-block;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--good);
+}
+.gamif-retirer-liste {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-top: 18px;
+}
+
+/* Bannière de profil public — bande décorative en haut de .profil-entete,
+   achetée en boutique (voir GAMIF_BOUTIQUE, type 'banniere'). Marges
+   négatives pour rejoindre les bords de la carte (padding 24px ci-dessus),
+   .profil-entete a overflow:hidden pour respecter les coins arrondis. */
+.profil-banniere {
+  height: 64px;
+  margin: -24px -24px 20px;
+}
+.profil-banniere--aurore { background: linear-gradient(135deg, #ff9a76, #ffd76e, #7ec8e3); }
+.profil-banniere--nocturne { background: linear-gradient(135deg, #1b1d3a, #3a2a6b, #0d0d1f); }
+.profil-banniere--jade { background: linear-gradient(135deg, #0f4f43, #2fae82, #bff0d8); }
+.profil-banniere--or { background: linear-gradient(135deg, #ffe98a, #ffc93c, #e39a1a); }
+.profil-banniere--imperiale { background: linear-gradient(135deg, #6c1a1a, #b9284f, #ffd76e, #6c1a1a); }
