@@ -1,7 +1,7 @@
 // Scénarios de gamification.js. Concaténés au harnais avant évaluation.
 
 function baseGamif() {
-  return { xp: 0, pieces: 0, streak: { compte: 0, record: 0, dernierJour: null }, inventaire: [], titreActif: null };
+  return { xp: 0, pieces: 0, or: 0, streak: { compte: 0, record: 0, dernierJour: null }, inventaire: [], titreActif: null };
 }
 
 // ---------- Niveau ----------
@@ -46,6 +46,35 @@ essai('gagnerXp ne fait rien pour 0 ou des points négatifs', () => {
   if (DB.gamification.xp !== 0) throw new Error('xp a bougé alors qu\'il ne devrait pas');
 });
 
+essai('franchir un niveau grâce à gagnerXp rapporte de l\'or', () => {
+  DB = { gamification: { ...baseGamif(), xp: 45 } }; // niveau 1, à 5 XP du niveau 2
+  window.accountUser = null;
+  gagnerXp(10); // xp -> 55, niveau 2 : un seul niveau franchi
+  if (DB.gamification.or !== 5) throw new Error('or=' + DB.gamification.or + ' (attendu 5 = 1 niveau × GAMIF_OR_PAR_NIVEAU)');
+});
+
+essai('l\'or de niveau est boosté pour le Pro', () => {
+  DB = { gamification: { ...baseGamif(), xp: 45 } };
+  window.accountUser = { isPro: true };
+  gagnerXp(10); // gain XP boosté (15) -> xp=60, toujours un seul niveau franchi (2)
+  if (DB.gamification.or !== 8) throw new Error('or=' + DB.gamification.or + ' (attendu round(5×1.5)=8)');
+  window.accountUser = null;
+});
+
+essai('franchir plusieurs niveaux d\'un coup rapporte l\'or pour chacun', () => {
+  DB = { gamification: { ...baseGamif(), xp: 0 } };
+  window.accountUser = null;
+  gagnerXp(200); // niveau 1 -> niveau 3 : deux niveaux franchis
+  if (DB.gamification.or !== 10) throw new Error('or=' + DB.gamification.or + ' (attendu 10 = 2 niveaux × 5)');
+});
+
+essai('gagnerXp sans franchir de niveau ne donne pas d\'or', () => {
+  DB = { gamification: { ...baseGamif(), xp: 0 } };
+  window.accountUser = null;
+  gagnerXp(10); // reste niveau 1
+  if (DB.gamification.or !== 0) throw new Error('or=' + DB.gamification.or + ' (aucun niveau franchi)');
+});
+
 // ---------- Gains de pièces ----------
 
 essai('gagnerPieces ne rapporte rien sous le seuil (mot raté)', () => {
@@ -55,27 +84,60 @@ essai('gagnerPieces ne rapporte rien sous le seuil (mot raté)', () => {
   if (gain !== 0 || DB.gamification.pieces !== 0) throw new Error('gain=' + gain);
 });
 
-essai('gagnerPieces rapporte une pièce fixe au-dessus du seuil, boostée pour le Pro', () => {
+essai('gagnerPieces rapporte 2 pièces fixes au-dessus du seuil, boostées pour le Pro', () => {
   DB = { gamification: baseGamif() };
   window.accountUser = null;
-  if (gagnerPieces(6) !== 1) throw new Error('pièce normale incorrecte');
-  if (gagnerPieces(10) !== 1) throw new Error('la pièce est fixe, pas proportionnelle aux points');
+  if (gagnerPieces(6) !== 2) throw new Error('pièce normale incorrecte');
+  if (gagnerPieces(10) !== 2) throw new Error('le gain est fixe, pas proportionnel aux points');
   window.accountUser = { isPro: true };
-  if (gagnerPieces(6) !== 2) throw new Error('boost Pro incorrect sur les pièces'); // round(1.5) = 2
+  if (gagnerPieces(6) !== 3) throw new Error('boost Pro incorrect sur les pièces'); // round(2×1.5) = 3
   window.accountUser = null;
+});
+
+// ---------- Gains d'or direct ----------
+
+essai('gagnerOr ajoute la quantité demandée, boostée pour le Pro', () => {
+  DB = { gamification: baseGamif() };
+  window.accountUser = null;
+  if (gagnerOr(10) !== 10) throw new Error('or non-Pro incorrect');
+  window.accountUser = { isPro: true };
+  if (gagnerOr(10) !== 15) throw new Error('or Pro incorrect'); // round(10×1.5)=15
+  window.accountUser = null;
+  if (DB.gamification.or !== 25) throw new Error('total or=' + DB.gamification.or);
+});
+
+essai('gagnerOr ne fait rien pour 0 ou une quantité négative', () => {
+  DB = { gamification: baseGamif() };
+  if (gagnerOr(0) !== 0 || gagnerOr(-5) !== 0) throw new Error('devrait ignorer 0/négatif');
+  if (DB.gamification.or !== 0) throw new Error('or a bougé alors qu\'il ne devrait pas');
 });
 
 // ---------- Bonus de fin de session ----------
 
-essai('bonusFinSession ne paie rien sous 80%, paie 10 (ou 15 en Pro) au-dessus', () => {
+essai('bonusFinSession ne paie rien sous 80%, paie 15 (ou 23 en Pro) au-dessus', () => {
   DB = { gamification: baseGamif() };
   window.accountUser = null;
   if (bonusFinSession(79) !== 0) throw new Error('79% ne devrait rien payer');
-  if (bonusFinSession(80) !== 10) throw new Error('80% devrait payer 10');
+  if (bonusFinSession(80) !== 15) throw new Error('80% devrait payer 15');
   DB = { gamification: baseGamif() };
   window.accountUser = { isPro: true };
-  if (bonusFinSession(100) !== 15) throw new Error('bonus Pro incorrect');
+  if (bonusFinSession(85) !== 23) throw new Error('bonus Pro incorrect'); // round(15×1.5)=23, pas de bonus "parfait" à 85%
   window.accountUser = null;
+});
+
+essai('une session parfaite (100%) rapporte de l\'or en plus des pièces', () => {
+  DB = { gamification: baseGamif() };
+  window.accountUser = null;
+  const pieces = bonusFinSession(100);
+  if (pieces !== 15) throw new Error('pièces=' + pieces);
+  if (DB.gamification.or !== 3) throw new Error('or=' + DB.gamification.or + ' (attendu GAMIF_OR_SESSION_PARFAITE=3)');
+});
+
+essai('une session à 99% ne rapporte pas l\'or "session parfaite"', () => {
+  DB = { gamification: baseGamif() };
+  window.accountUser = null;
+  bonusFinSession(99);
+  if (DB.gamification.or !== 0) throw new Error('or=' + DB.gamification.or + ' (99% n\'est pas parfait)');
 });
 
 // ---------- Série quotidienne (streak) ----------
@@ -104,12 +166,28 @@ essai('un jour sauté remet la série à 1 sans perdre le record', () => {
   if (s.record !== 10) throw new Error('le record ne doit pas être perdu : ' + s.record);
 });
 
+essai('atteindre un palier de 7 jours de série rapporte de l\'or', () => {
+  const hier = gamifJourPrecedent(gamifDateDuJour());
+  DB = { gamification: { ...baseGamif(), streak: { compte: 6, record: 6, dernierJour: hier } } };
+  window.accountUser = null;
+  const s = mettreAJourStreak();
+  if (s.compte !== 7) throw new Error('compte=' + s.compte);
+  if (DB.gamification.or !== 10) throw new Error('or=' + DB.gamification.or + ' (attendu GAMIF_OR_STREAK_RECOMPENSE=10 au palier de 7)');
+});
+
+essai('un jour de série hors palier ne rapporte pas d\'or', () => {
+  const hier = gamifJourPrecedent(gamifDateDuJour());
+  DB = { gamification: { ...baseGamif(), streak: { compte: 3, record: 3, dernierJour: hier } } };
+  mettreAJourStreak(); // -> 4, pas un multiple de 7
+  if (DB.gamification.or !== 0) throw new Error('or=' + DB.gamification.or);
+});
+
 // ---------- Boutique ----------
 
 essai('acheterObjet refuse si pas assez de pièces', () => {
   DB = { gamification: { ...baseGamif(), pieces: 10 } };
   const res = acheterObjet('titre-motive'); // prix 20
-  if (res.ok || res.motif !== 'pas-assez-de-pieces') throw new Error(JSON.stringify(res));
+  if (res.ok || res.motif !== 'pas-assez-de-monnaie') throw new Error(JSON.stringify(res));
   if (DB.gamification.pieces !== 10) throw new Error('les pièces ont bougé alors que l\'achat a échoué');
 });
 
@@ -127,8 +205,21 @@ essai('acheterObjet refuse un objet déjà possédé', () => {
   if (res.ok || res.motif !== 'deja-possede') throw new Error(JSON.stringify(res));
 });
 
-essai('acheterObjet refuse un objet Pro sans compte Pro, l\'autorise avec', () => {
-  DB = { gamification: { ...baseGamif(), pieces: 1000 } };
+essai('acheterObjet refuse si le niveau requis n\'est pas atteint, même avec assez de monnaie', () => {
+  DB = { gamification: { ...baseGamif(), pieces: 1000, xp: 0 } }; // niveau 1
+  const res = acheterObjet('titre-assidu'); // niveauRequis 3
+  if (res.ok || res.motif !== 'niveau-insuffisant') throw new Error(JSON.stringify(res));
+  if (DB.gamification.pieces !== 1000) throw new Error('les pièces ont bougé alors que l\'achat a échoué');
+});
+
+essai('acheterObjet réussit une fois le niveau requis atteint', () => {
+  DB = { gamification: { ...baseGamif(), pieces: 1000, xp: xpPourNiveau(3) } }; // pile niveau 3
+  const res = acheterObjet('titre-assidu');
+  if (!res.ok) throw new Error(JSON.stringify(res));
+});
+
+essai('acheterObjet refuse un objet Pro sans compte Pro (même niveau suffisant), l\'autorise avec', () => {
+  DB = { gamification: { ...baseGamif(), pieces: 1000, xp: xpPourNiveau(5) } }; // niveau 5, requis pour titre-sensei
   window.accountUser = null;
   const refuse = acheterObjet('titre-sensei');
   if (refuse.ok || refuse.motif !== 'reserve-pro') throw new Error(JSON.stringify(refuse));
@@ -136,6 +227,18 @@ essai('acheterObjet refuse un objet Pro sans compte Pro, l\'autorise avec', () =
   const accepte = acheterObjet('titre-sensei');
   if (!accepte.ok) throw new Error(JSON.stringify(accepte));
   window.accountUser = null;
+});
+
+essai('acheterObjet gère la monnaie "or" séparément des pièces', () => {
+  DB = { gamification: { ...baseGamif(), pieces: 1000, or: 5, xp: xpPourNiveau(10) } }; // niveau 10, requis pour titre-legendaire (15 or)
+  const insuffisant = acheterObjet('titre-legendaire');
+  if (insuffisant.ok || insuffisant.motif !== 'pas-assez-de-monnaie') throw new Error(JSON.stringify(insuffisant));
+  if (DB.gamification.pieces !== 1000) throw new Error('un achat en or ne doit jamais toucher aux pièces');
+  DB.gamification.or = 15;
+  const reussi = acheterObjet('titre-legendaire');
+  if (!reussi.ok) throw new Error(JSON.stringify(reussi));
+  if (DB.gamification.or !== 0) throw new Error('or restant = ' + DB.gamification.or);
+  if (DB.gamification.pieces !== 1000) throw new Error('un achat en or ne doit jamais toucher aux pièces');
 });
 
 essai('acheterObjet refuse un identifiant inconnu', () => {
@@ -157,12 +260,21 @@ essai('equiperTitre refuse un objet non possédé, accepte un objet possédé, a
 
 // ---------- Rendu (fumée : ne doit pas planter) ----------
 
-essai('renderBoutique ne plante pas et affiche le solde', () => {
-  DB = { gamification: { ...baseGamif(), pieces: 42 } };
+essai('renderBoutique ne plante pas et affiche le solde de pièces et d\'or', () => {
+  DB = { gamification: { ...baseGamif(), pieces: 42, or: 7 } };
   window.accountUser = null;
   renderBoutique();
   const vue = $('#view-boutique');
   if (!vue.innerHTML.includes('42')) throw new Error('le solde de pièces n\'apparaît pas dans le rendu');
+  if (!vue.innerHTML.includes('7')) throw new Error('le solde d\'or n\'apparaît pas dans le rendu');
+});
+
+essai('renderBoutique verrouille par niveau les objets non encore débloqués', () => {
+  DB = { gamification: { ...baseGamif(), pieces: 1000, xp: 0 } }; // niveau 1
+  window.accountUser = null;
+  renderBoutique();
+  const vue = $('#view-boutique');
+  if (!vue.innerHTML.includes('Niveau 3 requis')) throw new Error('le verrou de niveau n\'apparaît pas dans le rendu');
 });
 
 essai('widgetGamification ne plante pas et affiche le niveau', () => {
