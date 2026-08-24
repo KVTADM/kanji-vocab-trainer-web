@@ -2973,6 +2973,9 @@ code {
 .gamif-piece, .gamif-streak, .gamif-titre {
   white-space: nowrap;
 }
+.gamif-icone-piece {
+  vertical-align: -3px;
+}
 .gamif-titre {
   color: var(--muted);
   font-weight: 500;

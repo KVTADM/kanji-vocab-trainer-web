@@ -4,12 +4,15 @@
 // Ajouté le 24/08/2026 à la demande de Paul, ajusté le même jour en deux
 // passes suite à ses retours :
 // - v2 : ajout d'une deuxième monnaie ("or") séparée des pièces.
-// - v3 (celle-ci) : Paul a précisé qu'il ne voulait PAS une deuxième
-//   monnaie — juste que la monnaie existante SOIT de l'or (rebaptisée
-//   "pièces d'or", même icône 🪙 qui rend déjà comme une pièce dorée).
+// - v3 : Paul a précisé qu'il ne voulait PAS une deuxième monnaie — juste
+//   que la monnaie existante SOIT de l'or (rebaptisée "pièces d'or").
 //   Toute la logique de gain/dépense en "or" séparé (gagnerOr, paliers de
 //   niveau/série/session parfaite en or) a donc été retirée : une seule
 //   monnaie, plus généreuse (voir plus bas), pas deux.
+// - v4 (celle-ci) : l'emoji 🪙 générique remplacé par un koban dessiné en
+//   SVG (voir iconePiece plus bas), après plusieurs allers-retours avec
+//   Paul sur la forme (verticale, façon pièce de Miaouss) et le style
+//   (dégradé + lignes gravées, sans contour épais).
 //
 // Principe repris de `01 - Décisions techniques.md` / vision produit du
 // 25/07 : tout ce qui touche à l'apprentissage lui-même reste gratuit et
@@ -188,6 +191,48 @@ function equiperTitre(id) {
   return { ok: true };
 }
 
+// ---------- Icône ----------
+// Petit koban (小判, la pièce d'or ovale japonaise) en SVG plutôt qu'un
+// emoji — dessiné avec Paul le 24/08/2026 (forme moins ovale, dégradé,
+// lignes gravées, sans contour épais). Un id de dégradé/clip unique par
+// appel : la boutique en affiche plusieurs à la fois sur la même page, et
+// deux <svg> avec le même id de dégradé se marchent dessus au rendu.
+let gamifIconeCompteur = 0;
+
+function iconePiece(taillePx) {
+  const hauteur = taillePx || 16;
+  const largeur = Math.round(hauteur * 0.75);
+  const id = 'gamifCoin' + (gamifIconeCompteur++);
+  return `<svg class="gamif-icone-piece" width="${largeur}" height="${hauteur}" viewBox="0 0 240 320" aria-hidden="true" focusable="false">
+    <defs>
+      <linearGradient id="${id}-gold" x1="15%" y1="10%" x2="85%" y2="95%">
+        <stop offset="0%" stop-color="#ffe98a"/>
+        <stop offset="45%" stop-color="#ffc93c"/>
+        <stop offset="100%" stop-color="#e39a1a"/>
+      </linearGradient>
+      <clipPath id="${id}-forme">
+        <rect x="20" y="10" width="200" height="290" rx="95" ry="105"/>
+      </clipPath>
+    </defs>
+    <rect x="20" y="18" width="200" height="290" rx="95" ry="105" fill="#c67f12"/>
+    <rect x="20" y="10" width="200" height="290" rx="95" ry="105" fill="url(#${id}-gold)"/>
+    <g clip-path="url(#${id}-forme)" stroke="#c67f12" stroke-width="2" opacity="0.55">
+      <line x1="10" y1="40" x2="230" y2="40"/>
+      <line x1="10" y1="62" x2="230" y2="62"/>
+      <line x1="10" y1="84" x2="230" y2="84"/>
+      <line x1="10" y1="106" x2="230" y2="106"/>
+      <line x1="10" y1="128" x2="230" y2="128"/>
+      <line x1="10" y1="150" x2="230" y2="150"/>
+      <line x1="10" y1="172" x2="230" y2="172"/>
+      <line x1="10" y1="194" x2="230" y2="194"/>
+      <line x1="10" y1="216" x2="230" y2="216"/>
+      <line x1="10" y1="238" x2="230" y2="238"/>
+      <line x1="10" y1="260" x2="230" y2="260"/>
+      <line x1="10" y1="282" x2="230" y2="282"/>
+    </g>
+  </svg>`;
+}
+
 // ---------- Rendu : widget tableau de bord ----------
 // Inséré dans renderDashboard() (app.js) — voir en-tête de la fonction.
 
@@ -205,7 +250,7 @@ function widgetGamification() {
         <div class="gamif-widget__xp">${g.xp} XP</div>
       </div>
       <div class="gamif-widget__stats">
-        <span class="gamif-piece" title="Pièces d'or">🪙 ${g.pieces}</span>
+        <span class="gamif-piece" title="Pièces d'or">${iconePiece(16)} ${g.pieces}</span>
         <span class="gamif-streak" title="Série de jours consécutifs">🔥 ${g.streak.compte}</span>
         ${titre ? `<span class="gamif-titre">${titre.emoji} ${escapeHtml(titre.nom)}</span>` : ''}
       </div>
@@ -222,7 +267,7 @@ function renderBoutique() {
   container.innerHTML = `
     <h2>Boutique</h2>
     <div class="card gamif-solde">
-      <span class="gamif-piece">🪙 ${g.pieces} pièce${g.pieces > 1 ? 's' : ''} d'or</span>
+      <span class="gamif-piece">${iconePiece(18)} ${g.pieces} pièce${g.pieces > 1 ? 's' : ''} d'or</span>
       <span style="color:var(--muted); font-size:13px;">Gagnées en révisant — deux pièces d'or par mot correct, un bonus si tu finis une session à 80% ou plus. Purement décoratif : aucun avantage sur le classement.</span>
     </div>
     <div class="boutique-grid">
@@ -239,7 +284,7 @@ function renderBoutique() {
         } else if (proBloque) {
           bouton = `<button class="secondary" disabled>Réservé Pro</button>`;
         } else {
-          bouton = `<button class="primary" data-acheter="${o.id}" ${g.pieces < o.prix ? 'disabled' : ''}>${o.prix} 🪙</button>`;
+          bouton = `<button class="primary" data-acheter="${o.id}" ${g.pieces < o.prix ? 'disabled' : ''}>${o.prix} ${iconePiece(14)}</button>`;
         }
         return `
           <div class="card boutique-item ${possede ? 'boutique-item--possede' : ''}">
