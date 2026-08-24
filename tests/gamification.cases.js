@@ -21,6 +21,27 @@ essai('progressionNiveau calcule le bon pourcentage vers le niveau suivant', () 
   if (milieu.niveau !== 2 || milieu.pct !== 50) throw new Error(JSON.stringify(milieu));
 });
 
+// ---------- Difficulté selon le semestre ----------
+
+essai('multiplicateurDifficulte vaut 1 pour le tout premier semestre du programme', () => {
+  if (multiplicateurDifficulte('l0-s1') !== 1) throw new Error('l0-s1 -> ' + multiplicateurDifficulte('l0-s1'));
+});
+
+essai('multiplicateurDifficulte augmente avec l\'avancement dans le programme', () => {
+  const s1 = multiplicateurDifficulte('s1');   // index 2 -> 1 + 2×0.08
+  const s6 = multiplicateurDifficulte('s6');   // index 7 -> 1 + 7×0.08
+  const n3 = multiplicateurDifficulte('jlpt-n3'); // index 10 -> 1 + 10×0.08
+  if (Math.abs(s1 - 1.16) > 1e-9) throw new Error('s1 -> ' + s1);
+  if (Math.abs(s6 - 1.56) > 1e-9) throw new Error('s6 -> ' + s6);
+  if (Math.abs(n3 - 1.8) > 1e-9) throw new Error('jlpt-n3 -> ' + n3);
+  if (!(s1 < s6 && s6 < n3)) throw new Error('l\'ordre croissant n\'est pas respecté');
+});
+
+essai('multiplicateurDifficulte vaut 1 pour un deck créé/importé hors programme officiel', () => {
+  if (multiplicateurDifficulte('deck-abc123') !== 1) throw new Error('deck inconnu -> ' + multiplicateurDifficulte('deck-abc123'));
+  if (multiplicateurDifficulte(undefined) !== 1) throw new Error('semesterId absent -> ' + multiplicateurDifficulte(undefined));
+});
+
 // ---------- Gains d'XP ----------
 
 essai('gagnerXp ajoute exactement les points sans compte Pro', () => {
@@ -35,6 +56,18 @@ essai('gagnerXp est boosté x1.5 avec un compte Pro', () => {
   window.accountUser = { isPro: true };
   const gain = gagnerXp(10);
   if (gain !== 15 || DB.gamification.xp !== 15) throw new Error('gain=' + gain + ' xp=' + DB.gamification.xp);
+  window.accountUser = null;
+});
+
+essai('gagnerXp est aussi mis à l\'échelle par la difficulté du semestre', () => {
+  DB = { gamification: baseGamif() };
+  window.accountUser = null;
+  const gain = gagnerXp(10, 's3'); // index 4 -> ×1.32
+  if (gain !== 13) throw new Error('gain=' + gain + ' (attendu round(10×1.32)=13)');
+  window.accountUser = { isPro: true };
+  DB = { gamification: baseGamif() };
+  const gainPro = gagnerXp(10, 's3'); // ×1.32 puis ×1.5 (Pro)
+  if (gainPro !== 20) throw new Error('gainPro=' + gainPro + ' (attendu round(10×1.32×1.5)=20)');
   window.accountUser = null;
 });
 
@@ -65,6 +98,20 @@ essai('gagnerPieces rapporte 2 pièces fixes au-dessus du seuil, boostées pour 
   window.accountUser = null;
 });
 
+essai('gagnerPieces est aussi mis à l\'échelle par la difficulté du semestre', () => {
+  DB = { gamification: baseGamif() };
+  window.accountUser = null;
+  const gain = gagnerPieces(6, 's6'); // index 7 -> ×1.56
+  if (gain !== 3) throw new Error('gain=' + gain + ' (attendu round(2×1.56)=3)');
+});
+
+essai('gagnerPieces reste au tarif de base sur un deck créé/importé', () => {
+  DB = { gamification: baseGamif() };
+  window.accountUser = null;
+  const gain = gagnerPieces(6, 'deck-perso-xyz');
+  if (gain !== 2) throw new Error('gain=' + gain + ' (un deck hors programme ne doit pas être boosté)');
+});
+
 // ---------- Bonus de fin de session ----------
 
 essai('bonusFinSession ne paie rien sous 80%, paie 15 (ou 23 en Pro) au-dessus', () => {
@@ -75,6 +122,18 @@ essai('bonusFinSession ne paie rien sous 80%, paie 15 (ou 23 en Pro) au-dessus',
   DB = { gamification: baseGamif() };
   window.accountUser = { isPro: true };
   if (bonusFinSession(100) !== 23) throw new Error('bonus Pro incorrect'); // round(15×1.5)=23
+  window.accountUser = null;
+});
+
+essai('bonusFinSession est aussi mis à l\'échelle par la difficulté du semestre', () => {
+  DB = { gamification: baseGamif() };
+  window.accountUser = null;
+  const gain = bonusFinSession(80, 'jlpt-n4'); // index 9 -> ×1.72
+  if (gain !== 26) throw new Error('gain=' + gain + ' (attendu round(15×1.72)=26)');
+  DB = { gamification: baseGamif() };
+  window.accountUser = { isPro: true };
+  const gainPro = bonusFinSession(80, 'jlpt-n3'); // ×1.8 puis ×1.5 (Pro)
+  if (gainPro !== 41) throw new Error('gainPro=' + gainPro + ' (attendu round(15×1.8×1.5)=41)');
   window.accountUser = null;
 });
 

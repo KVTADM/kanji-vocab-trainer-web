@@ -48,6 +48,27 @@ const GAMIF_PIECES_PAR_MOT = 2;
 const GAMIF_SEUIL_BONUS_SESSION = 80;
 const GAMIF_BONUS_SESSION = 15;
 
+// Difficulté selon le semestre (25/08/2026, demande de Paul : « plus c'est
+// loin, plus ça donne »). Ordre canonique du programme — même ordre que
+// CANONICAL_SEMESTERS dans webapi.js (à garder synchronisé si un nouveau
+// semestre/module y est ajouté ; dupliqué ici plutôt qu'exporté car
+// CANONICAL_SEMESTERS est privé à l'IIFE de webapi.js). +8% par palier plus
+// avancé : le tout premier semestre reste au tarif de base, le dernier
+// module JLPT actuellement disponible (N3) rapporte 1,8×. Un id absent de
+// cette liste (deck créé ou importé par un élève, voir creation.js/decks.js)
+// n'est pas "un semestre du programme" — pas de bonus, tarif de base.
+const GAMIF_ORDRE_SEMESTRES = [
+  'l0-s1', 'l0-s2', 's1', 's2', 's3', 's4', 's5', 's6',
+  'jlpt-n5', 'jlpt-n4', 'jlpt-n3'
+];
+const GAMIF_BONUS_PAR_PALIER = 0.08;
+
+function multiplicateurDifficulte(semesterId) {
+  const idx = GAMIF_ORDRE_SEMESTRES.indexOf(semesterId);
+  if (idx === -1) return 1;
+  return 1 + idx * GAMIF_BONUS_PAR_PALIER;
+}
+
 // Catalogue boutique : des titres cosmétiques affichés à côté du niveau.
 // Aucun ne touche à l'apprentissage (contenu, stats, classement) — décoratif
 // uniquement, comme le reste de ce qui se paie dans KVT. `niveauRequis`
@@ -109,26 +130,26 @@ function progressionNiveau(xp) {
 
 // ---------- Gains ----------
 
-function gagnerXp(points) {
+function gagnerXp(points, semesterId) {
   if (!points || points <= 0) return 0;
   const g = assurerGamification();
-  const gain = Math.round(points * (gamifEstPro() ? GAMIF_BOOST_PRO : 1));
+  const gain = Math.round(points * multiplicateurDifficulte(semesterId) * (gamifEstPro() ? GAMIF_BOOST_PRO : 1));
   g.xp += gain;
   return gain;
 }
 
-function gagnerPieces(points) {
+function gagnerPieces(points, semesterId) {
   if (!points || points < GAMIF_SEUIL_PIECE) return 0;
   const g = assurerGamification();
-  const gain = Math.round(GAMIF_PIECES_PAR_MOT * (gamifEstPro() ? GAMIF_BOOST_PRO : 1));
+  const gain = Math.round(GAMIF_PIECES_PAR_MOT * multiplicateurDifficulte(semesterId) * (gamifEstPro() ? GAMIF_BOOST_PRO : 1));
   g.pieces += gain;
   return gain;
 }
 
-function bonusFinSession(pctSession) {
+function bonusFinSession(pctSession, semesterId) {
   if (pctSession < GAMIF_SEUIL_BONUS_SESSION) return 0;
   const g = assurerGamification();
-  const gain = Math.round(GAMIF_BONUS_SESSION * (gamifEstPro() ? GAMIF_BOOST_PRO : 1));
+  const gain = Math.round(GAMIF_BONUS_SESSION * multiplicateurDifficulte(semesterId) * (gamifEstPro() ? GAMIF_BOOST_PRO : 1));
   g.pieces += gain;
   return gain;
 }

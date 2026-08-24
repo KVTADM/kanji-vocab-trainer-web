@@ -1096,7 +1096,7 @@ function renderReview() {
     const improved = prevBest === null || pct > prevBest;
     recordSessionResult(quizSession.semesterId, quizSession.week, points, maxPoints, pct);
     // Gamification : bonus de pièces si la session est réussie (>= 80%).
-    if (typeof bonusFinSession === 'function') bonusFinSession(pct);
+    if (typeof bonusFinSession === 'function') bonusFinSession(pct, quizSession.semesterId);
     // Le palier qui compte vraiment : quelqu'un a fait un quiz en entier.
     // Une visite qui va jusque-la n'est plus un passage, c'est un essai.
     if (window.kvtMesure) window.kvtMesure.noter('quiz_fini');
@@ -1269,8 +1269,8 @@ function renderReview() {
       // au premier mot de la journée. N'a aucun effet sur le score du quiz
       // lui-même (result.points), qui reste la seule chose comparée dans le
       // classement.
-      if (typeof gagnerXp === 'function') gagnerXp(result.points);
-      if (typeof gagnerPieces === 'function') gagnerPieces(result.points);
+      if (typeof gagnerXp === 'function') gagnerXp(result.points, quizSession.semesterId);
+      if (typeof gagnerPieces === 'function') gagnerPieces(result.points, quizSession.semesterId);
       if (typeof mettreAJourStreak === 'function') mettreAJourStreak();
       saveInProgress();
       renderReview();
