@@ -2970,7 +2970,7 @@ code {
   font-size: 14px;
   font-weight: 600;
 }
-.gamif-piece, .gamif-or, .gamif-streak, .gamif-titre {
+.gamif-piece, .gamif-streak, .gamif-titre {
   white-space: nowrap;
 }
 .gamif-titre {

@@ -115,17 +115,13 @@ const JLPT_N4_SEED = {"kanjiGroups":[{"id":"kg-hu66go90952pa","semesterId":"jlpt
     if (typeof data.settings.spectralMode !== 'boolean') data.settings.spectralMode = false;
     if (!data.wordStats || typeof data.wordStats !== 'object') data.wordStats = {};
     if (!data.inProgress || typeof data.inProgress !== 'object') data.inProgress = {};
-    // Niveaux/XP/pièces/or/boutique (24/08/2026, monnaie or ajoutée le même
-    // jour) — non-destructif : un compte déjà existant sans cette section
-    // démarre juste à zéro, comme un compte neuf. Un compte migré avant
-    // l'ajout de l'or a déjà `gamification` mais pas `.or` : couvert par la
-    // deuxième condition, sans toucher au reste. `titreActif` peut valoir un
-    // id retiré du catalogue (voir gamification.js) — géré à l'affichage,
-    // pas ici.
+    // Niveaux/XP/pièces d'or/boutique (24/08/2026) — non-destructif : un
+    // compte déjà existant sans cette section démarre juste à zéro, comme
+    // un compte neuf. `titreActif` peut valoir un id retiré du catalogue
+    // (voir gamification.js) — géré à l'affichage, pas ici.
     if (!data.gamification || typeof data.gamification !== 'object') {
-      data.gamification = { xp: 0, pieces: 0, or: 0, streak: { compte: 0, record: 0, dernierJour: null }, inventaire: [], titreActif: null };
+      data.gamification = { xp: 0, pieces: 0, streak: { compte: 0, record: 0, dernierJour: null }, inventaire: [], titreActif: null };
     }
-    if (typeof data.gamification.or !== 'number') data.gamification.or = 0;
     if (!data.settings.theme) data.settings.theme = 'dark';
     // Barème universel et fixe (voir Réglages) : identique pour l'app Mac,
     // la version amis et le web, pour que le classement de la classe reste
