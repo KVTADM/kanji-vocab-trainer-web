@@ -535,6 +535,7 @@ function renderCurrentView() {
   else if (currentView === 'profil' && typeof renderProfilPublic === 'function') renderProfilPublic();
   else if (currentView === 'creation' && typeof renderCreation === 'function') renderCreation();
   else if (currentView === 'admin' && typeof renderAdmin === 'function') renderAdmin();
+  else if (currentView === 'boutique' && typeof renderBoutique === 'function') renderBoutique();
   renderSidebarFooter();
 }
 
@@ -648,6 +649,10 @@ function renderDashboard() {
         <button class="lien-retour" data-renommer="${ongletCourant.id}">Renommer</button>
         <button class="lien-retour" data-supprimer-cat="${ongletCourant.id}">Supprimer</button>
       </div>` : ''}`;
+
+  // Gamification (24/08/2026) : niveau/XP/pièces/série, tout en haut du
+  // tableau de bord — la première chose vue à l'ouverture de l'app.
+  if (typeof widgetGamification === 'function') html += widgetGamification();
 
   // Le proverbe du jour vit desormais sur la page d'accueil.
 
@@ -1090,6 +1095,8 @@ function renderReview() {
     const prevBest = DB.scores[key] ? DB.scores[key].best.pct : null;
     const improved = prevBest === null || pct > prevBest;
     recordSessionResult(quizSession.semesterId, quizSession.week, points, maxPoints, pct);
+    // Gamification : bonus de pièces si la session est réussie (>= 80%).
+    if (typeof bonusFinSession === 'function') bonusFinSession(pct);
     // Le palier qui compte vraiment : quelqu'un a fait un quiz en entier.
     // Une visite qui va jusque-la n'est plus un passage, c'est un essai.
     if (window.kvtMesure) window.kvtMesure.noter('quiz_fini');
@@ -1258,6 +1265,13 @@ function renderReview() {
         userAnswer: val, points: result.points, pct: result.pct, spectral: quizSession.usedSpectral
       });
       recordWordAttempt(v.id, result.pct);
+      // Gamification (24/08/2026) : XP/pièces à chaque mot, série quotidienne
+      // au premier mot de la journée. N'a aucun effet sur le score du quiz
+      // lui-même (result.points), qui reste la seule chose comparée dans le
+      // classement.
+      if (typeof gagnerXp === 'function') gagnerXp(result.points);
+      if (typeof gagnerPieces === 'function') gagnerPieces(result.points);
+      if (typeof mettreAJourStreak === 'function') mettreAJourStreak();
       saveInProgress();
       renderReview();
     };

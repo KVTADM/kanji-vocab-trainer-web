@@ -2916,3 +2916,103 @@ code {
 .admin-audience th { color: var(--muted); font-weight: 600; font-size: 12px; }
 .admin-audience th:first-child, .admin-audience td:first-child { text-align: left; }
 .admin-audience tbody tr:hover { background: var(--panel-alt); }
+
+
+/* ============================================================
+   Gamification — niveaux, XP, pièces, série, boutique (24/08/2026)
+   ============================================================ */
+
+.gamif-widget {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.gamif-widget__niveau {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1 1 220px;
+  min-width: 200px;
+}
+.gamif-widget__badge {
+  font-weight: 700;
+  font-size: 13px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  white-space: nowrap;
+}
+.gamif-widget__barre {
+  flex: 1;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--border);
+  overflow: hidden;
+}
+.gamif-widget__barre-remplie {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 999px;
+  transition: width 240ms ease;
+}
+.gamif-widget__xp {
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.gamif-widget__stats {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-size: 14px;
+  font-weight: 600;
+}
+.gamif-piece, .gamif-streak, .gamif-titre {
+  white-space: nowrap;
+}
+.gamif-titre {
+  color: var(--muted);
+  font-weight: 500;
+  font-size: 13px;
+}
+.gamif-solde {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.boutique-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 14px;
+}
+.boutique-item {
+  text-align: center;
+  margin-bottom: 0;
+}
+.boutique-item__emoji {
+  font-size: 32px;
+}
+.boutique-item__nom {
+  font-weight: 600;
+  margin: 6px 0 4px;
+}
+.boutique-item__pro {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  padding: 1px 8px;
+  margin-bottom: 8px;
+}
+.boutique-item--possede {
+  border-color: var(--good);
+}
+.boutique-item button {
+  width: 100%;
+}
