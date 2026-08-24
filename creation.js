@@ -311,12 +311,7 @@ function renderCreation() {
   }
 
   $$('[data-crea-kanji]', el).forEach(b => {
-    b.onclick = () => {
-      lireChamps();
-      const id = b.dataset.creaKanji;
-      if (creaChoisis.has(id)) creaChoisis.delete(id); else creaChoisis.add(id);
-      renderCreation();
-    };
+    b.onclick = () => { lireChamps(); basculerKanji(b.dataset.creaKanji); };
   });
 
   const tout = $('#creaToutPrendre');
@@ -344,6 +339,20 @@ function renderCreation() {
     const s = $('#creaParSemaine'); if (s) creaParSemaine = Number(s.value);
   }
 
+  // Cocher/décocher un kanji redessine toute la vue (le récap, les puces
+  // « Retenus » et le bouton Créer en dépendent tous) — mais un nouvel
+  // élément .crea-banque part toujours avec un scroll à zéro. Sans ça,
+  // choisir un kanji tout en bas de la banque faisait remonter la liste
+  // en haut à chaque clic.
+  function basculerKanji(id) {
+    const zone = el.querySelector('.crea-banque');
+    const y = zone ? zone.scrollTop : 0;
+    if (creaChoisis.has(id)) creaChoisis.delete(id); else creaChoisis.add(id);
+    renderCreation();
+    const nouvelleZone = el.querySelector('.crea-banque');
+    if (nouvelleZone) nouvelleZone.scrollTop = y;
+  }
+
   function majListeSeulement() {
     // Recalcul de la seule zone qui dépend de la recherche. Redessiner toute
     // la vue à chaque touche ferait sauter le curseur hors du champ.
@@ -358,11 +367,7 @@ function renderCreation() {
         <span class="crea-kanji__meta">${g.nbMots} mot${g.nbMots > 1 ? 's' : ''}</span>
       </button>`).join('');
     $$('[data-crea-kanji]', zone).forEach(b => {
-      b.onclick = () => {
-        const id = b.dataset.creaKanji;
-        if (creaChoisis.has(id)) creaChoisis.delete(id); else creaChoisis.add(id);
-        renderCreation();
-      };
+      b.onclick = () => basculerKanji(b.dataset.creaKanji);
     });
   }
 }
