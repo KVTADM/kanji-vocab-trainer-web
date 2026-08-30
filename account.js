@@ -20,6 +20,76 @@
 window.accountUser = null; // { id, email, pseudo } une fois connecté, sinon null
 let kvtSyncedThisSession = false;
 
+// Repère, PAR COMPTE (pas juste par appareil — un même navigateur peut
+// voir plusieurs comptes se connecter), si cet appareil a déjà vu une vraie
+// sauvegarde cloud pour ce compte. Sert de garde-fou dans syncAfterLogin
+// (voir decisionSyncApresConnexion plus bas) : ne jamais confondre "je ne
+// trouve rien" avec "je sais qu'il n'y a vraiment rien".
+const KVT_SYNC_FLAG_PREFIXE = 'kvtCloudSyncEtabli:';
+function kvtCleSyncFlag(userId) {
+  return KVT_SYNC_FLAG_PREFIXE + userId;
+}
+
+// Combien de temps entre deux sauvegardes automatiques horodatées
+// (user_backups_history) — pas à chaque session pour ne pas empiler des
+// centaines de lignes, mais assez souvent pour ne jamais perdre plus d'une
+// journée si la sauvegarde "live" (user_backups) est de nouveau corrompue.
+const KVT_HISTORIQUE_INTERVALLE_MS = 20 * 60 * 60 * 1000; // ~1x/jour
+const KVT_HISTORIQUE_MAX = 20;
+
+// ---------- Logique pure de synchronisation (testée isolément, voir
+// tests/sync.cases.js) ----------
+//
+// Panne du 29-30/08/2026 (voir `01 - Décisions techniques.md`) : l'ancienne
+// version traitait "le cloud ne renvoie rien" et "je sais avec certitude
+// qu'il n'y a jamais eu de sauvegarde" comme la même chose, et poussait les
+// données locales dans les deux cas. Résultat concret : l'iPhone de Paul
+// (pas rejoué depuis la veille, donc avec une copie locale plus ancienne)
+// s'est reconnecté, une réponse cloud vide (timing/réseau, pas une vraie
+// absence) a été prise pour argent comptant, et sa vieille copie locale a
+// écrasé la sauvegarde cloud du jour même faite depuis le Mac — deux
+// semaines de résultats perdues. Cette fonction décide QUOI FAIRE à partir
+// de trois faits déjà connus, sans jamais toucher au réseau elle-même —
+// c'est ce qui la rend testable sans simuler Supabase.
+//
+// Retourne l'un de :
+// - 'erreur-reseau'           : le pull a échoué (pas une histoire d'exister
+//                               ou pas) — ne rien toucher, prévenir.
+// - 'appliquer-cloud'         : une sauvegarde cloud existe — l'appliquer en
+//                               local, cas normal et sûr.
+// - 'pousser-local'           : aucune sauvegarde cloud ET cet appareil n'en
+//                               a jamais vu une pour ce compte — vraiment un
+//                               compte neuf sur cet appareil, sûr de pousser.
+// - 'incertain-ne-rien-faire' : aucune sauvegarde cloud trouvée MAIS cet
+//                               appareil sait qu'il en existe une d'habitude
+//                               — presque certainement un problème de
+//                               timing/réseau, pas une preuve de suppression.
+//                               Ne RIEN pousser ni appliquer : c'est
+//                               exactement le cas qui a causé la perte.
+function decisionSyncApresConnexion(pullReussi, cloudDataPresente, appareilDejaSynchronise) {
+  if (!pullReussi) return 'erreur-reseau';
+  if (cloudDataPresente) return 'appliquer-cloud';
+  if (appareilDejaSynchronise) return 'incertain-ne-rien-faire';
+  return 'pousser-local';
+}
+
+// Traduit la réponse brute de Supabase (upsert vers user_backups) en un
+// résultat que l'appelant peut vérifier — avant ce correctif, kvtPushCloud
+// ignorait complètement `error` et semblait toujours réussir, y compris
+// pour le bouton "Synchroniser maintenant" qui affichait "Synchronisé"
+// même en cas d'échec silencieux.
+function interpreterReponsePushCloud(error) {
+  return error ? { ok: false, motif: error.message } : { ok: true };
+}
+
+// Décide si une nouvelle snapshot d'historique est due, à partir de la date
+// de la précédente (ou son absence). Pur : pas d'accès réseau ni d'horloge
+// cachée, tout est passé en paramètre — testable directement.
+function faitUneSnapshotHistorique(dernierSnapshotIso, maintenantMs, intervalleMs) {
+  if (!dernierSnapshotIso) return true;
+  return (maintenantMs - new Date(dernierSnapshotIso).getTime()) >= intervalleMs;
+}
+
 // Vrai uniquement pendant une réinitialisation de mot de passe : l'utilisateur
 // arrive depuis le lien reçu par mail, Supabase ouvre une session valide mais
 // il faut lui faire choisir un nouveau mot de passe avant toute autre chose.
@@ -52,12 +122,105 @@ async function buildAccountUser(session) {
 // --- Sync cloud : sauvegarde complète (le même blob que IndexedDB) dans
 // la table user_backups, protégée par RLS (chacun ne voit que la sienne).
 window.kvtPushCloud = async function (data) {
-  if (!window.accountUser) return;
-  await window.sb.from('user_backups').upsert({
+  if (!window.accountUser) return { ok: false, motif: 'non-connecte' };
+  const { error } = await window.sb.from('user_backups').upsert({
     user_id: window.accountUser.id,
     data,
     updated_at: new Date().toISOString()
   });
+  const res = interpreterReponsePushCloud(error);
+  if (!res.ok) console.error('kvtPushCloud a échoué :', res.motif);
+  return res;
+};
+
+// --- Sauvegardes automatiques horodatées (user_backups_history, table
+// séparée de user_backups) : filet de sécurité en plus de la sauvegarde
+// "live" — si celle-ci est un jour de nouveau écrasée par erreur, une
+// version récente reste récupérable. Append-only côté client (jamais de
+// update), élagué pour ne garder que les KVT_HISTORIQUE_MAX plus récentes.
+async function kvtSnapshotHistorique() {
+  if (!window.accountUser) return;
+  try {
+    const { data: dernier } = await window.sb
+      .from('user_backups_history')
+      .select('created_at')
+      .eq('user_id', window.accountUser.id)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (!faitUneSnapshotHistorique(dernier ? dernier.created_at : null, Date.now(), KVT_HISTORIQUE_INTERVALLE_MS)) return;
+    const { error } = await window.sb.from('user_backups_history').insert({
+      user_id: window.accountUser.id,
+      data: DB
+    });
+    if (error) { console.error('kvtSnapshotHistorique (insert) :', error.message); return; }
+    const { data: toutes } = await window.sb
+      .from('user_backups_history')
+      .select('id, created_at')
+      .eq('user_id', window.accountUser.id)
+      .order('created_at', { ascending: false });
+    if (toutes && toutes.length > KVT_HISTORIQUE_MAX) {
+      const idsATrimmer = toutes.slice(KVT_HISTORIQUE_MAX).map(r => r.id);
+      await window.sb.from('user_backups_history').delete().in('id', idsATrimmer);
+    }
+  } catch (e) {
+    console.error('kvtSnapshotHistorique :', e);
+  }
+}
+
+// --- "Sauvegarder maintenant" (bouton manuel, Compte) : contrairement au
+// push automatique silencieux et non-bloquant de saveData() (webapi.js),
+// celui-ci attend le réseau et rapporte honnêtement le résultat à
+// l'utilisateur, au lieu de toujours dire "Synchronisé" comme avant.
+window.kvtSauvegarderMaintenant = async function () {
+  if (!window.accountUser) return { ok: false, motif: 'non-connecte' };
+  const res = await window.kvtPushCloud(DB);
+  if (res.ok) {
+    localStorage.setItem(kvtCleSyncFlag(window.accountUser.id), '1');
+    await window.kvtPushAllScores(DB);
+    await kvtSnapshotHistorique();
+  }
+  return res;
+};
+
+// --- "Récupérer depuis le cloud" (bouton manuel, Compte) : remplace les
+// données locales de CET appareil par la dernière sauvegarde cloud. Filet
+// de rattrapage manuel si une sync automatique a mal tourné — app.js
+// demande une confirmation avant d'appeler ceci, car c'est destructeur
+// pour toute donnée locale pas encore synchronisée.
+window.kvtRecupererCloud = async function () {
+  const result = await kvtPullCloud();
+  if (!result.ok) return { ok: false, motif: 'reseau' };
+  if (!result.data) return { ok: false, motif: 'aucune-sauvegarde' };
+  DB = result.data;
+  await window.api.saveData(DB);
+  if (window.accountUser) localStorage.setItem(kvtCleSyncFlag(window.accountUser.id), '1');
+  return { ok: true };
+};
+
+// --- Horodatage de la dernière sauvegarde cloud connue (lecture seule,
+// affiché dans Compte).
+window.kvtDerniereSauvegardeCloud = async function () {
+  if (!window.accountUser) return null;
+  const { data, error } = await window.sb
+    .from('user_backups')
+    .select('updated_at')
+    .eq('user_id', window.accountUser.id)
+    .maybeSingle();
+  if (error || !data) return null;
+  return data.updated_at;
+};
+
+// --- Nombre de sauvegardes automatiques horodatées en historique (juste
+// pour rassurer l'utilisateur que le filet de sécurité existe bien).
+window.kvtCompterHistorique = async function () {
+  if (!window.accountUser) return 0;
+  const { count, error } = await window.sb
+    .from('user_backups_history')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', window.accountUser.id);
+  if (error) return 0;
+  return count || 0;
 };
 
 // --- Classement de classe : pousse le meilleur score personnel d'une
@@ -129,32 +292,55 @@ async function kvtPullCloud() {
 async function syncAfterLogin() {
   if (!window.accountUser) return;
   let result = await kvtPullCloud();
-  if (!result.ok) {
+  // Juste après une connexion, il arrive qu'une requête ne trouve rien même
+  // quand une sauvegarde existe bel et bien (propagation du jeton
+  // d'authentification pas encore terminée côté client Supabase, ou juste
+  // une connexion plus lente). Un seul essai supplémentaire s'est révélé
+  // insuffisant en pratique (voir panne du 29-30/08/2026 dans
+  // `01 - Décisions techniques.md`, où ce correctif n'était pas encore en
+  // place) — plusieurs essais espacés, ET surtout ne jamais pousser les
+  // données locales par défaut quand cet appareil sait déjà qu'une
+  // sauvegarde existe pour ce compte (voir decisionSyncApresConnexion).
+  const delaisMs = [700, 1500, 3000];
+  let tentative = 0;
+  while (result.ok && !result.data && tentative < delaisMs.length) {
+    await new Promise((r) => setTimeout(r, delaisMs[tentative]));
+    result = await kvtPullCloud();
+    tentative++;
+  }
+
+  const cleFlag = kvtCleSyncFlag(window.accountUser.id);
+  const appareilDejaSynchronise = localStorage.getItem(cleFlag) === '1';
+  const decision = decisionSyncApresConnexion(result.ok, !!result.data, appareilDejaSynchronise);
+
+  if (decision === 'erreur-reseau') {
     showToast('Sync impossible (réseau) — données locales conservées');
     return;
   }
-  // Juste après une connexion, il arrive que la toute première requête ne
-  // trouve rien même quand une sauvegarde existe bel et bien (propagation
-  // du jeton d'authentification pas encore terminée côté client Supabase).
-  // Une nouvelle tentative après une courte pause suffit à le confirmer
-  // avant de conclure "pas de sauvegarde" — évite d'écraser une vraie
-  // sauvegarde avec des données locales fraîches.
-  if (!result.data) {
-    await new Promise((r) => setTimeout(r, 700));
-    result = await kvtPullCloud();
-  }
-  if (result.data) {
+  if (decision === 'appliquer-cloud') {
     DB = result.data;
     await window.api.saveData(DB);
+    localStorage.setItem(cleFlag, '1');
     browsingWeek = null;
     if (typeof applyTheme === 'function') applyTheme();
     renderCurrentView();
     showToast('Sauvegarde cloud appliquée');
-  } else {
-    await window.kvtPushCloud(DB);
-    await window.kvtPushAllScores(DB);
-    showToast('Données synchronisées vers le cloud');
+    return;
   }
+  if (decision === 'incertain-ne-rien-faire') {
+    // Exactement le cas qui a effacé les semaines 3 et 4 du 29/08/2026 sur
+    // un autre appareil : ne RIEN pousser ni appliquer tant que ce n'est
+    // pas sûr, juste prévenir — voir decisionSyncApresConnexion ci-dessus.
+    showToast('Sync cloud incertaine — rien n\'a été modifié. Réessaie plus tard, ou utilise "Sauvegarder maintenant" dans Compte.');
+    return;
+  }
+  // decision === 'pousser-local' : vraiment la première fois que CET
+  // appareil synchronise ce compte.
+  await window.kvtPushCloud(DB);
+  await window.kvtPushAllScores(DB);
+  localStorage.setItem(cleFlag, '1');
+  await kvtSnapshotHistorique();
+  showToast('Données synchronisées vers le cloud');
 }
 
 window.sb.auth.onAuthStateChange((event, session) => {
@@ -335,8 +521,24 @@ function renderAccount() {
           <label>&nbsp;<button class="secondary small" id="btnSavePseudo">Enregistrer</button></label>
         </div>
         <div id="pseudoError" style="color:var(--pink); font-size:12px; margin:2px 0 10px;"></div>
-        <button class="secondary" id="btnSyncNow">Synchroniser maintenant</button>
-        <button class="secondary" id="btnLogout">Se déconnecter</button>
+        <div class="sync-cloud">
+          <p id="cloudSyncStatut" class="sync-cloud__statut">Vérification de la dernière sauvegarde cloud…</p>
+          <div class="form-row">
+            <button class="secondary" id="btnSyncNow">Sauvegarder maintenant</button>
+            <button class="secondary" id="btnRestoreCloud">Récupérer depuis le cloud</button>
+          </div>
+          <p class="sync-cloud__aide">
+            « Sauvegarder maintenant » envoie tout de suite les données de cet
+            appareil vers le cloud, sans attendre. « Récupérer depuis le
+            cloud » fait l'inverse : ça remplace les données de cet appareil
+            par la dernière sauvegarde cloud — utile si un autre appareil
+            (téléphone, autre navigateur) a une version plus ancienne. En
+            plus de la sauvegarde cloud elle-même, un historique horodaté
+            (<span id="cloudHistoriqueCompte">…</span>) est gardé en filet de
+            sécurité.
+          </p>
+        </div>
+        <button class="secondary" id="btnLogout" style="margin-top:14px;">Se déconnecter</button>
       </div>
       ${isPro ? `
       <div class="card pro-card" style="max-width:420px;">
@@ -409,9 +611,53 @@ function renderAccount() {
       renderAccount();
     });
 
+    async function rafraichirStatutSyncCloud() {
+      const [iso, nbHistorique] = await Promise.all([
+        window.kvtDerniereSauvegardeCloud(),
+        window.kvtCompterHistorique()
+      ]);
+      const statutEl = $('#cloudSyncStatut');
+      if (statutEl) {
+        statutEl.textContent = iso
+          ? 'Dernière sauvegarde cloud : ' + new Date(iso).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+          : "Aucune sauvegarde cloud pour l'instant.";
+      }
+      const histEl = $('#cloudHistoriqueCompte');
+      if (histEl) histEl.textContent = nbHistorique + (nbHistorique > 1 ? ' versions' : ' version');
+    }
+    rafraichirStatutSyncCloud();
+
     $('#btnSyncNow').addEventListener('click', async () => {
-      await window.kvtPushCloud(DB);
-      showToast('Synchronisé');
+      const btn = $('#btnSyncNow');
+      btn.disabled = true;
+      const res = await window.kvtSauvegarderMaintenant();
+      btn.disabled = false;
+      if (res.ok) {
+        showToast('Sauvegardé dans le cloud');
+        rafraichirStatutSyncCloud();
+      } else {
+        showToast('Échec de la sauvegarde cloud (' + (res.motif || 'réseau') + ')');
+      }
+    });
+
+    $('#btnRestoreCloud').addEventListener('click', async () => {
+      if (!confirm("Remplacer les données de cet appareil par la dernière sauvegarde cloud ? Toute progression faite ici et pas encore synchronisée sera perdue.")) return;
+      const btn = $('#btnRestoreCloud');
+      btn.disabled = true;
+      const res = await window.kvtRecupererCloud();
+      btn.disabled = false;
+      if (res.ok) {
+        browsingWeek = null;
+        if (typeof applyTheme === 'function') applyTheme();
+        renderCurrentView();
+        showToast('Données remplacées par la sauvegarde cloud');
+        return;
+      }
+      if (res.motif === 'aucune-sauvegarde') {
+        showToast('Aucune sauvegarde cloud trouvée pour ce compte');
+      } else {
+        showToast('Impossible de récupérer la sauvegarde cloud (réseau)');
+      }
     });
 
     $('#btnLogout').addEventListener('click', async () => {

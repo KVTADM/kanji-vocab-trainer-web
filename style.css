@@ -3079,3 +3079,21 @@ code {
 .profil-banniere--jade { background: linear-gradient(135deg, #0f4f43, #2fae82, #bff0d8); }
 .profil-banniere--or { background: linear-gradient(135deg, #ffe98a, #ffc93c, #e39a1a); }
 .profil-banniere--imperiale { background: linear-gradient(135deg, #6c1a1a, #b9284f, #ffd76e, #6c1a1a); }
+
+/* ---------- Sauvegarde cloud manuelle (Compte, 30/08/2026) ---------- */
+.sync-cloud {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+.sync-cloud__statut {
+  font-size: 12.5px;
+  color: var(--muted);
+  margin: 0 0 10px;
+}
+.sync-cloud__aide {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.5;
+  margin: 10px 0 0;
+}

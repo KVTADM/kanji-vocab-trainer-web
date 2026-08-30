@@ -1109,6 +1109,11 @@ function renderReview() {
       const bestEntry = DB.scores[key].best;
       window.kvtPushScore(quizSession.semesterId, quizSession.week, bestEntry.points, bestEntry.maxPoints, bestEntry.pct);
     }
+    // Sauvegarde automatique horodatée (30/08/2026, voir account.js) : une
+    // fin de session est un bon moment naturel pour ça (résultat qui compte
+    // vraiment), l'appel lui-même est throttlé en interne (~1x/jour) donc
+    // pas de souci à l'appeler ici à chaque session terminée.
+    if (typeof kvtSnapshotHistorique === 'function') kvtSnapshotHistorique();
     const semLabel = getSemester(quizSession.semesterId).label;
     const recap = quizSession.hardcore ? `
       <div class="card">
