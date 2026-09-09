@@ -120,6 +120,10 @@ const JLPT_N4_SEED = {"kanjiGroups":[{"id":"kg-hu66go90952pa","semesterId":"jlpt
     // vocabulaire existant.
     if (!data.scoresKanji || typeof data.scoresKanji !== 'object') data.scoresKanji = {};
     if (!data.inProgressKanji || typeof data.inProgressKanji !== 'object') data.inProgressKanji = {};
+    // Mode "Kana" (hiragana/katakana -> romaji, 09/09/2026) : même principe,
+    // namespaces neufs et indépendants.
+    if (!data.scoresKana || typeof data.scoresKana !== 'object') data.scoresKana = {};
+    if (!data.inProgressKana || typeof data.inProgressKana !== 'object') data.inProgressKana = {};
     // Niveaux/XP/pièces d'or/boutique (24/08/2026, étendu 25/08/2026 :
     // boosts XP, collations, bannières de profil) — non-destructif : un
     // compte déjà existant sans cette section démarre juste à zéro, comme

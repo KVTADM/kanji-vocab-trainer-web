@@ -11,7 +11,8 @@ let quizSession = null;     // { semesterId, week, queue, index, submitted, last
 let importPreview = null;   // { rows, errors } — résultat de l'analyse avant import
 let browsingWeek = null;    // { semesterId, week } — semaine affichée dans l'onglet Vocabulaire (fusionné : mots + fiches)
 let learnImportPreview = null; // { rows, errors } — résultat de l'analyse avant import des fiches (anciennement onglet Apprendre, fusionné dans Vocabulaire)
-let reviewPickerMode = 'vocab'; // 'vocab' | 'kanji' — mode choisi sur l'écran de démarrage de Réviser (kanji seul onyomi/kunyomi, ajouté le 09/09/2026)
+let reviewPickerMode = 'vocab'; // 'vocab' | 'kanji' | 'kana' — mode choisi sur l'écran de démarrage de Réviser (kanji seul et kana ajoutés le 09/09/2026)
+let reviewKanaType = 'hiragana'; // 'hiragana' | 'katakana' — persiste le choix entre deux rendus du picker kana
 let dashboardMode = 'cursus';  // 'cursus' (S0-S6) ou 'jlpt' (modules JLPT) — bascule en haut à droite de l'Accueil
 
 const $ = (sel, root) => (root || document).querySelector(sel);
@@ -1249,6 +1250,208 @@ function renderKanjiQuizView(container) {
   });
 }
 
+// ---------- Mode "Kana" (hiragana/katakana -> romaji, 09/09/2026) ----------
+// Table de référence standard (gojūon + dakuten/handakuten + yōon), à part
+// des semestres JLPT/cursus comme demandé — contenu fixe, jamais édité par
+// l'utilisateur. La katakana est dérivée de la hiragana par décalage de
+// codepoint Unicode (+0x60, constant sur tout ce bloc), vérifié en tests.
+const KANA_GROUPS = [{id:'g1',label:'Voyelles, KA, SA'},{id:'g2',label:'TA, NA, HA'},{id:'g3',label:'MA, YA, RA, WA + N'},{id:'g4',label:'Sons voisés (GA/ZA/DA/BA/PA)'},{id:'g5',label:'Sons combinés (KYA, SHA, CHA...)'}];
+const KANA_HIRAGANA = [{char:'あ',romaji:'a',groupId:'g1'},{char:'い',romaji:'i',groupId:'g1'},{char:'う',romaji:'u',groupId:'g1'},{char:'え',romaji:'e',groupId:'g1'},{char:'お',romaji:'o',groupId:'g1'},{char:'か',romaji:'ka',groupId:'g1'},{char:'き',romaji:'ki',groupId:'g1'},{char:'く',romaji:'ku',groupId:'g1'},{char:'け',romaji:'ke',groupId:'g1'},{char:'こ',romaji:'ko',groupId:'g1'},{char:'さ',romaji:'sa',groupId:'g1'},{char:'し',romaji:'shi',groupId:'g1'},{char:'す',romaji:'su',groupId:'g1'},{char:'せ',romaji:'se',groupId:'g1'},{char:'そ',romaji:'so',groupId:'g1'},{char:'た',romaji:'ta',groupId:'g2'},{char:'ち',romaji:'chi',groupId:'g2'},{char:'つ',romaji:'tsu',groupId:'g2'},{char:'て',romaji:'te',groupId:'g2'},{char:'と',romaji:'to',groupId:'g2'},{char:'な',romaji:'na',groupId:'g2'},{char:'に',romaji:'ni',groupId:'g2'},{char:'ぬ',romaji:'nu',groupId:'g2'},{char:'ね',romaji:'ne',groupId:'g2'},{char:'の',romaji:'no',groupId:'g2'},{char:'は',romaji:'ha',groupId:'g2'},{char:'ひ',romaji:'hi',groupId:'g2'},{char:'ふ',romaji:'fu',groupId:'g2'},{char:'へ',romaji:'he',groupId:'g2'},{char:'ほ',romaji:'ho',groupId:'g2'},{char:'ま',romaji:'ma',groupId:'g3'},{char:'み',romaji:'mi',groupId:'g3'},{char:'む',romaji:'mu',groupId:'g3'},{char:'め',romaji:'me',groupId:'g3'},{char:'も',romaji:'mo',groupId:'g3'},{char:'や',romaji:'ya',groupId:'g3'},{char:'ゆ',romaji:'yu',groupId:'g3'},{char:'よ',romaji:'yo',groupId:'g3'},{char:'ら',romaji:'ra',groupId:'g3'},{char:'り',romaji:'ri',groupId:'g3'},{char:'る',romaji:'ru',groupId:'g3'},{char:'れ',romaji:'re',groupId:'g3'},{char:'ろ',romaji:'ro',groupId:'g3'},{char:'わ',romaji:'wa',groupId:'g3'},{char:'を',romaji:'wo',groupId:'g3'},{char:'ん',romaji:'n',groupId:'g3'},{char:'が',romaji:'ga',groupId:'g4'},{char:'ぎ',romaji:'gi',groupId:'g4'},{char:'ぐ',romaji:'gu',groupId:'g4'},{char:'げ',romaji:'ge',groupId:'g4'},{char:'ご',romaji:'go',groupId:'g4'},{char:'ざ',romaji:'za',groupId:'g4'},{char:'じ',romaji:'ji',groupId:'g4'},{char:'ず',romaji:'zu',groupId:'g4'},{char:'ぜ',romaji:'ze',groupId:'g4'},{char:'ぞ',romaji:'zo',groupId:'g4'},{char:'だ',romaji:'da',groupId:'g4'},{char:'ぢ',romaji:'ji',groupId:'g4'},{char:'づ',romaji:'zu',groupId:'g4'},{char:'で',romaji:'de',groupId:'g4'},{char:'ど',romaji:'do',groupId:'g4'},{char:'ば',romaji:'ba',groupId:'g4'},{char:'び',romaji:'bi',groupId:'g4'},{char:'ぶ',romaji:'bu',groupId:'g4'},{char:'べ',romaji:'be',groupId:'g4'},{char:'ぼ',romaji:'bo',groupId:'g4'},{char:'ぱ',romaji:'pa',groupId:'g4'},{char:'ぴ',romaji:'pi',groupId:'g4'},{char:'ぷ',romaji:'pu',groupId:'g4'},{char:'ぺ',romaji:'pe',groupId:'g4'},{char:'ぽ',romaji:'po',groupId:'g4'},{char:'きゃ',romaji:'kya',groupId:'g5'},{char:'きゅ',romaji:'kyu',groupId:'g5'},{char:'きょ',romaji:'kyo',groupId:'g5'},{char:'しゃ',romaji:'sha',groupId:'g5'},{char:'しゅ',romaji:'shu',groupId:'g5'},{char:'しょ',romaji:'sho',groupId:'g5'},{char:'ちゃ',romaji:'cha',groupId:'g5'},{char:'ちゅ',romaji:'chu',groupId:'g5'},{char:'ちょ',romaji:'cho',groupId:'g5'},{char:'にゃ',romaji:'nya',groupId:'g5'},{char:'にゅ',romaji:'nyu',groupId:'g5'},{char:'にょ',romaji:'nyo',groupId:'g5'},{char:'ひゃ',romaji:'hya',groupId:'g5'},{char:'ひゅ',romaji:'hyu',groupId:'g5'},{char:'ひょ',romaji:'hyo',groupId:'g5'},{char:'みゃ',romaji:'mya',groupId:'g5'},{char:'みゅ',romaji:'myu',groupId:'g5'},{char:'みょ',romaji:'myo',groupId:'g5'},{char:'りゃ',romaji:'rya',groupId:'g5'},{char:'りゅ',romaji:'ryu',groupId:'g5'},{char:'りょ',romaji:'ryo',groupId:'g5'},{char:'ぎゃ',romaji:'gya',groupId:'g5'},{char:'ぎゅ',romaji:'gyu',groupId:'g5'},{char:'ぎょ',romaji:'gyo',groupId:'g5'},{char:'じゃ',romaji:'ja',groupId:'g5'},{char:'じゅ',romaji:'ju',groupId:'g5'},{char:'じょ',romaji:'jo',groupId:'g5'},{char:'びゃ',romaji:'bya',groupId:'g5'},{char:'びゅ',romaji:'byu',groupId:'g5'},{char:'びょ',romaji:'byo',groupId:'g5'},{char:'ぴゃ',romaji:'pya',groupId:'g5'},{char:'ぴゅ',romaji:'pyu',groupId:'g5'},{char:'ぴょ',romaji:'pyo',groupId:'g5'}];
+const KANA_KATAKANA = [{char:'ア',romaji:'a',groupId:'g1'},{char:'イ',romaji:'i',groupId:'g1'},{char:'ウ',romaji:'u',groupId:'g1'},{char:'エ',romaji:'e',groupId:'g1'},{char:'オ',romaji:'o',groupId:'g1'},{char:'カ',romaji:'ka',groupId:'g1'},{char:'キ',romaji:'ki',groupId:'g1'},{char:'ク',romaji:'ku',groupId:'g1'},{char:'ケ',romaji:'ke',groupId:'g1'},{char:'コ',romaji:'ko',groupId:'g1'},{char:'サ',romaji:'sa',groupId:'g1'},{char:'シ',romaji:'shi',groupId:'g1'},{char:'ス',romaji:'su',groupId:'g1'},{char:'セ',romaji:'se',groupId:'g1'},{char:'ソ',romaji:'so',groupId:'g1'},{char:'タ',romaji:'ta',groupId:'g2'},{char:'チ',romaji:'chi',groupId:'g2'},{char:'ツ',romaji:'tsu',groupId:'g2'},{char:'テ',romaji:'te',groupId:'g2'},{char:'ト',romaji:'to',groupId:'g2'},{char:'ナ',romaji:'na',groupId:'g2'},{char:'ニ',romaji:'ni',groupId:'g2'},{char:'ヌ',romaji:'nu',groupId:'g2'},{char:'ネ',romaji:'ne',groupId:'g2'},{char:'ノ',romaji:'no',groupId:'g2'},{char:'ハ',romaji:'ha',groupId:'g2'},{char:'ヒ',romaji:'hi',groupId:'g2'},{char:'フ',romaji:'fu',groupId:'g2'},{char:'ヘ',romaji:'he',groupId:'g2'},{char:'ホ',romaji:'ho',groupId:'g2'},{char:'マ',romaji:'ma',groupId:'g3'},{char:'ミ',romaji:'mi',groupId:'g3'},{char:'ム',romaji:'mu',groupId:'g3'},{char:'メ',romaji:'me',groupId:'g3'},{char:'モ',romaji:'mo',groupId:'g3'},{char:'ヤ',romaji:'ya',groupId:'g3'},{char:'ユ',romaji:'yu',groupId:'g3'},{char:'ヨ',romaji:'yo',groupId:'g3'},{char:'ラ',romaji:'ra',groupId:'g3'},{char:'リ',romaji:'ri',groupId:'g3'},{char:'ル',romaji:'ru',groupId:'g3'},{char:'レ',romaji:'re',groupId:'g3'},{char:'ロ',romaji:'ro',groupId:'g3'},{char:'ワ',romaji:'wa',groupId:'g3'},{char:'ヲ',romaji:'wo',groupId:'g3'},{char:'ン',romaji:'n',groupId:'g3'},{char:'ガ',romaji:'ga',groupId:'g4'},{char:'ギ',romaji:'gi',groupId:'g4'},{char:'グ',romaji:'gu',groupId:'g4'},{char:'ゲ',romaji:'ge',groupId:'g4'},{char:'ゴ',romaji:'go',groupId:'g4'},{char:'ザ',romaji:'za',groupId:'g4'},{char:'ジ',romaji:'ji',groupId:'g4'},{char:'ズ',romaji:'zu',groupId:'g4'},{char:'ゼ',romaji:'ze',groupId:'g4'},{char:'ゾ',romaji:'zo',groupId:'g4'},{char:'ダ',romaji:'da',groupId:'g4'},{char:'ヂ',romaji:'ji',groupId:'g4'},{char:'ヅ',romaji:'zu',groupId:'g4'},{char:'デ',romaji:'de',groupId:'g4'},{char:'ド',romaji:'do',groupId:'g4'},{char:'バ',romaji:'ba',groupId:'g4'},{char:'ビ',romaji:'bi',groupId:'g4'},{char:'ブ',romaji:'bu',groupId:'g4'},{char:'ベ',romaji:'be',groupId:'g4'},{char:'ボ',romaji:'bo',groupId:'g4'},{char:'パ',romaji:'pa',groupId:'g4'},{char:'ピ',romaji:'pi',groupId:'g4'},{char:'プ',romaji:'pu',groupId:'g4'},{char:'ペ',romaji:'pe',groupId:'g4'},{char:'ポ',romaji:'po',groupId:'g4'},{char:'キャ',romaji:'kya',groupId:'g5'},{char:'キュ',romaji:'kyu',groupId:'g5'},{char:'キョ',romaji:'kyo',groupId:'g5'},{char:'シャ',romaji:'sha',groupId:'g5'},{char:'シュ',romaji:'shu',groupId:'g5'},{char:'ショ',romaji:'sho',groupId:'g5'},{char:'チャ',romaji:'cha',groupId:'g5'},{char:'チュ',romaji:'chu',groupId:'g5'},{char:'チョ',romaji:'cho',groupId:'g5'},{char:'ニャ',romaji:'nya',groupId:'g5'},{char:'ニュ',romaji:'nyu',groupId:'g5'},{char:'ニョ',romaji:'nyo',groupId:'g5'},{char:'ヒャ',romaji:'hya',groupId:'g5'},{char:'ヒュ',romaji:'hyu',groupId:'g5'},{char:'ヒョ',romaji:'hyo',groupId:'g5'},{char:'ミャ',romaji:'mya',groupId:'g5'},{char:'ミュ',romaji:'myu',groupId:'g5'},{char:'ミョ',romaji:'myo',groupId:'g5'},{char:'リャ',romaji:'rya',groupId:'g5'},{char:'リュ',romaji:'ryu',groupId:'g5'},{char:'リョ',romaji:'ryo',groupId:'g5'},{char:'ギャ',romaji:'gya',groupId:'g5'},{char:'ギュ',romaji:'gyu',groupId:'g5'},{char:'ギョ',romaji:'gyo',groupId:'g5'},{char:'ジャ',romaji:'ja',groupId:'g5'},{char:'ジュ',romaji:'ju',groupId:'g5'},{char:'ジョ',romaji:'jo',groupId:'g5'},{char:'ビャ',romaji:'bya',groupId:'g5'},{char:'ビュ',romaji:'byu',groupId:'g5'},{char:'ビョ',romaji:'byo',groupId:'g5'},{char:'ピャ',romaji:'pya',groupId:'g5'},{char:'ピュ',romaji:'pyu',groupId:'g5'},{char:'ピョ',romaji:'pyo',groupId:'g5'}];
+
+// Namespace de données à part (DB.scoresKana, DB.inProgressKana), jamais
+// mélangé avec DB.scores/DB.scoresKanji — même discipline que le mode
+// Kanji seul.
+function getKanaList(kanaType) {
+  return kanaType === 'katakana' ? KANA_KATAKANA : KANA_HIRAGANA;
+}
+function kanaScoreKey(kanaType, groupId) {
+  return `${kanaType}-${groupId}`;
+}
+function buildKanaQueue(kanaType, groupId) {
+  return getKanaList(kanaType).filter(k => k.groupId === groupId);
+}
+function getKanaScoreEntry(kanaType, groupId) {
+  return (DB.scoresKana && DB.scoresKana[kanaScoreKey(kanaType, groupId)]) || null;
+}
+function recordKanaSessionResult(kanaType, groupId, points, maxPoints, pct) {
+  if (!DB.scoresKana) DB.scoresKana = {};
+  const key = kanaScoreKey(kanaType, groupId);
+  if (!DB.scoresKana[key]) DB.scoresKana[key] = { best: null, history: [] };
+  const entry = DB.scoresKana[key];
+  const record = { date: new Date().toISOString(), points, maxPoints, pct };
+  entry.history.push(record);
+  if (!entry.best || pct > entry.best.pct) entry.best = record;
+}
+function getValidKanaInProgress(kanaType, groupId) {
+  if (!DB.inProgressKana) return null;
+  const saved = DB.inProgressKana[kanaScoreKey(kanaType, groupId)];
+  if (!saved || !Array.isArray(saved.queue) || !Array.isArray(saved.answers)) return null;
+  const currentQueue = buildKanaQueue(kanaType, groupId);
+  const stillValid = saved.queue.length === currentQueue.length &&
+    saved.queue.every((item, i) => item.char === currentQueue[i].char);
+  if (!stillValid || saved.index >= saved.queue.length) return null;
+  return saved;
+}
+function saveKanaInProgress() {
+  if (!quizSession || quizSession.mode !== 'kana') return;
+  if (!DB.inProgressKana) DB.inProgressKana = {};
+  DB.inProgressKana[kanaScoreKey(quizSession.kanaType, quizSession.groupId)] = {
+    queue: quizSession.queue,
+    index: quizSession.answers.length,
+    totals: { ...quizSession.totals },
+    answers: quizSession.answers.slice(),
+    updatedAt: new Date().toISOString()
+  };
+  persist();
+}
+function clearKanaInProgress(kanaType, groupId) {
+  if (DB.inProgressKana) delete DB.inProgressKana[kanaScoreKey(kanaType, groupId)];
+}
+
+// Vue "Kana" (hiragana/katakana -> romaji) : séparée elle aussi, même
+// esprit que renderKanjiQuizView (aucune branche ajoutée aux modes déjà
+// testés). La notation réutilise scoreAnswer telle quelle : chaque kana a
+// exactement UNE réponse canonique (contrairement à onyomi/kunyomi), donc
+// pas besoin d'une logique de correspondance dédiée.
+function renderKanaQuizView(container) {
+  if (quizSession.index >= quizSession.queue.length) {
+    const { points, maxPoints } = quizSession.totals;
+    const pct = maxPoints > 0 ? Math.round((points / maxPoints) * 100) : 0;
+    const prevEntry = getKanaScoreEntry(quizSession.kanaType, quizSession.groupId);
+    const prevBest = prevEntry ? prevEntry.best.pct : null;
+    const improved = prevBest === null || pct > prevBest;
+    recordKanaSessionResult(quizSession.kanaType, quizSession.groupId, points, maxPoints, pct);
+    clearKanaInProgress(quizSession.kanaType, quizSession.groupId);
+    persist();
+    if (typeof kvtSnapshotHistorique === 'function') kvtSnapshotHistorique();
+    const groupLabel = (KANA_GROUPS.find(g => g.id === quizSession.groupId) || {}).label || '';
+    const typeLabel = quizSession.kanaType === 'katakana' ? 'Katakana' : 'Hiragana';
+    const etat = pct >= 100 ? 'perfect' : (pct >= 70 ? 'good' : 'low');
+    const badge = improved
+      ? `<div class="kvt-result__badge">Record — nouveau meilleur score</div>`
+      : (prevBest !== null ? `<div class="kvt-result__badge">Meilleur score : ${prevBest}&nbsp;%</div>` : '');
+    container.innerHTML = `
+      <h2>${typeLabel} — ${escapeHtml(groupLabel)}</h2>
+      <div class="kvt-result kvt-result--${etat}">
+        ${badge}
+        <div class="kvt-result__pct">${pct}&nbsp;%</div>
+        <div class="kvt-result__points">${points} / ${maxPoints} points</div>
+        <button class="kvt-result__btn" type="button" id="btnBackKanaReview">Retour</button>
+      </div>
+    `;
+    $('#btnBackKanaReview').addEventListener('click', () => {
+      quizSession = null;
+      renderReview();
+    });
+    return;
+  }
+
+  const item = quizSession.queue[quizSession.index];
+  const progressPct = Math.round((quizSession.index / quizSession.queue.length) * 100);
+  const typeLabel = quizSession.kanaType === 'katakana' ? 'Katakana' : 'Hiragana';
+
+  container.innerHTML = `
+    <h2>${typeLabel} — romaji</h2>
+    <div class="flashcard-wrap">
+      <div class="session-progress">
+        <div style="font-size:12px; color:var(--muted);">${quizSession.index + 1} / ${quizSession.queue.length}</div>
+        <div class="progress-bar"><div class="progress-fill" style="width:${progressPct}%"></div></div>
+      </div>
+      <div class="flashcard">
+        <div class="front-word">${escapeHtml(item.char)}</div>
+        ${!quizSession.submitted ? `
+          ${quizSession.warning ? `<div class="quiz-feedback bad" style="margin-top:12px;">${escapeHtml(quizSession.warning)}</div>` : ''}
+          <div class="answer-input-wrap">
+            <input id="answerInputKana" type="text" placeholder="Écris en romaji (ex : ka, shi, tsu...)" style="margin-top:16px; width:280px; text-align:center; font-size:18px;"/>
+          </div>
+        ` : `
+          <div class="back-reading">${escapeHtml(item.romaji)}</div>
+          <div class="quiz-feedback ${quizSession.lastResult.pct >= 0.99 ? 'good' : (quizSession.lastResult.pct >= 0.6 ? 'mid' : 'bad')}">
+            Ta réponse : "${escapeHtml(quizSession.lastAnswer) || '(vide)'}" — ${quizSession.lastResult.points}/${DB.settings.pointsPerWord} points
+          </div>
+        `}
+      </div>
+      ${!quizSession.submitted ? `
+        <button class="primary" id="btnSubmitKana" style="margin-top:18px;">Valider</button>
+      ` : `
+        <button class="primary" id="btnNextKana" style="margin-top:18px;">Suivant</button>
+      `}
+      <button class="secondary" id="btnQuitKanaQuiz" style="margin-top:12px;">Quitter la session</button>
+    </div>
+  `;
+
+  if (!quizSession.submitted) {
+    const input = $('#answerInputKana');
+    input.focus();
+    const submit = () => {
+      const val = input.value;
+      quizSession.warning = null;
+      const result = scoreAnswer(val.trim().toLowerCase(), item.romaji);
+      quizSession.submitted = true;
+      quizSession.lastAnswer = val;
+      quizSession.lastResult = result;
+      quizSession.totals.points += result.points;
+      quizSession.answers.push({ char: item.char, romaji: item.romaji, userAnswer: val, points: result.points, pct: result.pct });
+      saveKanaInProgress();
+      renderReview();
+    };
+    $('#btnSubmitKana').addEventListener('click', submit);
+    input.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter') return;
+      if (e.isComposing || e.keyCode === 229) return;
+      submit();
+    });
+  } else {
+    const nextBtn = $('#btnNextKana');
+    nextBtn.focus();
+    nextBtn.addEventListener('click', () => {
+      quizSession.index++;
+      quizSession.submitted = false;
+      quizSession.warning = null;
+      renderReview();
+    });
+  }
+
+  $('#btnQuitKanaQuiz').addEventListener('click', () => {
+    quizSession = null;
+    renderReview();
+  });
+}
+
+// Démarre une session sur un groupe de kana (hiragana ou katakana), avec la
+// même logique de reprise que les autres modes.
+function startKanaQuiz(kanaType, groupId, forceRestart) {
+  const saved = forceRestart ? null : getValidKanaInProgress(kanaType, groupId);
+  if (saved) {
+    quizSession = {
+      mode: 'kana', kanaType, groupId,
+      queue: saved.queue,
+      index: saved.index,
+      submitted: false,
+      lastAnswer: '',
+      lastResult: null,
+      warning: null,
+      answers: saved.answers.slice(),
+      totals: { ...saved.totals }
+    };
+    return;
+  }
+  clearKanaInProgress(kanaType, groupId);
+  const queue = shuffle(buildKanaQueue(kanaType, groupId));
+  quizSession = {
+    mode: 'kana', kanaType, groupId,
+    queue,
+    index: 0,
+    submitted: false,
+    lastAnswer: '',
+    lastResult: null,
+    warning: null,
+    answers: [],
+    totals: { points: 0, maxPoints: queue.length * DB.settings.pointsPerWord }
+  };
+}
+
 // Symétrique de startQuiz() pour le mode "Kanji seul" — file de lecture
 // séparée (buildKanjiQueue), progression et scores séparés (DB.inProgressKanji
 // / DB.scoresKanji), aucun partage d'état avec le quiz vocabulaire.
@@ -1295,8 +1498,59 @@ function renderReview() {
     renderKanjiQuizView(container);
     return;
   }
+  if (quizSession && quizSession.mode === 'kana') {
+    renderKanaQuizView(container);
+    return;
+  }
 
   if (!quizSession) {
+    const modeSelectHtml = `
+      <select id="quizModePicker">
+        <option value="vocab" ${reviewPickerMode === 'vocab' ? 'selected' : ''}>Vocabulaire</option>
+        <option value="kanji" ${reviewPickerMode === 'kanji' ? 'selected' : ''}>Kanji seul (onyomi/kunyomi)</option>
+        <option value="kana" ${reviewPickerMode === 'kana' ? 'selected' : ''}>Hiragana / Katakana (romaji)</option>
+      </select>
+    `;
+
+    // Mode "Kana" : pas de semestre/semaine (à part des JLPT/cursus comme
+    // demandé), juste un type (hiragana/katakana) et un groupe de lecture.
+    if (reviewPickerMode === 'kana') {
+      if (!reviewKanaType) reviewKanaType = 'hiragana';
+      const groupOpts = KANA_GROUPS.map(g => {
+        const count = buildKanaQueue(reviewKanaType, g.id).length;
+        return `<option value="${g.id}">${escapeHtml(g.label)} (${count})</option>`;
+      }).join('');
+      container.innerHTML = `
+        <h2>Réviser</h2>
+        <div class="card">
+          <div class="form-row">${modeSelectHtml}</div>
+          <div class="form-row">
+            <select id="kanaTypePicker">
+              <option value="hiragana" ${reviewKanaType === 'hiragana' ? 'selected' : ''}>Hiragana</option>
+              <option value="katakana" ${reviewKanaType === 'katakana' ? 'selected' : ''}>Katakana</option>
+            </select>
+            <select id="kanaGroupPicker">${groupOpts}</select>
+            <button class="primary" id="btnStartQuiz">Démarrer</button>
+          </div>
+        </div>
+      `;
+      $('#quizModePicker').addEventListener('change', (e) => {
+        reviewPickerMode = e.target.value;
+        renderReview();
+      });
+      $('#kanaTypePicker').addEventListener('change', (e) => {
+        reviewKanaType = e.target.value;
+        renderReview();
+      });
+      $('#btnStartQuiz').addEventListener('click', () => {
+        const groupId = $('#kanaGroupPicker').value;
+        if (!groupId) return;
+        startKanaQuiz(reviewKanaType, groupId);
+        renderReview();
+      });
+      return;
+    }
+
     const opts = [];
     DB.settings.semesters.forEach(sem => {
       for (let w = 1; w <= sem.weeks; w++) {
@@ -1308,12 +1562,7 @@ function renderReview() {
     container.innerHTML = `
       <h2>Réviser</h2>
       <div class="card">
-        <div class="form-row">
-          <select id="quizModePicker">
-            <option value="vocab" ${reviewPickerMode === 'vocab' ? 'selected' : ''}>Vocabulaire</option>
-            <option value="kanji" ${reviewPickerMode === 'kanji' ? 'selected' : ''}>Kanji seul (onyomi/kunyomi)</option>
-          </select>
-        </div>
+        <div class="form-row">${modeSelectHtml}</div>
         <div class="form-row">
           <select id="quizWeekPicker">${opts.join('')}</select>
           <button class="primary" id="btnStartQuiz">Démarrer</button>
