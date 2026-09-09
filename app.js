@@ -330,6 +330,30 @@ function getNextWeekAfter(semesterId, week) {
   return nextSem ? { semesterId: nextSem.id, week: 1 } : null;
 }
 
+// ---------- Recommandation "Recommandé pour toi" (09/09/2026) ----------
+// Distincte de la bannière "Reprendre où tu t'es arrêté" ci-dessus (qui
+// couvre déjà la progression vers la semaine suivante non commencée) :
+// celle-ci repère plutôt une semaine DÉJÀ FAITE mais avec un score faible,
+// pour suggérer de la retravailler. Même seuil que MISS_THRESHOLD (60%,
+// déjà utilisé ailleurs pour la couleur "mauvais" du feedback de quiz) afin
+// de rester cohérent sur ce qui compte comme "faible" dans toute l'app.
+// Vocabulaire uniquement pour l'instant (pas kanji seul / kana) : ce sont
+// les seuls scores déjà exploités ailleurs sur ce tableau de bord.
+const RECO_SEUIL_FAIBLE = 60;
+function getWeakestWeek() {
+  let pire = null;
+  DB.settings.semesters.forEach(sem => {
+    for (let w = 1; w <= sem.weeks; w++) {
+      const entry = getScoreEntry(sem.id, w);
+      if (!entry || entry.best.pct >= RECO_SEUIL_FAIBLE) continue;
+      if (!pire || entry.best.pct < pire.pct) {
+        pire = { semesterId: sem.id, week: w, pct: entry.best.pct, points: entry.best.points, maxPoints: entry.best.maxPoints };
+      }
+    }
+  });
+  return pire;
+}
+
 // ---------- Historique des erreurs : suivi par mot ----------
 // Un mot est considéré "raté" en dessous de 60% de similarité, seuil déjà
 // utilisé ailleurs dans l'app (couleur "bad" du feedback de quiz).
@@ -815,6 +839,25 @@ function renderDashboard() {
     }
   }
 
+  // "Recommandé pour toi" (09/09/2026) : ne s'affiche pas par-dessus une
+  // session en cours (déjà assez de choix avec la bannière de reprise) ;
+  // complète plutôt que duplique la bannière ci-dessus, qui couvre déjà la
+  // progression vers la semaine suivante — celle-ci cible le renforcement.
+  const weakWeek = inProgress ? null : getWeakestWeek();
+  if (weakWeek) {
+    const weakSem = getSemester(weakWeek.semesterId);
+    html += `
+      <div class="card resume-card reco-card">
+        <div>
+          <strong>Recommandé pour toi</strong>
+          <div style="font-size:13px; color:var(--muted); margin-top:4px;">
+            ${escapeHtml(weakSem.label)} — Semaine ${weakWeek.week} : ${weakWeek.pct}% la dernière fois, ça vaut le coup de la retravailler.
+          </div>
+        </div>
+        <button class="primary" id="btnReco">Réviser</button>
+      </div>`;
+  }
+
   const visibleSemesters = DB.settings.semesters.filter(sem => categorieDuSemestre(sem) === dashboardMode);
 
   if (!visibleSemesters.length) {
@@ -923,6 +966,16 @@ function renderDashboard() {
           switchView('review');
         }
       }
+    });
+  }
+
+  const btnReco = $('#btnReco');
+  if (btnReco) {
+    // Semaine déjà faite -> on repart d'une session fraîche (forceRestart),
+    // même logique que le bouton "↺ Recommencer" des cartes de semaine.
+    btnReco.addEventListener('click', () => {
+      startQuiz(weakWeek.semesterId, weakWeek.week, true);
+      switchView('review');
     });
   }
 }
