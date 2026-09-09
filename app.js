@@ -519,7 +519,16 @@ function similarity(input, correct) {
 }
 
 function scoreAnswer(input, correct) {
-  const pct = similarity(input, correct);
+  // Quelques mots ont plusieurs lectures valables, stockees separees par
+  // " / " (ex. 門 -> "もん / かど", confirme par Paul le 09/09/2026) :
+  // comparer la reponse tapee a la chaine combinee penalisait a tort une
+  // des deux bonnes reponses (jamais 100%, meme en repondant juste). On
+  // compare a chaque alternative separement et on garde la meilleure —
+  // sans effet sur les mots a lecture unique (pas de "/", une seule
+  // alternative = comportement identique a avant).
+  const alternatives = (correct || '').split('/').map(s => s.trim()).filter(s => s.length > 0);
+  const candidats = alternatives.length > 0 ? alternatives : [correct];
+  const pct = Math.max(...candidats.map(c => similarity(input, c)));
   const points = Math.round(pct * DB.settings.pointsPerWord);
   return { pct, points };
 }
