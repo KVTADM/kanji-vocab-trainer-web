@@ -697,6 +697,19 @@ tr:hover td { background: var(--panel-alt); }
   display: flex; flex-direction: column; gap: 4px;
   font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px;
 }
+/* Filtre "Mots à kanji groupés / simples" (09/09/2026) : 2 cases à cocher
+   avec leur texte a cote, pas un champ avec sa legende au-dessus comme les
+   autres .form-row label - sans cette regle plus specifique, la case et son
+   texte se retrouvaient empiles verticalement en petit gris majuscule
+   (heritage de la regle generique ci-dessus), invisibles/illisibles comme
+   menu pour Paul. */
+.form-row .filtre-mots {
+  display: flex; flex-direction: column; gap: 6px; width: 100%;
+}
+.form-row .filtre-mots label {
+  display: flex; flex-direction: row; align-items: center; gap: 6px;
+  font-size: 14px; color: var(--ink); text-transform: none; letter-spacing: normal;
+}
 
 code {
   background: var(--panel-alt);
