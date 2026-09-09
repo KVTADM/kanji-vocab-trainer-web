@@ -119,9 +119,39 @@ function estVerbeDeBase(mot) {
   if (!contientKanji(mot) || !contientHiragana(mot)) return false;
   return VERBE_TERMINAISONS.has(mot[mot.length - 1]);
 }
+
+// ---------- "Mots à kanji groupés" (09/09/2026) ----------
+// Différencie les mots composés de plusieurs kanji SANS hiragana (ex.
+// 問題, 先生, mais aussi 子供/名前 lus en kunyomi — les deux comptent,
+// aucune raison de les traiter différemment ici) des mots "simples" : un
+// seul kanji (半), un verbe (泳ぐ), ou un adjectif en -i (高い). Décidé
+// avec Paul : pas de distinction onyomi/kunyomi (testée, mais peu fiable —
+// sokuon/rendaku cassent la correspondance de lecture même sur des vrais
+// onyomi comme 学校 がっこう) — seule la structure du mot compte.
+// Seule vraie exception : certains mots à kanji groupés restent des
+// verbes dans l'usage (電話, 旅行, 勉強... = +する), même stockés ici sous
+// leur forme nominale seule (aucun moyen structurel de les repérer, pas de
+// "する" présent) — liste connue à enrichir au besoin.
+const MOTS_KANJI_GROUPE_VERBES_CONNUS = new Set([
+  '電話','旅行','勉強','卒業','心配','準備','案内','質問','説明','結婚',
+  '運動','参加','出発','到着','我慢','掃除','洗濯','料理','散歩','練習',
+  '利用','予約','招待','発表','就職','相談','連絡','紹介','経験','研究',
+  '注意','失敗','成功','反対','賛成','確認','予定','計画','仕事',
+  '喧嘩','化粧','運転','満足','感謝','集中','放送','報告',
+  '交換','比較','想像','希望','選択','経営','運営','開発','建設','調査',
+  '留学','入学','入院','退院','離婚','返事','返信'
+]);
+function estKanjiGroupe(mot) {
+  if (!mot) return false;
+  if (mot.length <= 1) return false;
+  if (!contientKanji(mot) || contientHiragana(mot)) return false;
+  return !MOTS_KANJI_GROUPE_VERBES_CONNUS.has(mot);
+}
+
 function filtrerVocabParVerbe(vocabList, filtre) {
   if (filtre === 'sans_verbe') return vocabList.filter(v => !estVerbeDeBase(v.mot));
   if (filtre === 'verbe_seul') return vocabList.filter(v => estVerbeDeBase(v.mot));
+  if (filtre === 'kanji_groupe') return vocabList.filter(v => estKanjiGroupe(v.mot));
   return vocabList;
 }
 
@@ -1673,14 +1703,15 @@ function renderReview() {
       return;
     }
 
-    // Filtre "avec/sans verbe de base" (09/09/2026) : uniquement pertinent
-    // en mode vocabulaire (le mode kanji seul travaille sur des lectures,
-    // pas des mots ; le mode kana n'a pas de notion de verbe).
+    // Filtre "Mots" (09/09/2026) : uniquement pertinent en mode vocabulaire
+    // (le mode kanji seul travaille sur des lectures, pas des mots ; le
+    // mode kana n'a pas de notion de verbe ni de kanji groupés).
     const motsSelectHtml = reviewPickerMode === 'vocab' ? `
       <select id="verbeFiltrePicker">
         <option value="tous" ${reviewVerbeFilter === 'tous' ? 'selected' : ''}>Tous les mots</option>
         <option value="sans_verbe" ${reviewVerbeFilter === 'sans_verbe' ? 'selected' : ''}>Sans verbe de base</option>
         <option value="verbe_seul" ${reviewVerbeFilter === 'verbe_seul' ? 'selected' : ''}>Verbes de base uniquement</option>
+        <option value="kanji_groupe" ${reviewVerbeFilter === 'kanji_groupe' ? 'selected' : ''}>Mots à kanji groupés uniquement</option>
       </select>
     ` : '';
 
