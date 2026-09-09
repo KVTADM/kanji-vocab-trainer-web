@@ -11,6 +11,7 @@ let quizSession = null;     // { semesterId, week, queue, index, submitted, last
 let importPreview = null;   // { rows, errors } — résultat de l'analyse avant import
 let browsingWeek = null;    // { semesterId, week } — semaine affichée dans l'onglet Vocabulaire (fusionné : mots + fiches)
 let learnImportPreview = null; // { rows, errors } — résultat de l'analyse avant import des fiches (anciennement onglet Apprendre, fusionné dans Vocabulaire)
+let reviewPickerMode = 'vocab'; // 'vocab' | 'kanji' — mode choisi sur l'écran de démarrage de Réviser (kanji seul onyomi/kunyomi, ajouté le 09/09/2026)
 let dashboardMode = 'cursus';  // 'cursus' (S0-S6) ou 'jlpt' (modules JLPT) — bascule en haut à droite de l'Accueil
 
 const $ = (sel, root) => (root || document).querySelector(sel);
@@ -93,6 +94,86 @@ function getVocabForGroup(groupId) {
 function getVocabForWeek(semesterId, week) {
   const groupIds = new Set(getKanjiGroupsForWeek(semesterId, week).map(g => g.id));
   return DB.vocab.filter(v => groupIds.has(v.kanjiGroupId));
+}
+
+// ---------- Mode "Kanji seul" (onyomi/kunyomi) — 09/09/2026 ----------
+// Namespace de données totalement séparé de DB.scores/DB.inProgress : un
+// nouveau mode de quiz ne doit jamais pouvoir écraser ou se mélanger avec
+// les scores du quiz vocabulaire existant (voir la panne de synchronisation
+// du 29-30/08/2026 — depuis, toute nouvelle mécanique vit dans son propre
+// coin des données, jamais superposée à un namespace existant).
+function getKanjiScoreEntry(semesterId, week) {
+  return (DB.scoresKanji && DB.scoresKanji[weekKey(semesterId, week)]) || null;
+}
+function recordKanjiSessionResult(semesterId, week, points, maxPoints, pct) {
+  if (!DB.scoresKanji) DB.scoresKanji = {};
+  const key = weekKey(semesterId, week);
+  if (!DB.scoresKanji[key]) DB.scoresKanji[key] = { best: null, history: [] };
+  const entry = DB.scoresKanji[key];
+  const record = { date: new Date().toISOString(), points, maxPoints, pct };
+  entry.history.push(record);
+  if (!entry.best || pct > entry.best.pct) entry.best = record;
+}
+// Un item par lecture existante (onyomi et/ou kunyomi) de chaque kanji de la
+// semaine — un kanji qui n'a qu'un seul type de lecture ne génère qu'un
+// seul item (rien à inventer pour l'autre type, couvre "ou une seule si
+// obligatoire" de la demande).
+function buildKanjiQueue(semesterId, week) {
+  const groups = getKanjiGroupsForWeek(semesterId, week);
+  const items = [];
+  groups.forEach(g => {
+    if (g.onyomi && g.onyomi.trim()) items.push({ groupId: g.id, type: 'onyomi' });
+    if (g.kunyomi && g.kunyomi.trim()) items.push({ groupId: g.id, type: 'kunyomi' });
+  });
+  return items;
+}
+function getValidKanjiInProgress(semesterId, week) {
+  if (!DB.inProgressKanji) return null;
+  const saved = DB.inProgressKanji[weekKey(semesterId, week)];
+  if (!saved || !Array.isArray(saved.queue) || !Array.isArray(saved.answers)) return null;
+  const currentQueue = buildKanjiQueue(semesterId, week);
+  const stillValid = saved.queue.length === currentQueue.length &&
+    saved.queue.every((item, i) => item.groupId === currentQueue[i].groupId && item.type === currentQueue[i].type);
+  if (!stillValid || saved.index >= saved.queue.length) return null;
+  return saved;
+}
+function saveKanjiInProgress() {
+  if (!quizSession || quizSession.mode !== 'kanji') return;
+  if (!DB.inProgressKanji) DB.inProgressKanji = {};
+  DB.inProgressKanji[weekKey(quizSession.semesterId, quizSession.week)] = {
+    queue: quizSession.queue,
+    index: quizSession.answers.length,
+    totals: { ...quizSession.totals },
+    hardcore: quizSession.hardcore,
+    answers: quizSession.answers.slice(),
+    updatedAt: new Date().toISOString()
+  };
+  persist();
+}
+function clearKanjiInProgress(semesterId, week) {
+  if (DB.inProgressKanji) delete DB.inProgressKanji[weekKey(semesterId, week)];
+}
+// Les champs onyomi/kunyomi stockent plusieurs lectures concaténées SANS
+// séparateur fiable entre elles (ex. 上 -> onyomi "シャンショウジョウ" = 3
+// lectures collées ; kunyomi "あ.がるあ.げる" = 2 lectures collées) : un
+// découpage automatique en lectures individuelles n'est pas fiable sans
+// dictionnaire externe. On note donc par présence plutôt que par
+// découpage : si la réponse (une seule lecture) apparaît telle quelle dans
+// le bloc nettoyé des marqueurs KANJIDIC (points, tirets), elle est juste
+// en entier — une seule lecture suffit, comme demandé. Sinon, crédit
+// partiel par similarité avec le bloc entier, pour rester cohérent avec la
+// notation du quiz vocabulaire.
+function nettoieLectureBrute(s) {
+  return (s || '').replace(/[.\-（）\s]/g, '');
+}
+function scoreLectureKanji(input, blocLectures) {
+  const blocNet = nettoieLectureBrute(blocLectures);
+  const inputNet = nettoieLectureBrute(input);
+  if (!inputNet) return { pct: 0, points: 0 };
+  if (blocNet.includes(inputNet)) {
+    return { pct: 1, points: DB.settings.pointsPerWord };
+  }
+  return scoreAnswer(inputNet, blocNet);
 }
 function getScoreEntry(semesterId, week) {
   return DB.scores[weekKey(semesterId, week)] || null;
@@ -1057,31 +1138,198 @@ function startQuiz(semesterId, week, forceRestart) {
   };
 }
 
+// Vue "Kanji seul" : séparée de renderReview() par choix (aucune branche
+// supplémentaire ajoutée au quiz vocabulaire déjà testé), même esprit
+// (saisie libre, correction par similarité, historique séparé).
+function renderKanjiQuizView(container) {
+  // Session terminée
+  if (quizSession.index >= quizSession.queue.length) {
+    const { points, maxPoints } = quizSession.totals;
+    const pct = maxPoints > 0 ? Math.round((points / maxPoints) * 100) : 0;
+    const prevEntry = getKanjiScoreEntry(quizSession.semesterId, quizSession.week);
+    const prevBest = prevEntry ? prevEntry.best.pct : null;
+    const improved = prevBest === null || pct > prevBest;
+    recordKanjiSessionResult(quizSession.semesterId, quizSession.week, points, maxPoints, pct);
+    clearKanjiInProgress(quizSession.semesterId, quizSession.week);
+    persist();
+    if (typeof kvtSnapshotHistorique === 'function') kvtSnapshotHistorique();
+    const semLabel = getSemester(quizSession.semesterId).label;
+    const etat = pct >= 100 ? 'perfect' : (pct >= 70 ? 'good' : 'low');
+    const badge = improved
+      ? `<div class="kvt-result__badge">Record — nouveau meilleur score</div>`
+      : (prevBest !== null ? `<div class="kvt-result__badge">Meilleur score : ${prevBest}&nbsp;%</div>` : '');
+    container.innerHTML = `
+      <h2>Kanji seul — ${escapeHtml(semLabel)} Semaine ${quizSession.week}</h2>
+      <div class="kvt-result kvt-result--${etat}">
+        ${badge}
+        <div class="kvt-result__pct">${pct}&nbsp;%</div>
+        <div class="kvt-result__points">${points} / ${maxPoints} points</div>
+        <button class="kvt-result__btn" type="button" id="btnBackKanjiReview">Retour</button>
+      </div>
+    `;
+    $('#btnBackKanjiReview').addEventListener('click', () => {
+      quizSession = null;
+      renderReview();
+    });
+    return;
+  }
+
+  const item = quizSession.queue[quizSession.index];
+  const g = getKanjiGroup(item.groupId);
+  const blocLectures = item.type === 'onyomi' ? g.onyomi : g.kunyomi;
+  const progressPct = Math.round((quizSession.index / quizSession.queue.length) * 100);
+  const labelType = item.type === 'onyomi' ? 'Onyomi (lecture chinoise, katakana)' : 'Kunyomi (lecture japonaise, hiragana)';
+
+  container.innerHTML = `
+    <h2>Kanji seul — ${getSemester(quizSession.semesterId).label} Semaine ${quizSession.week}</h2>
+    <div class="flashcard-wrap">
+      <div class="session-progress">
+        <div style="font-size:12px; color:var(--muted);">${quizSession.index + 1} / ${quizSession.queue.length}</div>
+        <div class="progress-bar"><div class="progress-fill" style="width:${progressPct}%"></div></div>
+      </div>
+      <div class="flashcard">
+        <div class="front-word">${escapeHtml(g.kanji)}</div>
+        <div class="hint">${labelType}${g.titre ? ' · ' + escapeHtml(g.titre) : ''}</div>
+        ${!quizSession.submitted ? `
+          ${quizSession.warning ? `<div class="quiz-feedback bad" style="margin-top:12px;">${escapeHtml(quizSession.warning)}</div>` : ''}
+          <div class="answer-input-wrap">
+            <input id="answerInputKanji" type="text" placeholder="${item.type === 'onyomi' ? 'Écris une lecture onyomi (katakana)' : 'Écris une lecture kunyomi (hiragana)'}" style="margin-top:16px; width:280px; text-align:center; font-size:18px;"/>
+          </div>
+        ` : `
+          <div class="back-reading">${escapeHtml(blocLectures)}</div>
+          <div class="quiz-feedback ${quizSession.lastResult.pct >= 0.99 ? 'good' : (quizSession.lastResult.pct >= 0.6 ? 'mid' : 'bad')}">
+            Ta réponse : "${escapeHtml(quizSession.lastAnswer) || '(vide)'}" — ${quizSession.lastResult.points}/${DB.settings.pointsPerWord} points
+          </div>
+        `}
+      </div>
+      ${!quizSession.submitted ? `
+        <button class="primary" id="btnSubmitKanji" style="margin-top:18px;">Valider</button>
+      ` : `
+        <button class="primary" id="btnNextKanji" style="margin-top:18px;">Suivant</button>
+      `}
+      <button class="secondary" id="btnQuitKanjiQuiz" style="margin-top:12px;">Quitter la session</button>
+    </div>
+  `;
+
+  if (!quizSession.submitted) {
+    const input = $('#answerInputKanji');
+    input.focus();
+    const submit = () => {
+      const val = input.value;
+      quizSession.warning = null;
+      const result = scoreLectureKanji(val, blocLectures);
+      quizSession.submitted = true;
+      quizSession.lastAnswer = val;
+      quizSession.lastResult = result;
+      quizSession.totals.points += result.points;
+      quizSession.answers.push({ kanji: g.kanji, type: item.type, userAnswer: val, points: result.points, pct: result.pct });
+      saveKanjiInProgress();
+      renderReview();
+    };
+    $('#btnSubmitKanji').addEventListener('click', submit);
+    input.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter') return;
+      if (e.isComposing || e.keyCode === 229) return;
+      submit();
+    });
+  } else {
+    const nextBtn = $('#btnNextKanji');
+    nextBtn.focus();
+    nextBtn.addEventListener('click', () => {
+      quizSession.index++;
+      quizSession.submitted = false;
+      quizSession.warning = null;
+      renderReview();
+    });
+  }
+
+  $('#btnQuitKanjiQuiz').addEventListener('click', () => {
+    quizSession = null;
+    renderReview();
+  });
+}
+
+// Symétrique de startQuiz() pour le mode "Kanji seul" — file de lecture
+// séparée (buildKanjiQueue), progression et scores séparés (DB.inProgressKanji
+// / DB.scoresKanji), aucun partage d'état avec le quiz vocabulaire.
+function startKanjiQuiz(semesterId, week, forceRestart) {
+  const saved = forceRestart ? null : getValidKanjiInProgress(semesterId, week);
+  if (saved) {
+    quizSession = {
+      mode: 'kanji',
+      semesterId, week,
+      queue: saved.queue,
+      index: saved.index,
+      submitted: false,
+      lastAnswer: '',
+      lastResult: null,
+      warning: null,
+      hardcore: saved.hardcore,
+      answers: saved.answers.slice(),
+      totals: { ...saved.totals }
+    };
+    return;
+  }
+  clearKanjiInProgress(semesterId, week);
+  const queue = shuffle(buildKanjiQueue(semesterId, week));
+  quizSession = {
+    mode: 'kanji',
+    semesterId, week,
+    queue,
+    index: 0,
+    submitted: false,
+    lastAnswer: '',
+    lastResult: null,
+    warning: null,
+    hardcore: !!DB.settings.hardcoreMode,
+    answers: [],
+    totals: { points: 0, maxPoints: queue.length * DB.settings.pointsPerWord }
+  };
+}
+
 function renderReview() {
   const container = $('#view-review');
+  // Mode "Kanji seul" : vue entièrement séparée (renderKanjiQuizView), pour
+  // ne jamais toucher aux branches existantes du quiz vocabulaire ci-dessous.
+  if (quizSession && quizSession.mode === 'kanji') {
+    renderKanjiQuizView(container);
+    return;
+  }
 
   if (!quizSession) {
     const opts = [];
     DB.settings.semesters.forEach(sem => {
       for (let w = 1; w <= sem.weeks; w++) {
-        const count = getVocabForWeek(sem.id, w).length;
-        opts.push(`<option value="${sem.id}|${w}" ${count === 0 ? 'disabled' : ''}>${sem.label} — Semaine ${w} (${count} mots)</option>`);
+        const count = reviewPickerMode === 'kanji' ? buildKanjiQueue(sem.id, w).length : getVocabForWeek(sem.id, w).length;
+        const label = reviewPickerMode === 'kanji' ? `${count} lecture(s)` : `${count} mots`;
+        opts.push(`<option value="${sem.id}|${w}" ${count === 0 ? 'disabled' : ''}>${sem.label} — Semaine ${w} (${label})</option>`);
       }
     });
     container.innerHTML = `
       <h2>Réviser</h2>
       <div class="card">
         <div class="form-row">
+          <select id="quizModePicker">
+            <option value="vocab" ${reviewPickerMode === 'vocab' ? 'selected' : ''}>Vocabulaire</option>
+            <option value="kanji" ${reviewPickerMode === 'kanji' ? 'selected' : ''}>Kanji seul (onyomi/kunyomi)</option>
+          </select>
+        </div>
+        <div class="form-row">
           <select id="quizWeekPicker">${opts.join('')}</select>
           <button class="primary" id="btnStartQuiz">Démarrer</button>
         </div>
       </div>
     `;
+    $('#quizModePicker').addEventListener('change', (e) => {
+      reviewPickerMode = e.target.value;
+      renderReview();
+    });
     $('#btnStartQuiz').addEventListener('click', () => {
       const val = $('#quizWeekPicker').value;
       if (!val) return;
       const [sem, w] = val.split('|');
-      startQuiz(sem, parseInt(w, 10));
+      if (reviewPickerMode === 'kanji') startKanjiQuiz(sem, parseInt(w, 10));
+      else startQuiz(sem, parseInt(w, 10));
       renderReview();
     });
     return;

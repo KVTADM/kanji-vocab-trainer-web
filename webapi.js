@@ -115,6 +115,11 @@ const JLPT_N4_SEED = {"kanjiGroups":[{"id":"kg-hu66go90952pa","semesterId":"jlpt
     if (typeof data.settings.spectralMode !== 'boolean') data.settings.spectralMode = false;
     if (!data.wordStats || typeof data.wordStats !== 'object') data.wordStats = {};
     if (!data.inProgress || typeof data.inProgress !== 'object') data.inProgress = {};
+    // Mode "Kanji seul" (onyomi/kunyomi, 09/09/2026) : namespaces neufs et
+    // indépendants de DB.scores/DB.inProgress, jamais superposés au quiz
+    // vocabulaire existant.
+    if (!data.scoresKanji || typeof data.scoresKanji !== 'object') data.scoresKanji = {};
+    if (!data.inProgressKanji || typeof data.inProgressKanji !== 'object') data.inProgressKanji = {};
     // Niveaux/XP/pièces d'or/boutique (24/08/2026, étendu 25/08/2026 :
     // boosts XP, collations, bannières de profil) — non-destructif : un
     // compte déjà existant sans cette section démarre juste à zéro, comme
