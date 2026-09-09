@@ -150,6 +150,70 @@ const JLPT_N4_SEED = {"kanjiGroups":[{"id":"kg-hu66go90952pa","semesterId":"jlpt
         if (MOTS_PARENTHESES_A_NETTOYER[v.id]) v.mot = MOTS_PARENTHESES_A_NETTOYER[v.id];
       });
     }
+    // Scission des mots-question combinant 2 a 4 mots avec "/" (09/09/2026,
+    // suite au meme retour de Paul : "questions avec des parentheses" ->
+    // "je voulais dire les /"). Meme souci que les parentheses : le champ
+    // "mot" sert de question affichee telle quelle pendant le quiz
+    // (front-word), donc "続く / 続ける" ou "名詞 / 助詞 / 動詞 / 形容詞"
+    // s'affichaient comme UNE SEULE question combinee -- illisible, et
+    // impossible a valider correctement (scoreAnswer comparait la reponse
+    // tapee a la chaine complete avec " / ", jamais obtenue par une reponse
+    // normale). Scinde chaque entree en autant de mots individuels propres,
+    // sur le meme kanjiGroupId (meme semaine). Idempotent : ne scinde que si
+    // l'entree d'origine existe encore avec son ancien "mot" combine (sinon
+    // deja migree, ou modifiee entretemps par l'utilisateur -> on n'y touche
+    // pas). Meme correctif que seed-data.json (nouveaux comptes), necessaire
+    // ici pour les comptes deja migres (voir migration precedente juste
+    // au-dessus, meme raisonnement).
+    const MOTS_SLASH_A_SCINDER = {
+      "v-mrhvk4uvenc8a": { oldMot: "腹 / お腹", parts: [{ id: "v-mrhvk4uvenc8a", mot: "腹", lecture: "はら", sens: "Ventre" }, { id: "v-nt13gk5ck6ekm", mot: "お腹", lecture: "おなか", sens: "Ventre" }] },
+      "v-mrhvk4ux5zbsz": { oldMot: "親父 / 親子", parts: [{ id: "v-mrhvk4ux5zbsz", mot: "親父", lecture: "おやじ", sens: "Mon vieux (père)" }, { id: "v-rrc9edw9f8409", mot: "親子", lecture: "おやこ", sens: "Parent et enfant" }] },
+      "v-mrhvk4uxky3rf": { oldMot: "客体 / 上客", parts: [{ id: "v-mrhvk4uxky3rf", mot: "客体", lecture: "きゃくたい", sens: "Objet" }, { id: "v-pf3cuujaxwuco", mot: "上客", lecture: "じょうきゃく", sens: "Bon client" }] },
+      "v-mrhvk4ux0u2ku": { oldMot: "降雨 / 降雪", parts: [{ id: "v-mrhvk4ux0u2ku", mot: "降雨", lecture: "こうう", sens: "Pluie" }, { id: "v-q3o4d4h170jsg", mot: "降雪", lecture: "こうせつ", sens: "Neige" }] },
+      "v-mrhvk4ux38ldu": { oldMot: "定める / 定まる", parts: [{ id: "v-mrhvk4ux38ldu", mot: "定める", lecture: "さだめる", sens: "Déterminer" }, { id: "v-exw5q8wxsm848", mot: "定まる", lecture: "さだまる", sens: "Être établi" }] },
+      "v-mrhvk4uxj2582": { oldMot: "育つ / 育てる", parts: [{ id: "v-mrhvk4uxj2582", mot: "育つ", lecture: "そだつ", sens: "Grandir" }, { id: "v-syjx0vm8uep64", mot: "育てる", lecture: "そだてる", sens: "Élever, éduquer" }] },
+      "v-mrhvk4uxa5l7l": { oldMot: "満ちる / 満たす", parts: [{ id: "v-mrhvk4uxa5l7l", mot: "満ちる", lecture: "みちる", sens: "Être plein" }, { id: "v-ztgn4feno3blz", mot: "満たす", lecture: "みたす", sens: "Remplir, satisfaire" }] },
+      "v-mrhvk4uyls1wi": { oldMot: "歳/才", parts: [{ id: "v-mrhvk4uyls1wi", mot: "歳", lecture: "さい", sens: "Âge" }, { id: "v-ubx76u1uvyksz", mot: "才", lecture: "さい", sens: "Talent" }] },
+      "v-mrhvk4uz54sz3": { oldMot: "楽観 / 悲観", parts: [{ id: "v-mrhvk4uz54sz3", mot: "楽観", lecture: "らっかん", sens: "Optimisme" }, { id: "v-f2oodvmu2vwuy", mot: "悲観", lecture: "ひかん", sens: "Pessimisme" }] },
+      "v-mrhvk4uzqta8p": { oldMot: "千葉県 / 千葉市", parts: [{ id: "v-mrhvk4uzqta8p", mot: "千葉県", lecture: "ちばけん", sens: "Préfecture de Chiba" }, { id: "v-oih9f96afsgh2", mot: "千葉市", lecture: "ちばし", sens: "Ville de Chiba" }] },
+      "v-mrhvk4uz1hyhs": { oldMot: "奈良県 / 奈良市", parts: [{ id: "v-mrhvk4uz1hyhs", mot: "奈良県", lecture: "ならけん", sens: "Préfecture de Nara" }, { id: "v-8lc47lch33adt", mot: "奈良市", lecture: "ならし", sens: "Ville de Nara" }] },
+      "v-mrhvk4v2w3sjg": { oldMot: "続く / 続ける", parts: [{ id: "v-mrhvk4v2w3sjg", mot: "続く", lecture: "つづく", sens: "Continuer (Intr)" }, { id: "v-9azvp4esgq66r", mot: "続ける", lecture: "つづける", sens: "Continuer (Tr)" }] },
+      "v-mrhvk4v2w6ey4": { oldMot: "直す / 直る", parts: [{ id: "v-mrhvk4v2w6ey4", mot: "直す", lecture: "なおす", sens: "Réparer (Tr)" }, { id: "v-968g3arledfgo", mot: "直る", lecture: "なおる", sens: "Être réparé (Intr)" }] },
+      "v-mrhvk4v3cd7f0": { oldMot: "次男 / 次女", parts: [{ id: "v-mrhvk4v3cd7f0", mot: "次男", lecture: "じなん", sens: "Second fils" }, { id: "v-xdtsrhzgfehto", mot: "次女", lecture: "じじょ", sens: "Seconde fille" }] },
+      "v-mrhvk4v3oyazo": { oldMot: "質がいい / 悪い", parts: [{ id: "v-mrhvk4v3oyazo", mot: "質がいい", lecture: "しつがいい", sens: "De bonne qualité" }, { id: "v-0kojma4oj08t4", mot: "質が悪い", lecture: "しつがわるい", sens: "De mauvaise qualité" }] },
+      "v-mrhvk4v3086o6": { oldMot: "身体 / 体", parts: [{ id: "v-mrhvk4v3086o6", mot: "身体", lecture: "からだ", sens: "Le corps" }, { id: "v-pz8w7yptryy67", mot: "体", lecture: "からだ", sens: "Le corps" }] },
+      "v-mrhvk4v3fsqw1": { oldMot: "首が短い / 長い", parts: [{ id: "v-mrhvk4v3fsqw1", mot: "首が短い", lecture: "くびがみじかい", sens: "Avoir le cou court" }, { id: "v-t6dybiqscmgk3", mot: "首が長い", lecture: "くびがながい", sens: "Avoir le cou long" }] },
+      "v-mrhvk4v369mp2": { oldMot: "顔色がいい / 悪い", parts: [{ id: "v-mrhvk4v369mp2", mot: "顔色がいい", lecture: "かおいろがいい", sens: "Avoir bonne mine" }, { id: "v-ctv1po9onutfd", mot: "顔色が悪い", lecture: "かおいろがわるい", sens: "Avoir mauvaise mine" }] },
+      "v-mrhvk4v4vykk6": { oldMot: "背が高い / 低い", parts: [{ id: "v-mrhvk4v4vykk6", mot: "背が高い", lecture: "せがたかい", sens: "Être grand" }, { id: "v-2xy8wz4kh4trm", mot: "背が低い", lecture: "せがひくい", sens: "Être petit" }] },
+      "v-mrhvk4v5e4x7r": { oldMot: "成田空港 / 羽田空港", parts: [{ id: "v-mrhvk4v5e4x7r", mot: "成田空港", lecture: "なりたくうこう", sens: "Aéroport de Narita" }, { id: "v-4zg9tetfewbze", mot: "羽田空港", lecture: "はねだくうこう", sens: "Aéroport de Haneda" }] },
+      "v-mrhvk4v5ouc7l": { oldMot: "人間的 / 政治的 / 歴史的", parts: [{ id: "v-mrhvk4v5ouc7l", mot: "人間的", lecture: "にんげんてき", sens: "Humain" }, { id: "v-xdxrfrb3tod90", mot: "政治的", lecture: "せいじてき", sens: "Politique" }, { id: "v-i6s801w2chq3e", mot: "歴史的", lecture: "れきしてき", sens: "Historique" }] },
+      "v-mrhvk4v5o6bzk": { oldMot: "一時的 / 計画的", parts: [{ id: "v-mrhvk4v5o6bzk", mot: "一時的", lecture: "いちじてき", sens: "Temporaire" }, { id: "v-gkoa1jdfnxsl2", mot: "計画的", lecture: "けいかくてき", sens: "Prévu (planifié)" }] },
+      "v-mrhvk4v6v0bo2": { oldMot: "人間性 / 危険性 / 安全性", parts: [{ id: "v-mrhvk4v6v0bo2", mot: "人間性", lecture: "にんげんせい", sens: "Humanité" }, { id: "v-r6jpslqhj6luk", mot: "危険性", lecture: "きけんせい", sens: "Dangerosité" }, { id: "v-n38by5vkrohfn", mot: "安全性", lecture: "あんぜんせい", sens: "Sécurité" }] },
+      "v-mrhvk4v6g9y5q": { oldMot: "必要 / 必要ない", parts: [{ id: "v-mrhvk4v6g9y5q", mot: "必要", lecture: "ひつよう", sens: "Nécessaire" }, { id: "v-nugg6c0ex2lki", mot: "必要ない", lecture: "ひつようない", sens: "Inutile" }] },
+      "v-mrhvk4v672g8m": { oldMot: "名詞 / 助詞 / 動詞 / 形容詞", parts: [{ id: "v-mrhvk4v672g8m", mot: "名詞", lecture: "めいし", sens: "Nom (grammatical)" }, { id: "v-ktvkrbll2aetd", mot: "助詞", lecture: "じょし", sens: "Particule" }, { id: "v-i0k8k9ona4qm0", mot: "動詞", lecture: "どうし", sens: "Verbe" }, { id: "v-1zndfh27d13hl", mot: "形容詞", lecture: "けいようし", sens: "Adjectif" }] },
+      "v-mrhvk4v6dmo43": { oldMot: "知識が増える / 幸せが増える", parts: [{ id: "v-mrhvk4v6dmo43", mot: "知識が増える", lecture: "ちしきがふえる", sens: "Les connaissances augmentent" }, { id: "v-ykmardd9g6osj", mot: "幸せが増える", lecture: "しあわせがふえる", sens: "Le bonheur augmente" }] },
+      "v-mrhvk4v621vbp": { oldMot: "付き合い / と付き合う", parts: [{ id: "v-mrhvk4v621vbp", mot: "付き合い", lecture: "つきあい", sens: "Fréquentation" }, { id: "v-tvg55599yn403", mot: "付き合う", lecture: "つきあう", sens: "Sortir avec quelqu'un (souvent avec ~と)" }] },
+      "v-mrhvk4v6kej68": { oldMot: "お化け / 化け物", parts: [{ id: "v-mrhvk4v6kej68", mot: "お化け", lecture: "おばけ", sens: "Fantôme" }, { id: "v-seeu6khtntdt4", mot: "化け物", lecture: "ばけもの", sens: "Monstre" }] },
+      "v-mrhvk4v7t8bzr": { oldMot: "関係 / 〜と関係がある", parts: [{ id: "v-mrhvk4v7t8bzr", mot: "関係", lecture: "かんけい", sens: "Relation (~と関係がある = avoir un rapport avec...)" }] },
+      "v-mrhvk4v7vz68d": { oldMot: "申す / 申し上げる", parts: [{ id: "v-mrhvk4v7vz68d", mot: "申す", lecture: "もうす", sens: "Dire (humble)" }, { id: "v-pp2uf247n8gfe", mot: "申し上げる", lecture: "もうしあげる", sens: "Dire (très humble)" }] },
+      "v-mrhvk4v71hq3p": { oldMot: "花びんを落とす / 財布を落とす", parts: [{ id: "v-mrhvk4v71hq3p", mot: "花びんを落とす", lecture: "かびんをおとす", sens: "Faire tomber un vase" }, { id: "v-4jcfwny7n4s4f", mot: "財布を落とす", lecture: "さいふをおとす", sens: "Perdre son portefeuille" }] },
+      "v-mrhvk4v7k1czq": { oldMot: "有害な / 無害な", parts: [{ id: "v-mrhvk4v7k1czq", mot: "有害な", lecture: "ゆうがいな", sens: "Nocif" }, { id: "v-eb7akg470y56l", mot: "無害な", lecture: "むがいな", sens: "Inoffensif" }] },
+      "v-mrhvk4v7sev5q": { oldMot: "出勤 / 通勤", parts: [{ id: "v-mrhvk4v7sev5q", mot: "出勤", lecture: "しゅっきん", sens: "Aller au travail" }, { id: "v-85neo3emlfpnv", mot: "通勤", lecture: "つうきん", sens: "Trajet domicile-travail" }] },
+      "v-mrhvk4v8lnkh9": { oldMot: "赤ちゃんが産まれる / 産む", parts: [{ id: "v-mrhvk4v8lnkh9", mot: "赤ちゃんが産まれる", lecture: "あかちゃんがうまれる", sens: "Un bébé naît" }, { id: "v-sugs5rqqtffcs", mot: "産む", lecture: "うむ", sens: "Accoucher, donner naissance" }] },
+      "v-mrhvk4v8aw8fq": { oldMot: "経済 / 経済成長", parts: [{ id: "v-mrhvk4v8aw8fq", mot: "経済", lecture: "けいざい", sens: "Économie" }, { id: "v-9r6rgtxcg6j5m", mot: "経済成長", lecture: "けいざいせいちょう", sens: "Croissance économique" }] },
+      "v-mrhvk4v8t98j8": { oldMot: "温度 / 速度", parts: [{ id: "v-mrhvk4v8t98j8", mot: "温度", lecture: "おんど", sens: "Température" }, { id: "v-b8bm5hub4gbhp", mot: "速度", lecture: "そくど", sens: "Vitesse" }] },
+      "v-mrhvk4v8jtwge": { oldMot: "神様 / 皆様", parts: [{ id: "v-mrhvk4v8jtwge", mot: "神様", lecture: "かみさま", sens: "Dieu" }, { id: "v-pqiseuyz52u51", mot: "皆様", lecture: "みなさま", sens: "Tout le monde (poli)" }] }
+    };
+    if (Array.isArray(data.vocab)) {
+      Object.keys(MOTS_SLASH_A_SCINDER).forEach(origId => {
+        const def = MOTS_SLASH_A_SCINDER[origId];
+        const idx = data.vocab.findIndex(v => v.id === origId);
+        if (idx === -1 || data.vocab[idx].mot !== def.oldMot) return;
+        const kgid = data.vocab[idx].kanjiGroupId;
+        const nouvelles = def.parts.map(p => ({ id: p.id, kanjiGroupId: kgid, mot: p.mot, lecture: p.lecture, sens: p.sens }));
+        data.vocab.splice(idx, 1, ...nouvelles);
+      });
+    }
     // Niveaux/XP/pièces d'or/boutique (24/08/2026, étendu 25/08/2026 :
     // boosts XP, collations, bannières de profil) — non-destructif : un
     // compte déjà existant sans cette section démarre juste à zéro, comme
