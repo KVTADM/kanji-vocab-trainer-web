@@ -34,6 +34,14 @@ function essai(nom, fn) {
   catch (e) { cas.push(['ECHEC', nom + ' — ' + e.message]); }
 }
 
+// Un fichier de vérification Google Search Console (09/09/2026) n'est pas
+// une page de l'app : son contenu doit rester EXACTEMENT
+// "google-site-verification: <nom>", sans quoi Google refuse la
+// vérification. Lui demander la barre de navigation, ui.js ou la mesure
+// n'a donc pas de sens — on l'exclut de ces contrôles de gabarit commun,
+// plutôt que de les affaiblir pour de vraies pages.
+const EST_FICHIER_VERIFICATION_GOOGLE = (nom) => /^google[0-9a-f]+\.html$/i.test(nom);
+
 // Toutes les pages HTML réellement servies aux visiteurs.
 function pagesHtml(dir = RACINE, sortie = []) {
   for (const nom of fs.readdirSync(dir)) {
@@ -43,6 +51,7 @@ function pagesHtml(dir = RACINE, sortie = []) {
     // une sortie perimee ferait echouer la suite a chaque evolution du
     // gabarit. C'est le gabarit qu'on controle, dans tests/deck.test.js.
     if (nom === 'deck' && dir === RACINE) continue;
+    if (EST_FICHIER_VERIFICATION_GOOGLE(nom)) continue;
     const p = path.join(dir, nom);
     const st = fs.statSync(p);
     if (st.isDirectory()) pagesHtml(p, sortie);
