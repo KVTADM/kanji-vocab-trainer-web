@@ -1300,6 +1300,7 @@ function saveKanaInProgress() {
     queue: quizSession.queue,
     index: quizSession.answers.length,
     totals: { ...quizSession.totals },
+    hardcore: quizSession.hardcore,
     answers: quizSession.answers.slice(),
     updatedAt: new Date().toISOString()
   };
@@ -1364,6 +1365,10 @@ function renderKanaQuizView(container) {
           ${quizSession.warning ? `<div class="quiz-feedback bad" style="margin-top:12px;">${escapeHtml(quizSession.warning)}</div>` : ''}
           <div class="answer-input-wrap">
             <input id="answerInputKana" type="text" placeholder="Écris en romaji (ex : ka, shi, tsu...)" style="margin-top:16px; width:280px; text-align:center; font-size:18px;"/>
+          </div>
+        ` : quizSession.hardcore ? `
+          <div class="quiz-feedback mid" style="margin-top:16px;">
+            Réponse enregistrée. Correction disponible à la fin de la session.
           </div>
         ` : `
           <div class="back-reading">${escapeHtml(item.romaji)}</div>
@@ -1432,6 +1437,7 @@ function startKanaQuiz(kanaType, groupId, forceRestart) {
       lastAnswer: '',
       lastResult: null,
       warning: null,
+      hardcore: saved.hardcore,
       answers: saved.answers.slice(),
       totals: { ...saved.totals }
     };
@@ -1447,6 +1453,7 @@ function startKanaQuiz(kanaType, groupId, forceRestart) {
     lastAnswer: '',
     lastResult: null,
     warning: null,
+    hardcore: !!DB.settings.hardcoreMode, // figé au démarrage, comme les autres modes
     answers: [],
     totals: { points: 0, maxPoints: queue.length * DB.settings.pointsPerWord }
   };
@@ -1511,6 +1518,30 @@ function renderReview() {
         <option value="kana" ${reviewPickerMode === 'kana' ? 'selected' : ''}>Hiragana / Katakana (romaji)</option>
       </select>
     `;
+    // Menu de choix des exercices (09/09/2026) : la difficulté vit dans les
+    // mêmes réglages globaux que la carte "Mode de révision" de Réglages
+    // (hardcoreMode/spectralMode) — un seul état, juste choisi à deux
+    // endroits pour plus de commodité. Facile = mode spectral (indice
+    // possible), Difficile = mode hardcore (correction en fin de session
+    // seulement), Normal = aucun des deux.
+    const difficulteActuelle = DB.settings.hardcoreMode ? 'difficile' : (DB.settings.spectralMode ? 'facile' : 'normal');
+    const difficulteSelectHtml = `
+      <select id="difficultePicker">
+        <option value="facile" ${difficulteActuelle === 'facile' ? 'selected' : ''}>Facile (indice possible)</option>
+        <option value="normal" ${difficulteActuelle === 'normal' ? 'selected' : ''}>Normal</option>
+        <option value="difficile" ${difficulteActuelle === 'difficile' ? 'selected' : ''}>Difficile (correction en fin de session)</option>
+      </select>
+    `;
+    const brancherDifficultePicker = () => {
+      $('#difficultePicker').addEventListener('change', (e) => {
+        const val = e.target.value;
+        DB.settings.hardcoreMode = val === 'difficile';
+        DB.settings.spectralMode = val === 'facile';
+        persist();
+        showToast('Difficulté : ' + (val === 'facile' ? 'Facile' : val === 'difficile' ? 'Difficile' : 'Normal'));
+        renderReview();
+      });
+    };
 
     // Mode "Kana" : pas de semestre/semaine (à part des JLPT/cursus comme
     // demandé), juste un type (hiragana/katakana) et un groupe de lecture.
@@ -1523,7 +1554,7 @@ function renderReview() {
       container.innerHTML = `
         <h2>Réviser</h2>
         <div class="card">
-          <div class="form-row">${modeSelectHtml}</div>
+          <div class="form-row">${modeSelectHtml}${difficulteSelectHtml}</div>
           <div class="form-row">
             <select id="kanaTypePicker">
               <option value="hiragana" ${reviewKanaType === 'hiragana' ? 'selected' : ''}>Hiragana</option>
@@ -1538,6 +1569,7 @@ function renderReview() {
         reviewPickerMode = e.target.value;
         renderReview();
       });
+      brancherDifficultePicker();
       $('#kanaTypePicker').addEventListener('change', (e) => {
         reviewKanaType = e.target.value;
         renderReview();
@@ -1562,7 +1594,7 @@ function renderReview() {
     container.innerHTML = `
       <h2>Réviser</h2>
       <div class="card">
-        <div class="form-row">${modeSelectHtml}</div>
+        <div class="form-row">${modeSelectHtml}${difficulteSelectHtml}</div>
         <div class="form-row">
           <select id="quizWeekPicker">${opts.join('')}</select>
           <button class="primary" id="btnStartQuiz">Démarrer</button>
@@ -1573,6 +1605,7 @@ function renderReview() {
       reviewPickerMode = e.target.value;
       renderReview();
     });
+    brancherDifficultePicker();
     $('#btnStartQuiz').addEventListener('click', () => {
       const val = $('#quizWeekPicker').value;
       if (!val) return;

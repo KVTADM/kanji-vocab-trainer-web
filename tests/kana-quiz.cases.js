@@ -141,6 +141,18 @@ essai('getValidKanaInProgress rejette une session deja terminee', () => {
 
 // ---------- saveKanaInProgress / clearKanaInProgress ----------
 
+essai('saveKanaInProgress conserve le champ hardcore (difficulte figee au demarrage, comme les autres modes)', () => {
+  DB = baseKanaDB();
+  quizSession = {
+    mode: 'kana', kanaType: 'hiragana', groupId: 'g1',
+    queue: buildKanaQueue('hiragana', 'g1'), answers: [{}],
+    totals: { points: 5, maxPoints: 150 }, hardcore: true
+  };
+  saveKanaInProgress();
+  const saved = DB.inProgressKana['hiragana-g1'];
+  if (saved.hardcore !== true) throw new Error('le champ hardcore aurait du etre conserve dans la sauvegarde');
+});
+
 essai('saveKanaInProgress ne fait rien si la session active n\'est pas en mode kana', () => {
   DB = baseKanaDB();
   quizSession = { mode: 'vocab' };
