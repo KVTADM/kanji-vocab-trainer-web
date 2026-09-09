@@ -1391,7 +1391,12 @@ function renderKanjiQuizView(container) {
     });
   } else {
     const nextBtn = $('#btnNextKanji');
-    nextBtn.focus();
+    // Le focus est différé d'un tick (09/09/2026) : sans ça, le relâchement
+    // (keyup) du même Entrée qui vient de valider la réponse arrivait sur
+    // ce bouton fraîchement focus et le cliquait aussitôt -- la réponse
+    // n'était jamais vue, on sautait direct au mot suivant. Il faut un
+    // DEUXIÈME appui, séparé, pour avancer.
+    setTimeout(() => nextBtn.focus(), 0);
     nextBtn.addEventListener('click', () => {
       quizSession.index++;
       quizSession.submitted = false;
@@ -1565,7 +1570,12 @@ function renderKanaQuizView(container) {
     });
   } else {
     const nextBtn = $('#btnNextKana');
-    nextBtn.focus();
+    // Le focus est différé d'un tick (09/09/2026) : sans ça, le relâchement
+    // (keyup) du même Entrée qui vient de valider la réponse arrivait sur
+    // ce bouton fraîchement focus et le cliquait aussitôt -- la réponse
+    // n'était jamais vue, on sautait direct au mot suivant. Il faut un
+    // DEUXIÈME appui, séparé, pour avancer.
+    setTimeout(() => nextBtn.focus(), 0);
     nextBtn.addEventListener('click', () => {
       quizSession.index++;
       quizSession.submitted = false;
@@ -2018,9 +2028,13 @@ function renderReview() {
   } else {
     // 09/09/2026 : focus natif sur "Mot suivant" -> Entrée l'active direct
     // (comportement standard d'un <button> focus), pour enchaîner les mots
-    // au clavier sans repasser par la souris entre chaque mot.
+    // au clavier sans repasser par la souris entre chaque mot. Le focus est
+    // différé d'un tick : sans ça, le relâchement (keyup) du même Entrée
+    // qui vient de valider la réponse arrivait sur ce bouton fraîchement
+    // focus et le cliquait aussitôt -- la réponse n'était jamais vue, on
+    // sautait direct au mot suivant. Il faut un DEUXIÈME appui, séparé.
     const nextBtn = $('#btnNextWord');
-    nextBtn.focus();
+    setTimeout(() => nextBtn.focus(), 0);
     nextBtn.addEventListener('click', () => {
       quizSession.index++;
       quizSession.submitted = false;
