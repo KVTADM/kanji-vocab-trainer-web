@@ -833,6 +833,9 @@ function renderDashboard() {
         <button class="mode-toggle-btn mode-toggle-plus" id="btnNouvelleCategorie" title="Nouvelle catégorie" aria-label="Nouvelle catégorie">+</button>
       </div>
     </div>
+    <div class="reviser-ouvrir-row" style="margin:8px 0;">
+      <button class="secondary" id="btnOuvrirReviser">Réviser (choisir mode, difficulté, mots)</button>
+    </div>
     ${ongletCourant && !ongletCourant.integre ? `
       <div class="categorie-outils">
         <span>Catégorie « ${escapeHtml(ongletCourant.label)} »</span>
@@ -961,6 +964,17 @@ function renderDashboard() {
     b.addEventListener('click', () => { dashboardMode = b.dataset.onglet; renderDashboard(); });
   });
   $('#btnNouvelleCategorie').addEventListener('click', creerCategorie);
+  // Point d'entree direct vers l'ecran de choix (mode/difficulte/mots) sans
+  // passer par une semaine precise : sans ca, cliquer une carte de semaine
+  // ou "Continuer" demarre tout de suite le quiz et l'ecran de choix
+  // (avec les cases "kanji groupes"/"simples") n'est jamais vu (09/09/2026).
+  const btnOuvrirReviser = $('#btnOuvrirReviser');
+  if (btnOuvrirReviser) {
+    btnOuvrirReviser.addEventListener('click', () => {
+      quizSession = null;
+      switchView('review');
+    });
+  }
   $$('[data-renommer]').forEach(b => b.addEventListener('click', () => renommerCategorie(b.dataset.renommer)));
   $$('[data-supprimer-cat]').forEach(b => b.addEventListener('click', () => supprimerCategorie(b.dataset.supprimerCat)));
   $$('[data-ranger]').forEach(sel => {
