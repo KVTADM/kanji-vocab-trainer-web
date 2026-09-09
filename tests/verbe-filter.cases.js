@@ -119,11 +119,13 @@ essai('filtrerVocabParVerbe ne modifie jamais la liste d\'origine', () => {
   if (l.length !== 8) throw new Error('la liste d\'origine a ete mutee');
 });
 
-// ---------- estKanjiGroupe / filtre "kanji_groupe" (09/09/2026) ----------
+// ---------- estKanjiGroupe / filtres "kanji_groupe" et "simple" (09/09/2026) ----------
 // Différencie les mots à kanji groupés (onyomi OU kunyomi, peu importe —
-// décidé avec Paul) des mots simples (verbe, kanji seul, adjectif -i), et
-// exclut les mots à kanji groupés qui restent des verbes dans l'usage
-// (電話, 旅行... = +suru) même stockés ici sous leur forme nominale.
+// décidé avec Paul) des mots simples (verbe, kanji seul, adjectif -i).
+// Les mots à kanji groupés qui restent des verbes dans l'usage (電話,
+// 旅行, 勉強... = +suru) comptent AUSSI comme "groupés" — décidé avec
+// Paul en cours de route : pas d'exception, seule la structure du mot
+// (plusieurs kanji, zéro hiragana) décide.
 
 essai('問題 (kanji groupes, onyomi) est detecte comme kanji groupe', () => {
   if (!estKanjiGroupe('問題')) throw new Error('attendu true');
@@ -135,6 +137,12 @@ essai('子供 (kanji groupes, kunyomi) est AUSSI detecte comme kanji groupe (pas
 
 essai('高校生 (kanji groupes, 3 caracteres) est detecte comme kanji groupe', () => {
   if (!estKanjiGroupe('高校生')) throw new Error('attendu true');
+});
+
+essai('電話, 旅行, 勉強 (kanji groupes qui restent des verbes a l\'usage) sont AUSSI detectes comme kanji groupe, aucune exception', () => {
+  if (!estKanjiGroupe('電話')) throw new Error('電話 aurait du etre inclus');
+  if (!estKanjiGroupe('旅行')) throw new Error('旅行 aurait du etre inclus');
+  if (!estKanjiGroupe('勉強')) throw new Error('勉強 aurait du etre inclus');
 });
 
 essai('半 (kanji seul, un seul caractere) n\'est PAS un kanji groupe', () => {
@@ -149,33 +157,49 @@ essai('高い (adjectif -i, contient du hiragana) n\'est PAS un kanji groupe', (
   if (estKanjiGroupe('高い')) throw new Error('attendu false (contient du hiragana)');
 });
 
-essai('電話 (kanji groupes mais reste un verbe a l\'usage, +suru) est exclu malgre sa forme', () => {
-  if (estKanjiGroupe('電話')) throw new Error('attendu false : exception verbe connue');
-});
-
-essai('旅行 et 勉強 (memes exceptions verbe connues) sont exclus', () => {
-  if (estKanjiGroupe('旅行')) throw new Error('旅行 aurait du etre exclu');
-  if (estKanjiGroupe('勉強')) throw new Error('勉強 aurait du etre exclu');
-});
-
 essai('mot vide ou nul ne plante pas et n\'est pas un kanji groupe', () => {
   if (estKanjiGroupe('') || estKanjiGroupe(null) || estKanjiGroupe(undefined)) {
     throw new Error('attendu false pour une entree vide/nulle');
   }
 });
 
-essai('filtrerVocabParVerbe("kanji_groupe") ne garde que les mots a kanji groupes, exceptions verbe exclues', () => {
-  const liste = [
-    { id: 1, mot: '問題' },   // kanji groupe -> garde
-    { id: 2, mot: '子供' },   // kanji groupe (kunyomi) -> garde
-    { id: 3, mot: '電話' },   // exception verbe connue -> exclu
-    { id: 4, mot: '泳ぐ' },   // verbe -> exclu
-    { id: 5, mot: '半' },     // kanji seul -> exclu
-    { id: 6, mot: '高い' }    // adjectif -i -> exclu
+function listeGroupeTest() {
+  return [
+    { id: 1, mot: '問題' },   // kanji groupe
+    { id: 2, mot: '子供' },   // kanji groupe (kunyomi)
+    { id: 3, mot: '電話' },   // kanji groupe (reste un verbe a l'usage, mais inclus)
+    { id: 4, mot: '泳ぐ' },   // simple : verbe
+    { id: 5, mot: '半' },     // simple : kanji seul
+    { id: 6, mot: '高い' }    // simple : adjectif -i
   ];
-  const r = filtrerVocabParVerbe(liste, 'kanji_groupe');
+}
+
+essai('filtrerVocabParVerbe("kanji_groupe") garde les mots a kanji groupes, y compris ceux qui restent des verbes a l\'usage', () => {
+  const r = filtrerVocabParVerbe(listeGroupeTest(), 'kanji_groupe');
   const mots = r.map(v => v.mot);
-  if (mots.length !== 2 || !mots.includes('問題') || !mots.includes('子供')) {
-    throw new Error('attendu [問題, 子供], obtenu ' + JSON.stringify(mots));
+  if (mots.length !== 3 || !mots.includes('問題') || !mots.includes('子供') || !mots.includes('電話')) {
+    throw new Error('attendu [問題, 子供, 電話], obtenu ' + JSON.stringify(mots));
+  }
+});
+
+essai('filtrerVocabParVerbe("simple") garde l\'inverse exact de "kanji_groupe"', () => {
+  const r = filtrerVocabParVerbe(listeGroupeTest(), 'simple');
+  const mots = r.map(v => v.mot);
+  if (mots.length !== 3 || !mots.includes('泳ぐ') || !mots.includes('半') || !mots.includes('高い')) {
+    throw new Error('attendu [泳ぐ, 半, 高い], obtenu ' + JSON.stringify(mots));
+  }
+});
+
+essai('filtrerVocabParVerbe("aucun") renvoie toujours une liste vide (les 2 cases decochees)', () => {
+  const r = filtrerVocabParVerbe(listeGroupeTest(), 'aucun');
+  if (r.length !== 0) throw new Error('attendu une liste vide, obtenu ' + JSON.stringify(r.map(v => v.mot)));
+});
+
+essai('kanji_groupe et simple sont bien complementaires et exhaustifs sur une liste quelconque', () => {
+  const liste = listeGroupeTest();
+  const groupe = filtrerVocabParVerbe(liste, 'kanji_groupe');
+  const simple = filtrerVocabParVerbe(liste, 'simple');
+  if (groupe.length + simple.length !== liste.length) {
+    throw new Error('les deux filtres devraient partitionner exactement la liste complete');
   }
 });
