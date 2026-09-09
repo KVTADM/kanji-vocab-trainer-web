@@ -124,6 +124,32 @@ const JLPT_N4_SEED = {"kanjiGroups":[{"id":"kg-hu66go90952pa","semesterId":"jlpt
     // namespaces neufs et indépendants.
     if (!data.scoresKana || typeof data.scoresKana !== 'object') data.scoresKana = {};
     if (!data.inProgressKana || typeof data.inProgressKana !== 'object') data.inProgressKana = {};
+    // Nettoyage de mots dont le champ "mot" trainait des annotations
+    // grammaticales entre parenthèses (09/09/2026) : ce champ sert de
+    // question affichée pendant le quiz vocabulaire (front-word), donc
+    // "公開（する）" ou "正直（な）" s'affichaient tels quels, parenthèses
+    // comprises -- désagréable à lire comme prompt de quiz. Corrigé
+    // directement dans seed-data.json pour les nouveaux comptes, et ici
+    // pour les comptes déjà migrés (import ponctuel par id, idempotent :
+    // ne touche que les 10 mots concernés, sans jamais écraser un "mot"
+    // modifié entretemps par l'utilisateur au-delà de cette liste).
+    const MOTS_PARENTHESES_A_NETTOYER = {
+      'v-mrhvk4uze6yav': '公開',
+      'v-mrhvk4uzsdkre': '勝手',
+      'v-mrhvk4v2erpgd': '特別に',
+      'v-mrhvk4v2w6gd6': '正直な',
+      'v-mrhvk4v5bhih4': '完全に',
+      'v-mrhvk4v6rxomw': '年号',
+      'v-mrhvk4v6b5b3k': '堂々と',
+      'v-mrhvk4v6radaj': '必要ならば',
+      'v-mrhvk4vaa6h2c': '非常に',
+      'v-mrhvk4vb0ztnj': '不思議な'
+    };
+    if (Array.isArray(data.vocab)) {
+      data.vocab.forEach(v => {
+        if (MOTS_PARENTHESES_A_NETTOYER[v.id]) v.mot = MOTS_PARENTHESES_A_NETTOYER[v.id];
+      });
+    }
     // Niveaux/XP/pièces d'or/boutique (24/08/2026, étendu 25/08/2026 :
     // boosts XP, collations, bannières de profil) — non-destructif : un
     // compte déjà existant sans cette section démarre juste à zéro, comme
