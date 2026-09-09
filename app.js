@@ -794,6 +794,29 @@ async function rangerSemestre(semesterId, categorieId) {
 // ============================================================
 // Accueil : grille des semaines par semestre
 // ============================================================
+// Marque de derniere mise a jour (09/09/2026) : /version.json est genere
+// par deploy.sh a chaque publication (voir ce fichier) et n'est jamais mis
+// en cache cote navigateur ("cache: no-store" ci-dessous traverse la
+// strategie "reseau d'abord" du service worker) - sert a verifier tout de
+// suite si un deploiement a bien pris, plutot que de deviner face a un
+// cache de navigateur qui n'a pas encore vu la mise a jour. echec silencieux
+// (hors-ligne, fichier absent sur un vieux deploiement) : la marque reste
+// vide plutot que de planter le tableau de bord pour ca.
+function afficherVersionDeploiement() {
+  const el = document.getElementById('kvtVersionMarque');
+  if (!el) return;
+  fetch('/version.json', { cache: 'no-store' })
+    .then(r => (r.ok ? r.json() : null))
+    .then(data => {
+      if (!data || !data.deployedAt) return;
+      const d = new Date(data.deployedAt);
+      if (isNaN(d.getTime())) return;
+      const texte = d.toLocaleString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+      el.textContent = 'Dernière mise à jour du site : ' + texte;
+    })
+    .catch(() => {});
+}
+
 function renderDashboard() {
   // Bascule Cursus / JLPT : n'affecte que la grille des semestres plus bas,
   // le proverbe et la bannière de reprise restent visibles dans tous les cas.
@@ -815,7 +838,8 @@ function renderDashboard() {
         <span>Catégorie « ${escapeHtml(ongletCourant.label)} »</span>
         <button class="lien-retour" data-renommer="${ongletCourant.id}">Renommer</button>
         <button class="lien-retour" data-supprimer-cat="${ongletCourant.id}">Supprimer</button>
-      </div>` : ''}`;
+      </div>` : ''}
+    <div id="kvtVersionMarque" style="font-size:11px; color:var(--muted); margin:-4px 0 12px;"></div>`;
 
   // Gamification (24/08/2026) : niveau/XP/pièces/série, tout en haut du
   // tableau de bord — la première chose vue à l'ouverture de l'app.
@@ -931,6 +955,7 @@ function renderDashboard() {
   html += kvtAdSlotHtml('dashboard-bottom');
   $('#view-dashboard').innerHTML = html;
   renderAllAdSlots();
+  afficherVersionDeploiement();
 
   $$('[data-onglet]').forEach(b => {
     b.addEventListener('click', () => { dashboardMode = b.dataset.onglet; renderDashboard(); });

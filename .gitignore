@@ -12,3 +12,8 @@ downloads/*.exe
 # du depot serait de toute facon perimee : la verite est en base.
 /deck/
 /sitemap.xml
+
+# Genere par deploy.sh juste avant chaque publication (date du deploiement,
+# affichee sur l'Accueil pour verifier qu'un deploiement a bien pris - voir
+# app.js). Change a chaque fois, pas utile en historique git.
+/version.json

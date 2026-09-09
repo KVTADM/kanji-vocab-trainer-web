@@ -44,6 +44,14 @@ cd "$(dirname "$0")"
 echo "Generation des pages de deck..."
 node outils/generer-pages-deck.js
 
+# Marque de derniere mise a jour (09/09/2026) : ecrite juste avant chaque
+# publication, affichee sur l'Accueil de l'app (voir app.js). Sert a verifier
+# tout de suite si un deploiement a bien pris, plutot que de deviner face a
+# un cache de navigateur qui n'a pas encore ete rafraichi. Pas versionne
+# (voir .gitignore) : n'a de sens qu'au moment du deploiement.
+echo "Marquage de la date de deploiement..."
+echo "{\"deployedAt\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}" > version.json
+
 echo "Verification de la connexion Netlify..."
 npx --yes netlify-cli status >/dev/null || npx --yes netlify-cli login
 echo "Publication du contenu du dossier..."
