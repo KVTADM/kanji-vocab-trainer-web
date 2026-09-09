@@ -2003,15 +2003,16 @@ function renderReview() {
     $('#btnSubmitAnswer').addEventListener('click', submit);
     // Sur Mac, taper en clavier japonais (romaji -> hiragana/katakana) passe par
     // un IME : la touche Entrée sert d'abord à valider la conversion en cours,
-    // pas à valider la réponse. Sans cette garde, ce premier Entrée validait le
-    // formulaire trop tôt avec un mot pas encore converti -> mauvaise réponse.
-    // On ignore donc Entrée tant qu'une composition IME est active.
-    let composing = false;
-    input.addEventListener('compositionstart', () => { composing = true; });
-    input.addEventListener('compositionend', () => { composing = false; });
+    // pas à valider la réponse. e.isComposing/keyCode 229 suffisent à détecter
+    // ce premier Entrée (même garde que Kanji seul/Kana ci-dessous). Un flag
+    // "composing" maison basé sur compositionstart/compositionend a été retiré
+    // le 09/09/2026 : compositionend ne se déclenche pas de façon fiable avec
+    // certains IME (bug connu de certains navigateurs), ce qui bloquait Entrée
+    // en permanence après une composition ratée -- la réponse ne s'affichait
+    // plus jamais tant qu'on ne cliquait pas "Valider" à la souris.
     input.addEventListener('keydown', (e) => {
       if (e.key !== 'Enter') return;
-      if (composing || e.isComposing || e.keyCode === 229) return;
+      if (e.isComposing || e.keyCode === 229) return;
       submit();
     });
   } else {
