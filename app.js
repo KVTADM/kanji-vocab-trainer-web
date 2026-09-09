@@ -13,6 +13,7 @@ let browsingWeek = null;    // { semesterId, week } — semaine affichée dans l
 let learnImportPreview = null; // { rows, errors } — résultat de l'analyse avant import des fiches (anciennement onglet Apprendre, fusionné dans Vocabulaire)
 let reviewPickerMode = 'vocab'; // 'vocab' | 'kanji' | 'kana' — mode choisi sur l'écran de démarrage de Réviser (kanji seul et kana ajoutés le 09/09/2026)
 let reviewKanaType = 'hiragana'; // 'hiragana' | 'katakana' — persiste le choix entre deux rendus du picker kana
+let reviewVerbeFilter = 'tous'; // 'tous' | 'sans_verbe' | 'verbe_seul' — filtre "avec/sans verbe de base" (09/09/2026), pertinent seulement en mode vocabulaire
 let dashboardMode = 'cursus';  // 'cursus' (S0-S6) ou 'jlpt' (modules JLPT) — bascule en haut à droite de l'Accueil
 
 const $ = (sel, root) => (root || document).querySelector(sel);
@@ -95,6 +96,33 @@ function getVocabForGroup(groupId) {
 function getVocabForWeek(semesterId, week) {
   const groupIds = new Set(getKanjiGroupsForWeek(semesterId, week).map(g => g.id));
   return DB.vocab.filter(v => groupIds.has(v.kanjiGroupId));
+}
+
+// ---------- Filtre "avec/sans verbe de base" (09/09/2026) ----------
+// Distingue un verbe de base (kanji + terminaison de conjugaison, ex.
+// 泳ぐ/話す/取る, ou un verbe en +する comme 愛する) d'un mot à kanji
+// combinés (aucun hiragana, ex. 問題/高校生). Règle validée sur un
+// échantillon avec Paul avant généralisation : seuls les vrais verbes sont
+// exclus en mode "sans verbe de base" — les mots à un seul kanji, les
+// adjectifs en -i et les mots mixtes kanji+hiragana restent dans les deux
+// cas (aucune raison de les cacher, ce ne sont pas des verbes).
+const VERBE_TERMINAISONS = new Set(['う','く','ぐ','す','つ','ぬ','ぶ','む','ゆ','る']);
+function contientKanji(s) {
+  return /[\u4e00-\u9fff]/.test(s || '');
+}
+function contientHiragana(s) {
+  return /[\u3041-\u309f]/.test(s || '');
+}
+function estVerbeDeBase(mot) {
+  if (!mot) return false;
+  if (mot.endsWith('する') && contientKanji(mot) && mot.length > 2) return true;
+  if (!contientKanji(mot) || !contientHiragana(mot)) return false;
+  return VERBE_TERMINAISONS.has(mot[mot.length - 1]);
+}
+function filtrerVocabParVerbe(vocabList, filtre) {
+  if (filtre === 'sans_verbe') return vocabList.filter(v => !estVerbeDeBase(v.mot));
+  if (filtre === 'verbe_seul') return vocabList.filter(v => estVerbeDeBase(v.mot));
+  return vocabList;
 }
 
 // ---------- Mode "Kanji seul" (onyomi/kunyomi) — 09/09/2026 ----------
@@ -238,7 +266,12 @@ function getValidInProgress(semesterId, week) {
   if (!DB.inProgress) return null;
   const saved = DB.inProgress[weekKey(semesterId, week)];
   if (!saved || !Array.isArray(saved.queue) || !Array.isArray(saved.answers)) return null;
-  const vocabList = getVocabForWeek(semesterId, week);
+  // Le filtre "avec/sans verbe de base" (09/09/2026) actif au démarrage de
+  // la session est celui qui compte ici, pas le filtre courant du picker —
+  // sinon une reprise après avoir changé le filtre serait à tort jugée
+  // périmée (nombre de mots différent) alors que la file elle-même reste
+  // parfaitement valide.
+  const vocabList = filtrerVocabParVerbe(getVocabForWeek(semesterId, week), saved.verbeFilter || 'tous');
   const currentIds = new Set(vocabList.map(v => v.id));
   // Si le vocabulaire de la semaine a changé depuis (mots ajoutés/retirés),
   // la sauvegarde partielle n'est plus fiable — on l'ignore plutôt que de
@@ -256,6 +289,7 @@ function saveInProgress() {
     index: quizSession.answers.length,
     totals: { ...quizSession.totals },
     hardcore: quizSession.hardcore,
+    verbeFilter: quizSession.verbeFilter || 'tous',
     answers: quizSession.answers.slice(),
     updatedAt: new Date().toISOString()
   };
@@ -1102,8 +1136,9 @@ function renderLearnImportPreview() {
 // ============================================================
 // Révision : quiz à saisie libre
 // ============================================================
-function startQuiz(semesterId, week, forceRestart) {
-  const vocabList = getVocabForWeek(semesterId, week);
+function startQuiz(semesterId, week, forceRestart, verbeFilter) {
+  const filtre = verbeFilter || 'tous';
+  const vocabList = filtrerVocabParVerbe(getVocabForWeek(semesterId, week), filtre);
   const saved = forceRestart ? null : getValidInProgress(semesterId, week);
   if (saved) {
     // Reprend exactement là où la session s'était arrêtée (même ordre de
@@ -1117,6 +1152,7 @@ function startQuiz(semesterId, week, forceRestart) {
       lastResult: null,
       warning: null,
       hardcore: saved.hardcore,
+      verbeFilter: saved.verbeFilter || 'tous',
       usedSpectral: false, // reprise = nouveau mot en cours, pas encore de calque fantôme utilisé
       answers: saved.answers.slice(),
       totals: { ...saved.totals }
@@ -1133,6 +1169,7 @@ function startQuiz(semesterId, week, forceRestart) {
     lastResult: null,
     warning: null, // message affiché si la saisie contient du kanji au lieu de la lecture (voir containsKanji)
     hardcore: !!DB.settings.hardcoreMode, // figé au démarrage : changer le réglage en cours de session ne la perturbe pas
+    verbeFilter: filtre, // filtre "avec/sans verbe de base" actif au démarrage (09/09/2026) — figé pour la reprise
     usedSpectral: false, // vrai si le calque fantôme (mode spectral) a été utilisé sur le mot en cours -> annule ses points
     answers: [], // récap complet, rempli au fil de la session, affiché à la fin en mode hardcore
     totals: { points: 0, maxPoints: vocabList.length * DB.settings.pointsPerWord }
@@ -1583,10 +1620,23 @@ function renderReview() {
       return;
     }
 
+    // Filtre "avec/sans verbe de base" (09/09/2026) : uniquement pertinent
+    // en mode vocabulaire (le mode kanji seul travaille sur des lectures,
+    // pas des mots ; le mode kana n'a pas de notion de verbe).
+    const motsSelectHtml = reviewPickerMode === 'vocab' ? `
+      <select id="verbeFiltrePicker">
+        <option value="tous" ${reviewVerbeFilter === 'tous' ? 'selected' : ''}>Tous les mots</option>
+        <option value="sans_verbe" ${reviewVerbeFilter === 'sans_verbe' ? 'selected' : ''}>Sans verbe de base</option>
+        <option value="verbe_seul" ${reviewVerbeFilter === 'verbe_seul' ? 'selected' : ''}>Verbes de base uniquement</option>
+      </select>
+    ` : '';
+
     const opts = [];
     DB.settings.semesters.forEach(sem => {
       for (let w = 1; w <= sem.weeks; w++) {
-        const count = reviewPickerMode === 'kanji' ? buildKanjiQueue(sem.id, w).length : getVocabForWeek(sem.id, w).length;
+        const count = reviewPickerMode === 'kanji'
+          ? buildKanjiQueue(sem.id, w).length
+          : filtrerVocabParVerbe(getVocabForWeek(sem.id, w), reviewVerbeFilter).length;
         const label = reviewPickerMode === 'kanji' ? `${count} lecture(s)` : `${count} mots`;
         opts.push(`<option value="${sem.id}|${w}" ${count === 0 ? 'disabled' : ''}>${sem.label} — Semaine ${w} (${label})</option>`);
       }
@@ -1595,6 +1645,7 @@ function renderReview() {
       <h2>Réviser</h2>
       <div class="card">
         <div class="form-row">${modeSelectHtml}${difficulteSelectHtml}</div>
+        ${motsSelectHtml ? `<div class="form-row">${motsSelectHtml}</div>` : ''}
         <div class="form-row">
           <select id="quizWeekPicker">${opts.join('')}</select>
           <button class="primary" id="btnStartQuiz">Démarrer</button>
@@ -1606,12 +1657,18 @@ function renderReview() {
       renderReview();
     });
     brancherDifficultePicker();
+    if (reviewPickerMode === 'vocab') {
+      $('#verbeFiltrePicker').addEventListener('change', (e) => {
+        reviewVerbeFilter = e.target.value;
+        renderReview();
+      });
+    }
     $('#btnStartQuiz').addEventListener('click', () => {
       const val = $('#quizWeekPicker').value;
       if (!val) return;
       const [sem, w] = val.split('|');
       if (reviewPickerMode === 'kanji') startKanjiQuiz(sem, parseInt(w, 10));
-      else startQuiz(sem, parseInt(w, 10));
+      else startQuiz(sem, parseInt(w, 10), false, reviewVerbeFilter);
       renderReview();
     });
     return;
