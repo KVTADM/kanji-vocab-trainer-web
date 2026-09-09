@@ -702,11 +702,14 @@ tr:hover td { background: var(--panel-alt); }
    autres .form-row label - sans cette regle plus specifique, la case et son
    texte se retrouvaient empiles verticalement en petit gris majuscule
    (heritage de la regle generique ci-dessus), invisibles/illisibles comme
-   menu pour Paul. */
-.form-row .filtre-mots {
+   menu pour Paul. Non qualifiee a .form-row (depuis l'ajout de la modale
+   par semaine, meme jour) : .filtre-mots est une classe dediee, jamais
+   reutilisee ailleurs, donc pas de risque a la rendre generale pour qu'elle
+   s'applique aussi dans .modal-box. */
+.filtre-mots {
   display: flex; flex-direction: column; gap: 6px; width: 100%;
 }
-.form-row .filtre-mots label {
+.filtre-mots label {
   display: flex; flex-direction: row; align-items: center; gap: 6px;
   font-size: 14px; color: var(--ink); text-transform: none; letter-spacing: normal;
 }
@@ -794,6 +797,75 @@ code {
   cursor: pointer;
 }
 .week-restart-btn:hover { border-color: var(--pink); color: var(--pink); }
+
+/* Type de test fait/en cours (09/09/2026) : quel filtre "Mots" a servi,
+   affiché en petit à côté du score ou de la barre de progression. */
+.week-type-tag {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--muted);
+  background: var(--panel-alt);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1px 7px;
+  margin-left: 4px;
+}
+
+/* Modale de choix par semaine (09/09/2026), ouverte au clic sur une carte
+   de semaine du Tableau de bord -- le site reste visible en fond, assombri
+   par le calque semi-transparent. */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+.modal-box {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+  max-width: 420px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+.modal-tete {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.modal-tete h3 { margin: 0; }
+.modal-fermer {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 16px;
+  cursor: pointer;
+  line-height: 1;
+  padding: 4px;
+}
+.modal-fermer:hover { color: var(--pink); }
+.modal-reprise {
+  background: var(--panel-alt);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px;
+  margin-bottom: 12px;
+  font-size: 14px;
+}
+.modal-separateur {
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 10px;
+}
 
 /* ---------- Vocabulaire : blocs par kanji ---------- */
 .kanji-block {

@@ -15,6 +15,7 @@ let reviewPickerMode = 'vocab'; // 'vocab' | 'kanji' | 'kana' — mode choisi su
 let reviewKanaType = 'hiragana'; // 'hiragana' | 'katakana' — persiste le choix entre deux rendus du picker kana
 let reviewVerbeFilter = 'tous'; // 'tous' | 'sans_verbe' | 'verbe_seul' — filtre "avec/sans verbe de base" (09/09/2026), pertinent seulement en mode vocabulaire
 let dashboardMode = 'cursus';  // 'cursus' (S0-S6) ou 'jlpt' (modules JLPT) — bascule en haut à droite de l'Accueil
+let modalSemaineOuverte = null; // { semesterId, week } — modale de choix ouverte sur une carte du Tableau de bord (09/09/2026), voir renderDashboard()
 
 const $ = (sel, root) => (root || document).querySelector(sel);
 const $$ = (sel, root) => Array.from((root || document).querySelectorAll(sel));
@@ -152,6 +153,17 @@ function filtrerVocabParVerbe(vocabList, filtre) {
   return vocabList;
 }
 
+// Libellé court du filtre "Mots", pour l'afficher tel quel sur le Tableau
+// de bord (carte de semaine en cours ou déjà terminée) et dans la modale
+// de démarrage par semaine (09/09/2026) -- Paul veut voir quel type de
+// test a été fait, pas seulement le score/la progression.
+function libelleFiltreMots(filtre) {
+  if (filtre === 'kanji_groupe') return 'mots à kanji groupés';
+  if (filtre === 'simple') return 'mots simples';
+  if (filtre === 'aucun') return 'aucun mot';
+  return 'tous les mots';
+}
+
 // ---------- Mode "Kanji seul" (onyomi/kunyomi) — 09/09/2026 ----------
 // Namespace de données totalement séparé de DB.scores/DB.inProgress : un
 // nouveau mode de quiz ne doit jamais pouvoir écraser ou se mélanger avec
@@ -253,11 +265,16 @@ function getMaxRelevantWeek(sem) {
   });
   return max;
 }
-function recordSessionResult(semesterId, week, points, maxPoints, pct) {
+function recordSessionResult(semesterId, week, points, maxPoints, pct, verbeFilter) {
   const key = weekKey(semesterId, week);
   if (!DB.scores[key]) DB.scores[key] = { best: null, history: [] };
   const entry = DB.scores[key];
-  const record = { date: new Date().toISOString(), points, maxPoints, pct };
+  // verbeFilter (09/09/2026) : quel filtre "Mots" a servi pour cette
+  // tentative (tous / kanji_groupe / simple), pour pouvoir l'afficher sur
+  // le Tableau de bord -- Paul veut savoir quel type de test a ete fait,
+  // pas seulement le score. Absent sur les tentatives enregistrees avant
+  // ce changement (undefined, gere a l'affichage).
+  const record = { date: new Date().toISOString(), points, maxPoints, pct, verbeFilter: verbeFilter || 'tous' };
   entry.history.push(record);
   if (!entry.best || pct > entry.best.pct) {
     entry.best = record;
@@ -947,15 +964,24 @@ function renderDashboard() {
       const groups = getKanjiGroupsForWeek(sem.id, w);
       const entry = getScoreEntry(sem.id, w);
       const saved = getValidInProgress(sem.id, w);
+      // Type de test fait/en cours (09/09/2026) : Paul veut voir quel filtre
+      // "Mots" a servi, pas seulement le score ou la progression brute.
+      // entry.best.verbeFilter est absent sur les tentatives enregistrées
+      // avant ce changement -- pas de tag dans ce cas plutôt qu'un faux
+      // "tous les mots" qui n'a jamais été vérifié.
+      const typeTagScore = entry && entry.best.verbeFilter
+        ? `<span class="week-type-tag">${escapeHtml(libelleFiltreMots(entry.best.verbeFilter))}</span>` : '';
+      const typeTagProgress = saved
+        ? `<span class="week-type-tag">${escapeHtml(libelleFiltreMots(saved.verbeFilter))}</span>` : '';
       html += `
         <div class="week-card ${vocabList.length === 0 ? 'empty' : ''}" data-sem="${sem.id}" data-week="${w}">
           <div class="week-num">${unitPrefix}${w}</div>
           <div class="week-meta">${groups.length} kanji · ${vocabList.length} mots</div>
-          ${entry ? `<div class="week-score">${entry.best.points}/${entry.best.maxPoints} pts <span class="week-score-pct">(${entry.best.pct}%)</span></div>` : '<div class="week-score muted">—</div>'}
+          ${entry ? `<div class="week-score">${entry.best.points}/${entry.best.maxPoints} pts <span class="week-score-pct">(${entry.best.pct}%)</span> ${typeTagScore}</div>` : '<div class="week-score muted">—</div>'}
           ${saved ? `
             <div class="week-progress-bar"><div class="week-progress-fill" style="width:${Math.round((saved.index / saved.queue.length) * 100)}%"></div></div>
             <div class="week-progress-label">
-              ${saved.index}/${saved.queue.length} mots · ${saved.totals.points} pts gagnés
+              ${saved.index}/${saved.queue.length} mots · ${saved.totals.points} pts gagnés ${typeTagProgress}
               <button class="week-restart-btn" data-sem="${sem.id}" data-week="${w}" title="Recommencer cette semaine">↺ Recommencer</button>
             </div>
           ` : ''}
@@ -965,6 +991,54 @@ function renderDashboard() {
     html += `</div></div>`;
   });
   html += kvtAdSlotHtml('dashboard-bottom');
+
+  // Modale de choix par semaine (09/09/2026) : ouverte au clic sur une
+  // carte de semaine (voir plus bas, sur .week-card), affichée par-dessus
+  // le Tableau de bord ("avec le site en fond" -- demande de Paul), pour
+  // voir/choisir le filtre "Mots" avant de démarrer, ET reprendre une
+  // session en cours si elle existe, sans jamais la perdre par erreur.
+  if (modalSemaineOuverte) {
+    const semModal = getSemester(modalSemaineOuverte.semesterId);
+    const weekModal = modalSemaineOuverte.week;
+    const vocabModalTous = getVocabForWeek(modalSemaineOuverte.semesterId, weekModal);
+    const savedModal = getValidInProgress(modalSemaineOuverte.semesterId, weekModal);
+    const entryModal = getScoreEntry(modalSemaineOuverte.semesterId, weekModal);
+    const filtreGroupeCocheModal = reviewVerbeFilter === 'tous' || reviewVerbeFilter === 'kanji_groupe';
+    const filtreSimpleCocheModal = reviewVerbeFilter === 'tous' || reviewVerbeFilter === 'simple';
+    const countModal = filtrerVocabParVerbe(vocabModalTous, reviewVerbeFilter).length;
+    html += `
+      <div class="modal-backdrop" id="modalSemaineBackdrop">
+        <div class="modal-box">
+          <div class="modal-tete">
+            <h3>${escapeHtml(semModal.label)} — Semaine ${weekModal}</h3>
+            <button class="modal-fermer" id="btnFermerModalSemaine" title="Fermer" aria-label="Fermer">✕</button>
+          </div>
+          ${savedModal ? `
+            <div class="modal-reprise">
+              <div>Session en cours : ${savedModal.index}/${savedModal.queue.length} mots · ${savedModal.totals.points} pts gagnés</div>
+              <div style="font-size:12px; color:var(--muted); margin-top:2px;">Type : ${escapeHtml(libelleFiltreMots(savedModal.verbeFilter))}</div>
+              <button class="primary" id="btnContinuerModalSemaine" style="margin-top:8px;">Continuer cette session</button>
+            </div>
+            <div class="modal-separateur">Ou recommencer avec d'autres réglages :</div>
+          ` : entryModal ? `
+            <div style="font-size:13px; color:var(--muted); margin-bottom:10px;">
+              Meilleur score : ${entryModal.best.points}/${entryModal.best.maxPoints} pts (${entryModal.best.pct}%)${entryModal.best.verbeFilter ? ' · ' + escapeHtml(libelleFiltreMots(entryModal.best.verbeFilter)) : ''}
+            </div>
+          ` : ''}
+          <div class="filtre-mots">
+            <label><input type="checkbox" id="chkModalMotsGroupe" ${filtreGroupeCocheModal ? 'checked' : ''}> Mots à kanji groupés</label>
+            <label><input type="checkbox" id="chkModalMotsSimple" ${filtreSimpleCocheModal ? 'checked' : ''}> Mots simples</label>
+            <div class="filtre-mots-desc" style="font-size:12px; color:var(--muted);">
+              Groupés = plusieurs kanji collés sans hiragana (問題, 子供). Simples = verbe (泳ぐ), kanji seul (半) ou adjectif en -i (高い).
+            </div>
+          </div>
+          <div style="font-size:13px; color:var(--muted); margin:10px 0;">${countModal} mot(s) avec ce choix.</div>
+          <button class="primary" id="btnDemarrerModalSemaine" ${countModal === 0 ? 'disabled' : ''}>${savedModal ? 'Recommencer' : 'Démarrer'}</button>
+        </div>
+      </div>
+    `;
+  }
+
   $('#view-dashboard').innerHTML = html;
   renderAllAdSlots();
   afficherVersionDeploiement();
@@ -1002,8 +1076,13 @@ function renderDashboard() {
         switchView('manage');
         showToast('Importe du vocabulaire pour cette semaine avant de réviser');
       } else {
-        startQuiz(sem, w);
-        switchView('review');
+        // Ouvre la modale de choix (09/09/2026) au lieu de démarrer tout de
+        // suite : Paul veut voir/choisir le filtre "Mots" avant de lancer
+        // le test, et reprendre une session en cours sans la perdre. Le
+        // raccourci "↺ Recommencer" (juste en dessous) reste un démarrage
+        // direct pour qui veut aller vite sans repasser par ce choix.
+        modalSemaineOuverte = { semesterId: sem, week: w };
+        renderDashboard();
       }
     });
   });
@@ -1050,6 +1129,48 @@ function renderDashboard() {
     // même logique que le bouton "↺ Recommencer" des cartes de semaine.
     btnReco.addEventListener('click', () => {
       startQuiz(weakWeek.semesterId, weakWeek.week, true);
+      switchView('review');
+    });
+  }
+
+  // Modale de choix par semaine (09/09/2026) : voir le bloc HTML généré
+  // plus haut (modalSemaineOuverte). Fermeture par le bouton ✕ ou un clic
+  // sur le fond (jamais sur la boîte elle-même, d'où le test sur e.target).
+  if (modalSemaineOuverte) {
+    const fermerModal = () => { modalSemaineOuverte = null; renderDashboard(); };
+    $('#btnFermerModalSemaine').addEventListener('click', fermerModal);
+    $('#modalSemaineBackdrop').addEventListener('click', (e) => {
+      if (e.target.id === 'modalSemaineBackdrop') fermerModal();
+    });
+    const recalculerFiltreMotsModal = () => {
+      const groupeCoche = $('#chkModalMotsGroupe').checked;
+      const simpleCoche = $('#chkModalMotsSimple').checked;
+      if (groupeCoche && simpleCoche) reviewVerbeFilter = 'tous';
+      else if (groupeCoche) reviewVerbeFilter = 'kanji_groupe';
+      else if (simpleCoche) reviewVerbeFilter = 'simple';
+      else reviewVerbeFilter = 'aucun';
+      renderDashboard();
+    };
+    $('#chkModalMotsGroupe').addEventListener('change', recalculerFiltreMotsModal);
+    $('#chkModalMotsSimple').addEventListener('change', recalculerFiltreMotsModal);
+    const btnContinuerModal = $('#btnContinuerModalSemaine');
+    if (btnContinuerModal) {
+      btnContinuerModal.addEventListener('click', () => {
+        // Pas de forceRestart : startQuiz retrouve tout seul la session
+        // sauvegardée (même file de mots, même filtre d'origine, même
+        // progression) via getValidInProgress -- voir plus haut dans
+        // app.js. On ne passe pas reviewVerbeFilter ici : changer les
+        // cases de la modale ne doit pas affecter une reprise en cours.
+        const { semesterId, week } = modalSemaineOuverte;
+        modalSemaineOuverte = null;
+        startQuiz(semesterId, week);
+        switchView('review');
+      });
+    }
+    $('#btnDemarrerModalSemaine').addEventListener('click', () => {
+      const { semesterId, week } = modalSemaineOuverte;
+      modalSemaineOuverte = null;
+      startQuiz(semesterId, week, true, reviewVerbeFilter);
       switchView('review');
     });
   }
@@ -1832,7 +1953,7 @@ function renderReview() {
     const key = weekKey(quizSession.semesterId, quizSession.week);
     const prevBest = DB.scores[key] ? DB.scores[key].best.pct : null;
     const improved = prevBest === null || pct > prevBest;
-    recordSessionResult(quizSession.semesterId, quizSession.week, points, maxPoints, pct);
+    recordSessionResult(quizSession.semesterId, quizSession.week, points, maxPoints, pct, quizSession.verbeFilter);
     // Gamification : bonus de pièces si la session est réussie (>= 80%).
     if (typeof bonusFinSession === 'function') bonusFinSession(pct, quizSession.semesterId);
     // Le palier qui compte vraiment : quelqu'un a fait un quiz en entier.
