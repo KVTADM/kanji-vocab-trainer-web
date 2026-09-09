@@ -1296,7 +1296,12 @@ function renderReview() {
       submit();
     });
   } else {
-    $('#btnNextWord').addEventListener('click', () => {
+    // 09/09/2026 : focus natif sur "Mot suivant" -> Entrée l'active direct
+    // (comportement standard d'un <button> focus), pour enchaîner les mots
+    // au clavier sans repasser par la souris entre chaque mot.
+    const nextBtn = $('#btnNextWord');
+    nextBtn.focus();
+    nextBtn.addEventListener('click', () => {
       quizSession.index++;
       quizSession.submitted = false;
       quizSession.warning = null;
