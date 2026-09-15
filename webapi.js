@@ -231,6 +231,28 @@ const JLPT_N4_SEED = {"kanjiGroups":[{"id":"kg-hu66go90952pa","semesterId":"jlpt
     // Barème universel et fixe (voir Réglages) : identique pour l'app Mac,
     // la version amis et le web, pour que le classement de la classe reste
     // comparable entre tout le monde — plus aucune personnalisation possible.
+    // Correction de 4 lectures corrompues dans seed-data.json (15/09/2026) :
+    // des caracteres latins s'etaient glisses dans le champ "lecture" (romaji
+    // partiel ou faute de frappe), rendant impossible toute reponse correcte
+    // en kana pour ces mots pendant le quiz vocabulaire (scoreAnswer compare
+    // la reponse tapee a "lecture" telle quelle). Corrige directement dans
+    // seed-data.json pour les nouveaux comptes, et ici pour les comptes deja
+    // migres (meme principe que MOTS_PARENTHESES_A_NETTOYER ci-dessus) :
+    // idempotent, ne touche que ces 4 ids, et seulement si "lecture" vaut
+    // encore l'ancienne valeur fautive (sinon deja migre, ou modifie
+    // entretemps par l'utilisateur -> on n'y touche pas).
+    const LECTURES_A_CORRIGER = {
+      'v-mrhvk4ux5i2f8': { old: 'りょうこkう', neuve: 'りょうこく' },   // 両国
+      'v-mrhvk4v0d6i83': { old: 'nisei', neuve: 'にせい' },           // 二世
+      'v-mrhvk4v0kc4wa': { old: 'そんzai', neuve: 'そんざい' },        // 存在
+      'v-mrhvk4v5uzjjr': { old: 'denpou', neuve: 'でんぽう' }          // 電報
+    };
+    if (Array.isArray(data.vocab)) {
+      data.vocab.forEach(v => {
+        const fix = LECTURES_A_CORRIGER[v.id];
+        if (fix && v.lecture === fix.old) v.lecture = fix.neuve;
+      });
+    }
     data.settings.pointsPerWord = 10;
     return data;
   }
