@@ -33,9 +33,9 @@ eval(SOURCE + '\n;' + SCENARIOS);
     if (res.ok || !res.erreur.includes('JPEG')) cas.push(['ECHEC', 'format refusé -> ' + JSON.stringify(res)]);
     else cas.push(['OK', 'un GIF est refusé avec un message clair']);
 
-    res = await envoyerAvatar({ type: 'image/png', size: 400 * 1024 });
-    if (res.ok || !res.erreur.includes('300 ko')) cas.push(['ECHEC', 'taille refusée -> ' + JSON.stringify(res)]);
-    else cas.push(['OK', 'une image de 400 ko est refusée avant tout envoi']);
+    res = await envoyerAvatar({ type: 'image/png', size: 1200 * 1024 });
+    if (res.ok || !res.erreur.includes('1 Mo')) cas.push(['ECHEC', 'taille refusée -> ' + JSON.stringify(res)]);
+    else cas.push(['OK', 'une image de 1200 ko (> 1 Mo, nouveau plafond releve le 17/09/2026) est refusee avant tout envoi']);
   })();
 
   let echecs = 0;

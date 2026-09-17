@@ -253,6 +253,33 @@ const JLPT_N4_SEED = {"kanjiGroups":[{"id":"kg-hu66go90952pa","semesterId":"jlpt
         if (fix && v.lecture === fix.old) v.lecture = fix.neuve;
       });
     }
+    // Doublons de vocabulaire dans une meme semaine (signale par Paul le
+    // 17/09/2026) : certains mots apparaissent deux fois dans la meme
+    // semaine d'un meme semestre (souvent parce qu'un mot compose sert a
+    // illustrer deux kanji differents enseignes la meme semaine), ce qui
+    // fait apparaitre deux fois la meme question dans un seul quiz. 53
+    // entrees identifiees en comparant (mot,lecture) au sein de chaque
+    // (semestre,semaine) sur les donnees reelles ; la premiere occurrence
+    // de chaque paire est gardee, les suivantes sont supprimees. Meme
+    // principe que LECTURES_A_CORRIGER ci-dessus : idempotent, cible ces
+    // ids precis uniquement (un id absent = deja migre ou deja supprime
+    // par ailleurs, on n'y touche pas).
+    const VOCAB_DOUBLONS_A_SUPPRIMER = new Set([
+      'v-mrhvk4uv7eco1','v-mrhvk4uxp2jp5','v-mrhvk4uzncj5w','v-mrhvk4v0fvorm','v-mrhvk4v03rrsj',
+      'v-mrhvk4v1ci6b3','v-mrhvk4v21x0u0','v-mrhvk4v2wp9lt','v-mrhvk4veykkc4','v-mrhvk4vefudm4',
+      'v-mrhvk4vf6cxb7','v-mrhvk4vfdo7nt','v-mrhvk4vnfgxuh','v-mrhvk4vqyocih','v-mrhvk4vtry58p',
+      'v-mrhvk4vz3k5xe','v-mrhvk4w0hr803','v-mrhvk4w42f4nq','v-mrhvk4w5esrzm',
+      'v-zh1koejz9vxx8','v-iqd0n2xazavjz','v-gyjxucciasvcj','v-ht344q4jxb9cj','v-wqs0euj51q41g',
+      'v-r1gpzu2y1ewen','v-1y7xj7mfalahe','v-gcjpkrgcewjna','v-3nk1d6uo9vqst','v-aqmje88l4qiky',
+      'v-ka5hy93jbxbvd','v-wn79a6ml5p2tf','v-50rkrg47krdqb','v-cma6bcpnkslji','v-4rdxtm9040bp1',
+      'v-5pmr1uzgcj9sf','v-1004calb37aj7','v-ks12kdkk41xwr','v-gwp75cigbc7h6','v-vuw016pu3co3u',
+      'v-pap1usul5w3qb','v-bbluu4bltf379','v-ip5ugikmxkt70','v-325rrjzo2q7cm','v-6sf0kit60yj7m',
+      'v-ylcnkv68pi4gy','v-l0s1-w2-08-01','v-l0s1-w2-10-01','v-l0s1-w3-06-01','v-l0s1-w8-08-01',
+      'v-l0s1-w8-10-02','v-l0s1-w8-10-06','v-l0s2-w5-07-04','v-l0s2-w9-08-02'
+    ]);
+    if (Array.isArray(data.vocab)) {
+      data.vocab = data.vocab.filter(v => !VOCAB_DOUBLONS_A_SUPPRIMER.has(v.id));
+    }
     data.settings.pointsPerWord = 10;
     return data;
   }

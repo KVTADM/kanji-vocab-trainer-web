@@ -118,7 +118,7 @@ async function enregistrerProfil(champs) {
   return { ok: true };
 }
 
-const AVATAR_TAILLE_MAX = 300 * 1024;
+const AVATAR_TAILLE_MAX = 1024 * 1024; // 1 Mo (releve de 300 ko le 17/09/2026, a la demande de Paul)
 const AVATAR_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 
 // L'envoi est vérifié ici ET par la base : ce contrôle-ci sert à donner un
@@ -129,7 +129,7 @@ async function envoyerAvatar(fichier) {
     return { ok: false, erreur: 'Format accepté : JPEG, PNG ou WebP.' };
   }
   if (fichier.size > AVATAR_TAILLE_MAX) {
-    return { ok: false, erreur: `Image trop lourde (${Math.round(fichier.size / 1024)} ko). Maximum 300 ko.` };
+    return { ok: false, erreur: `Image trop lourde (${Math.round(fichier.size / 1024)} ko). Maximum 1024 ko (1 Mo).` };
   }
 
   const extension = fichier.type === 'image/png' ? 'png' : (fichier.type === 'image/webp' ? 'webp' : 'jpg');
