@@ -51,12 +51,15 @@ essai('sans catégorie créée, tout est réparti entre Cursus et JLPT', () => {
   if (par !== 'cursus,cursus,jlpt,cursus') throw new Error(par);
 });
 
-essai('un onglet vide ne s\'affiche pas, sauf Cursus', () => {
+essai('un onglet vide ne s\'affiche pas, sauf Cursus et Special', () => {
   DB = base();
   DB.settings.semesters = [{ id: 's1', label: 'S1', weeks: 12 }];
   dashboardMode = 'cursus';
+  // 'special' (17/09/2026) : toujours visible comme Cursus, meme sans
+  // aucun semestre range dedans (ce n'est pas une categorie de semestres,
+  // juste les 3 entrees Ecriture/Traduction/Vocabulaire pratique).
   const ids = ongletsDashboard().map(o => o.id).join(',');
-  if (ids !== 'cursus') throw new Error('onglets = ' + ids);
+  if (ids !== 'cursus,special') throw new Error('onglets = ' + ids);
 });
 
 essai('créer une catégorie et y ranger un semestre', async () => {

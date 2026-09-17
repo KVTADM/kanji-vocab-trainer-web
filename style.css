@@ -798,6 +798,15 @@ code {
 }
 .week-restart-btn:hover { border-color: var(--pink); color: var(--pink); }
 
+/* Onglet "Special" (17/09/2026) : 3 cartes d'entree vers Ecriture,
+   Traduction et Vocabulaire pratique -- aussi visibles que Cursus/JLPT. */
+.special-modes-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+}
+.special-mode-card { margin-bottom: 0; }
+
 /* Type de test fait/en cours (09/09/2026) : quel filtre "Mots" a servi,
    affiché en petit à côté du score ou de la barre de progression. */
 .week-type-tag {

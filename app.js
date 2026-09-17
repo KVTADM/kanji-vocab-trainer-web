@@ -791,9 +791,14 @@ function ongletsDashboard() {
   });
   const onglets = [
     { id: 'cursus', label: 'Cursus', integre: true },
-    { id: 'jlpt', label: 'JLPT', integre: true }
+    { id: 'jlpt', label: 'JLPT', integre: true },
+    { id: 'special', label: 'Spécial', integre: true }
   ].concat(categoriesLibres().map(c => ({ id: c.id, label: c.label, integre: false })));
-  return onglets.filter(o => compte[o.id] || o.id === dashboardMode || o.id === 'cursus');
+  // 'special' (17/09/2026) : regroupe les 3 nouveaux modes (Écriture,
+  // Traduction, Vocabulaire pratique) -- toujours visible comme Cursus,
+  // meme si cette categorie ne contient jamais de semestre (ce n'est pas
+  // une categorie de semestres, juste 3 points d'entree vers Reviser).
+  return onglets.filter(o => compte[o.id] || o.id === dashboardMode || o.id === 'cursus' || o.id === 'special');
 }
 
 async function creerCategorie() {
@@ -967,6 +972,30 @@ function renderDashboard() {
       </div>`;
   }
 
+  if (dashboardMode === 'special') {
+    // Onglet "Special" (17/09/2026) : regroupe les 3 nouveaux modes
+    // (Ecriture, Traduction, Vocabulaire pratique) au meme niveau de
+    // visibilite que Cursus/JLPT, plutot que de les enterrer dans le menu
+    // deroulant de l'ecran Reviser comme Kanji seul/Kana -- demande
+    // explicite de Paul. Pas de semestres ici : chaque carte mene
+    // directement a l'ecran de choix du mode concerne (Reviser), avec le
+    // bon mode deja preselectionne.
+    const specialModes = [
+      { id: 'ecriture', titre: 'Écriture', desc: 'La lecture (kana) s’affiche, tu écris le kanji toi-même sur papier, puis tu révèles la réponse pour t’auto-corriger. Pas de notation automatique.' },
+      { id: 'traduction', titre: 'Traduction', desc: 'Le sens en français s’affiche, tu réponds en kanji ou en kana. Notation automatique comme en mode Vocabulaire.' },
+      { id: 'pratique', titre: 'Vocabulaire pratique', desc: 'Compteurs, couleurs et expressions de temps/heure -- du vocabulaire utile en dehors du programme.' }
+    ];
+    html += `<div class="special-modes-grid">`;
+    specialModes.forEach(m => {
+      html += `
+        <div class="card special-mode-card" data-special-mode="${m.id}">
+          <h3>${escapeHtml(m.titre)}</h3>
+          <p style="font-size:13px; color:var(--muted); margin-top:4px;">${escapeHtml(m.desc)}</p>
+          <button class="primary" data-special-mode-btn="${m.id}" style="margin-top:12px;">Ouvrir</button>
+        </div>`;
+    });
+    html += `</div>`;
+  } else {
   const visibleSemesters = DB.settings.semesters.filter(sem => categorieDuSemestre(sem) === dashboardMode);
 
   if (!visibleSemesters.length) {
@@ -1019,6 +1048,7 @@ function renderDashboard() {
     }
     html += `</div></div>`;
   });
+  }
   html += kvtAdSlotHtml('dashboard-bottom');
 
   // Modale de choix par semaine (09/09/2026) : ouverte au clic sur une
@@ -1076,6 +1106,16 @@ function renderDashboard() {
     b.addEventListener('click', () => { dashboardMode = b.dataset.onglet; renderDashboard(); });
   });
   $('#btnNouvelleCategorie').addEventListener('click', creerCategorie);
+  // Cartes de l'onglet "Special" (17/09/2026) : chaque carte ouvre l'ecran
+  // Reviser avec le mode correspondant deja présélectionné (meme geste
+  // que "Reviser (choisir mode...)" mais sans repasser par le menu).
+  $$('[data-special-mode-btn]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      reviewPickerMode = btn.dataset.specialModeBtn;
+      quizSession = null;
+      switchView('review');
+    });
+  });
   // Point d'entree direct vers l'ecran de choix (mode/difficulte/mots) sans
   // passer par une semaine precise : sans ca, cliquer une carte de semaine
   // ou "Continuer" demarre tout de suite le quiz et l'ecran de choix
@@ -1868,6 +1908,497 @@ function startKanjiQuiz(semesterId, week, forceRestart) {
   };
 }
 
+// ---------- Mode "Ecriture" (kana affiche -> kanji ecrit sur papier) ----------
+// Demande explicite de Paul (17/09/2026) : PAS de notation automatique --
+// l'utilisateur ecrit le kanji lui-meme sur papier, puis revele la reponse
+// pour s'auto-corriger. Volontairement stateless (pas de score, pas de
+// reprise de session sauvegardee) : il n'y a rien a noter, donc rien a
+// persister -- une carte "termine" en fin de file suffit a boucler.
+function startEcritureQuiz(semesterId, week, verbeFilter) {
+  const filtre = verbeFilter || 'tous';
+  const vocabList = filtrerVocabParVerbe(getVocabForWeek(semesterId, week), filtre);
+  quizSession = {
+    mode: 'ecriture', semesterId, week,
+    queue: shuffle(vocabList.map(v => v.id)),
+    index: 0,
+    revealed: false
+  };
+}
+
+function renderEcritureQuizView(container) {
+  if (quizSession.index >= quizSession.queue.length) {
+    container.innerHTML = `
+      <h2>Ecriture -- ${escapeHtml(getSemester(quizSession.semesterId).label)} Semaine ${quizSession.week}</h2>
+      <div class="kvt-result kvt-result--good">
+        <div class="kvt-result__title">Termine.</div>
+        <div class="kvt-result__sub">${quizSession.queue.length} mot(s) ecrit(s). Pas de score sur ce mode -- l'auto-correction sur papier suffit.</div>
+        <button class="kvt-result__btn" type="button" id="btnBackEcritureReview">Retour</button>
+      </div>
+    `;
+    $('#btnBackEcritureReview').addEventListener('click', () => {
+      quizSession = null;
+      renderReview();
+    });
+    return;
+  }
+
+  const vocabId = quizSession.queue[quizSession.index];
+  const v = DB.vocab.find(x => x.id === vocabId);
+  const progressPct = Math.round((quizSession.index / quizSession.queue.length) * 100);
+
+  container.innerHTML = `
+    <h2>Ecriture -- ${escapeHtml(getSemester(quizSession.semesterId).label)} Semaine ${quizSession.week}</h2>
+    <div class="flashcard-wrap">
+      <div class="session-progress">
+        <div style="font-size:12px; color:var(--muted);">${quizSession.index + 1} / ${quizSession.queue.length}</div>
+        <div class="progress-bar"><div class="progress-fill" style="width:${progressPct}%"></div></div>
+      </div>
+      <div class="flashcard">
+        <div class="front-word">${escapeHtml(v.lecture)}</div>
+        <div class="hint" style="margin-top:8px;">Ecris le kanji sur papier, puis revele pour verifier.</div>
+        ${quizSession.revealed ? `
+          <div class="back-reading">${escapeHtml(v.mot)}</div>
+          ${v.sens ? `<div class="back-meaning">${escapeHtml(v.sens)}</div>` : ''}
+        ` : ''}
+      </div>
+      ${!quizSession.revealed ? `
+        <button class="primary" id="btnRevealEcriture" style="margin-top:18px;">Reveler la reponse</button>
+      ` : `
+        <button class="primary" id="btnNextEcriture" style="margin-top:18px;">Mot suivant</button>
+      `}
+      <button class="secondary" id="btnQuitEcritureQuiz" style="margin-top:12px;">Quitter la session</button>
+    </div>
+  `;
+
+  if (!quizSession.revealed) {
+    $('#btnRevealEcriture').addEventListener('click', () => {
+      quizSession.revealed = true;
+      renderReview();
+    });
+  } else {
+    const nextBtn = $('#btnNextEcriture');
+    setTimeout(() => nextBtn.focus(), 0);
+    nextBtn.addEventListener('click', () => {
+      quizSession.index++;
+      quizSession.revealed = false;
+      renderReview();
+    });
+  }
+
+  $('#btnQuitEcritureQuiz').addEventListener('click', () => {
+    quizSession = null;
+    renderReview();
+  });
+}
+
+// ---------- Mode "Traduction" (francais -> japonais) ----------
+// Le sens en francais s'affiche, la reponse est attendue en kanji OU en
+// kana -- on reutilise scoreAnswer() en lui passant mot+lecture comme
+// alternatives valables (meme mecanisme que les mots a lectures multiples
+// separees par "/", voir plus haut) : pas besoin d'une logique de
+// correspondance dediee. Namespace a part (DB.scoresTraduction /
+// DB.inProgressTraduction), jamais melange avec DB.scores (mode
+// Vocabulaire) -- meme discipline que Kanji seul/Kana.
+function scoreTraductionAnswer(input, v) {
+  return scoreAnswer(input, `${v.mot}/${v.lecture}`);
+}
+function getTraductionScoreEntry(semesterId, week) {
+  return (DB.scoresTraduction && DB.scoresTraduction[weekKey(semesterId, week)]) || null;
+}
+function recordTraductionSessionResult(semesterId, week, points, maxPoints, pct) {
+  if (!DB.scoresTraduction) DB.scoresTraduction = {};
+  const key = weekKey(semesterId, week);
+  if (!DB.scoresTraduction[key]) DB.scoresTraduction[key] = { best: null, history: [] };
+  const entry = DB.scoresTraduction[key];
+  const record = { date: new Date().toISOString(), points, maxPoints, pct };
+  entry.history.push(record);
+  if (!entry.best || pct > entry.best.pct) entry.best = record;
+}
+function getValidTraductionInProgress(semesterId, week) {
+  if (!DB.inProgressTraduction) return null;
+  const saved = DB.inProgressTraduction[weekKey(semesterId, week)];
+  if (!saved || !Array.isArray(saved.queue) || !Array.isArray(saved.answers)) return null;
+  const vocabList = filtrerVocabParVerbe(getVocabForWeek(semesterId, week), saved.verbeFilter || 'tous');
+  const currentIds = new Set(vocabList.map(v => v.id));
+  const stillValid = saved.queue.length === vocabList.length && saved.queue.every(id => currentIds.has(id));
+  if (!stillValid || saved.index >= saved.queue.length) return null;
+  return saved;
+}
+function saveTraductionInProgress() {
+  if (!quizSession || quizSession.mode !== 'traduction') return;
+  if (!DB.inProgressTraduction) DB.inProgressTraduction = {};
+  DB.inProgressTraduction[weekKey(quizSession.semesterId, quizSession.week)] = {
+    queue: quizSession.queue,
+    index: quizSession.answers.length,
+    totals: { ...quizSession.totals },
+    hardcore: quizSession.hardcore,
+    verbeFilter: quizSession.verbeFilter || 'tous',
+    answers: quizSession.answers.slice(),
+    updatedAt: new Date().toISOString()
+  };
+  persist();
+}
+function clearTraductionInProgress(semesterId, week) {
+  if (DB.inProgressTraduction) delete DB.inProgressTraduction[weekKey(semesterId, week)];
+}
+
+function renderTraductionQuizView(container) {
+  if (quizSession.index >= quizSession.queue.length) {
+    const { points, maxPoints } = quizSession.totals;
+    const pct = maxPoints > 0 ? Math.round((points / maxPoints) * 100) : 0;
+    const prevEntry = getTraductionScoreEntry(quizSession.semesterId, quizSession.week);
+    const prevBest = prevEntry ? prevEntry.best.pct : null;
+    const improved = prevBest === null || pct > prevBest;
+    recordTraductionSessionResult(quizSession.semesterId, quizSession.week, points, maxPoints, pct);
+    clearTraductionInProgress(quizSession.semesterId, quizSession.week);
+    persist();
+    if (typeof kvtSnapshotHistorique === 'function') kvtSnapshotHistorique();
+    const semLabel = getSemester(quizSession.semesterId).label;
+    const etat = pct >= 100 ? 'perfect' : (pct >= 70 ? 'good' : 'low');
+    const badge = improved
+      ? `<div class="kvt-result__badge">Record -- nouveau meilleur score</div>`
+      : (prevBest !== null ? `<div class="kvt-result__badge">Meilleur score : ${prevBest}&nbsp;%</div>` : '');
+    container.innerHTML = `
+      <h2>Traduction -- ${escapeHtml(semLabel)} Semaine ${quizSession.week}</h2>
+      <div class="kvt-result kvt-result--${etat}">
+        ${badge}
+        <div class="kvt-result__pct">${pct}&nbsp;%</div>
+        <div class="kvt-result__points">${points} / ${maxPoints} points</div>
+        <button class="kvt-result__btn" type="button" id="btnBackTraductionReview">Retour</button>
+      </div>
+    `;
+    $('#btnBackTraductionReview').addEventListener('click', () => {
+      quizSession = null;
+      renderReview();
+    });
+    return;
+  }
+
+  const vocabId = quizSession.queue[quizSession.index];
+  const v = DB.vocab.find(x => x.id === vocabId);
+  const progressPct = Math.round((quizSession.index / quizSession.queue.length) * 100);
+
+  container.innerHTML = `
+    <h2>Traduction -- ${escapeHtml(getSemester(quizSession.semesterId).label)} Semaine ${quizSession.week}</h2>
+    <div class="flashcard-wrap">
+      <div class="session-progress">
+        <div style="font-size:12px; color:var(--muted);">${quizSession.index + 1} / ${quizSession.queue.length}</div>
+        <div class="progress-bar"><div class="progress-fill" style="width:${progressPct}%"></div></div>
+      </div>
+      <div class="flashcard">
+        <div class="front-word">${escapeHtml(v.sens || '(sens manquant)')}</div>
+        ${!quizSession.submitted ? `
+          ${quizSession.warning ? `<div class="quiz-feedback bad" style="margin-top:12px;">${escapeHtml(quizSession.warning)}</div>` : ''}
+          <div class="answer-input-wrap">
+            <input id="answerInputTraduction" type="text" placeholder="Reponds en kanji ou en kana" style="margin-top:16px; width:280px; text-align:center; font-size:18px;"/>
+          </div>
+        ` : quizSession.hardcore ? `
+          <div class="quiz-feedback mid" style="margin-top:16px;">
+            Reponse enregistree. Correction disponible a la fin de la session.
+          </div>
+        ` : `
+          <div class="back-reading">${escapeHtml(v.mot)} (${escapeHtml(v.lecture)})</div>
+          <div class="quiz-feedback ${quizSession.lastResult.pct >= 0.99 ? 'good' : (quizSession.lastResult.pct >= 0.6 ? 'mid' : 'bad')}">
+            Ta reponse : "${escapeHtml(quizSession.lastAnswer) || '(vide)'}" -- ${quizSession.lastResult.points}/${DB.settings.pointsPerWord} points (${Math.round(quizSession.lastResult.pct * 100)}% de similarite)
+          </div>
+        `}
+      </div>
+      ${!quizSession.submitted ? `
+        <button class="primary" id="btnSubmitTraduction" style="margin-top:18px;">Valider</button>
+      ` : `
+        <button class="primary" id="btnNextTraduction" style="margin-top:18px;">Mot suivant</button>
+      `}
+      <button class="secondary" id="btnQuitTraductionQuiz" style="margin-top:12px;">Quitter la session</button>
+    </div>
+  `;
+
+  if (!quizSession.submitted) {
+    const input = $('#answerInputTraduction');
+    input.focus();
+    const submit = () => {
+      const val = input.value;
+      quizSession.warning = null;
+      const result = scoreTraductionAnswer(val, v);
+      quizSession.submitted = true;
+      quizSession.lastAnswer = val;
+      quizSession.lastResult = result;
+      quizSession.totals.points += result.points;
+      quizSession.answers.push({ mot: v.mot, lecture: v.lecture, sens: v.sens, userAnswer: val, points: result.points, pct: result.pct });
+      recordWordAttempt(v.id, result.pct);
+      if (typeof gagnerXp === 'function') gagnerXp(result.points, quizSession.semesterId);
+      if (typeof gagnerPieces === 'function') gagnerPieces(result.points, quizSession.semesterId);
+      if (typeof mettreAJourStreak === 'function') mettreAJourStreak();
+      saveTraductionInProgress();
+      renderReview();
+    };
+    $('#btnSubmitTraduction').addEventListener('click', submit);
+    input.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter') return;
+      if (e.isComposing || e.keyCode === 229) return;
+      submit();
+    });
+  } else {
+    const nextBtn = $('#btnNextTraduction');
+    setTimeout(() => nextBtn.focus(), 0);
+    nextBtn.addEventListener('click', () => {
+      quizSession.index++;
+      quizSession.submitted = false;
+      quizSession.warning = null;
+      renderReview();
+    });
+  }
+
+  $('#btnQuitTraductionQuiz').addEventListener('click', () => {
+    quizSession = null;
+    renderReview();
+  });
+}
+
+function startTraductionQuiz(semesterId, week, forceRestart, verbeFilter) {
+  const filtre = verbeFilter || 'tous';
+  const vocabList = filtrerVocabParVerbe(getVocabForWeek(semesterId, week), filtre);
+  const saved = forceRestart ? null : getValidTraductionInProgress(semesterId, week);
+  if (saved) {
+    quizSession = {
+      mode: 'traduction', semesterId, week,
+      queue: saved.queue,
+      index: saved.index,
+      submitted: false,
+      lastAnswer: '',
+      lastResult: null,
+      warning: null,
+      hardcore: saved.hardcore,
+      verbeFilter: saved.verbeFilter || 'tous',
+      answers: saved.answers.slice(),
+      totals: { ...saved.totals }
+    };
+    return;
+  }
+  clearTraductionInProgress(semesterId, week);
+  const queue = shuffle(vocabList.map(v => v.id));
+  quizSession = {
+    mode: 'traduction', semesterId, week,
+    queue,
+    index: 0,
+    submitted: false,
+    lastAnswer: '',
+    lastResult: null,
+    warning: null,
+    hardcore: !!DB.settings.hardcoreMode,
+    verbeFilter: filtre,
+    answers: [],
+    totals: { points: 0, maxPoints: queue.length * DB.settings.pointsPerWord }
+  };
+}
+
+// ---------- Mode "Vocabulaire pratique" (compteurs, couleurs, heure) ----------
+// Contenu thematique nouveau (17/09/2026, demande de Paul), hors programme
+// JLPT/Cursus -- pas de semestre/semaine, juste un theme. Meme direction
+// que le mode Vocabulaire de base (mot affiche -> lecture attendue),
+// notation via scoreAnswer(). Namespace a part (DB.scoresPratique /
+// DB.inProgressPratique), jamais melange avec DB.scores. Pas d'appel a
+// recordWordAttempt() ici : ce vocabulaire ne vit pas dans DB.vocab, le
+// melanger aux stats par mot du programme creerait des entrees orphelines.
+const PRATIQUE_THEMES = [
+  { id: 'compteurs', label: 'Compteurs' },
+  { id: 'couleurs', label: 'Couleurs' },
+  { id: 'heure', label: 'Heure' }
+];
+const PRATIQUE_VOCAB = [{"id":"pr-compteurs-01","theme":"compteurs","mot":"一つ","lecture":"ひとつ","sens":"un (objet, generique)"},{"id":"pr-compteurs-02","theme":"compteurs","mot":"二つ","lecture":"ふたつ","sens":"deux (objets, generique)"},{"id":"pr-compteurs-03","theme":"compteurs","mot":"三つ","lecture":"みっつ","sens":"trois (objets, generique)"},{"id":"pr-compteurs-04","theme":"compteurs","mot":"四つ","lecture":"よっつ","sens":"quatre (objets, generique)"},{"id":"pr-compteurs-05","theme":"compteurs","mot":"五つ","lecture":"いつつ","sens":"cinq (objets, generique)"},{"id":"pr-compteurs-06","theme":"compteurs","mot":"六つ","lecture":"むっつ","sens":"six (objets, generique)"},{"id":"pr-compteurs-07","theme":"compteurs","mot":"七つ","lecture":"ななつ","sens":"sept (objets, generique)"},{"id":"pr-compteurs-08","theme":"compteurs","mot":"八つ","lecture":"やっつ","sens":"huit (objets, generique)"},{"id":"pr-compteurs-09","theme":"compteurs","mot":"九つ","lecture":"ここのつ","sens":"neuf (objets, generique)"},{"id":"pr-compteurs-10","theme":"compteurs","mot":"十","lecture":"とお","sens":"dix (objets, generique)"},{"id":"pr-compteurs-11","theme":"compteurs","mot":"一人","lecture":"ひとり","sens":"une personne"},{"id":"pr-compteurs-12","theme":"compteurs","mot":"二人","lecture":"ふたり","sens":"deux personnes"},{"id":"pr-compteurs-13","theme":"compteurs","mot":"三人","lecture":"さんにん","sens":"trois personnes"},{"id":"pr-compteurs-14","theme":"compteurs","mot":"四人","lecture":"よにん","sens":"quatre personnes"},{"id":"pr-compteurs-15","theme":"compteurs","mot":"五人","lecture":"ごにん","sens":"cinq personnes"},{"id":"pr-compteurs-16","theme":"compteurs","mot":"何人","lecture":"なんにん","sens":"combien de personnes"},{"id":"pr-compteurs-17","theme":"compteurs","mot":"一本","lecture":"いっぽん","sens":"un (objet long/cylindrique)"},{"id":"pr-compteurs-18","theme":"compteurs","mot":"二本","lecture":"にほん","sens":"deux (objets longs)"},{"id":"pr-compteurs-19","theme":"compteurs","mot":"三本","lecture":"さんぼん","sens":"trois (objets longs)"},{"id":"pr-compteurs-20","theme":"compteurs","mot":"一枚","lecture":"いちまい","sens":"un (objet plat/feuille)"},{"id":"pr-compteurs-21","theme":"compteurs","mot":"二枚","lecture":"にまい","sens":"deux (objets plats)"},{"id":"pr-compteurs-22","theme":"compteurs","mot":"三枚","lecture":"さんまい","sens":"trois (objets plats)"},{"id":"pr-compteurs-23","theme":"compteurs","mot":"一匹","lecture":"いっぴき","sens":"un (petit animal)"},{"id":"pr-compteurs-24","theme":"compteurs","mot":"二匹","lecture":"にひき","sens":"deux (petits animaux)"},{"id":"pr-compteurs-25","theme":"compteurs","mot":"三匹","lecture":"さんびき","sens":"trois (petits animaux)"},{"id":"pr-compteurs-26","theme":"compteurs","mot":"一冊","lecture":"いっさつ","sens":"un (livre/cahier)"},{"id":"pr-compteurs-27","theme":"compteurs","mot":"二冊","lecture":"にさつ","sens":"deux (livres/cahiers)"},{"id":"pr-compteurs-28","theme":"compteurs","mot":"一台","lecture":"いちだい","sens":"un (vehicule/machine)"},{"id":"pr-compteurs-29","theme":"compteurs","mot":"二台","lecture":"にだい","sens":"deux (vehicules/machines)"},{"id":"pr-compteurs-30","theme":"compteurs","mot":"一階","lecture":"いっかい","sens":"premier etage / rez-de-chaussee"},{"id":"pr-compteurs-31","theme":"compteurs","mot":"二階","lecture":"にかい","sens":"deuxieme etage"},{"id":"pr-compteurs-32","theme":"compteurs","mot":"三階","lecture":"さんがい","sens":"troisieme etage"},{"id":"pr-compteurs-33","theme":"compteurs","mot":"何階","lecture":"なんがい","sens":"quel etage"},{"id":"pr-compteurs-34","theme":"compteurs","mot":"一回","lecture":"いっかい","sens":"une fois"},{"id":"pr-compteurs-35","theme":"compteurs","mot":"二回","lecture":"にかい","sens":"deux fois"},{"id":"pr-compteurs-36","theme":"compteurs","mot":"何回","lecture":"なんかい","sens":"combien de fois"},{"id":"pr-compteurs-37","theme":"compteurs","mot":"一歳","lecture":"いっさい","sens":"un an (age)"},{"id":"pr-compteurs-38","theme":"compteurs","mot":"二十歳","lecture":"はたち","sens":"vingt ans"},{"id":"pr-compteurs-39","theme":"compteurs","mot":"何歳","lecture":"なんさい","sens":"quel age"},{"id":"pr-couleurs-01","theme":"couleurs","mot":"赤","lecture":"あか","sens":"rouge"},{"id":"pr-couleurs-02","theme":"couleurs","mot":"青","lecture":"あお","sens":"bleu"},{"id":"pr-couleurs-03","theme":"couleurs","mot":"黄色","lecture":"きいろ","sens":"jaune"},{"id":"pr-couleurs-04","theme":"couleurs","mot":"白","lecture":"しろ","sens":"blanc"},{"id":"pr-couleurs-05","theme":"couleurs","mot":"黒","lecture":"くろ","sens":"noir"},{"id":"pr-couleurs-06","theme":"couleurs","mot":"緑","lecture":"みどり","sens":"vert"},{"id":"pr-couleurs-07","theme":"couleurs","mot":"茶色","lecture":"ちゃいろ","sens":"marron"},{"id":"pr-couleurs-08","theme":"couleurs","mot":"紫","lecture":"むらさき","sens":"violet"},{"id":"pr-couleurs-09","theme":"couleurs","mot":"灰色","lecture":"はいいろ","sens":"gris"},{"id":"pr-couleurs-10","theme":"couleurs","mot":"オレンジ","lecture":"おれんじ","sens":"orange"},{"id":"pr-couleurs-11","theme":"couleurs","mot":"ピンク","lecture":"ぴんく","sens":"rose"},{"id":"pr-couleurs-12","theme":"couleurs","mot":"金色","lecture":"きんいろ","sens":"dore"},{"id":"pr-couleurs-13","theme":"couleurs","mot":"銀色","lecture":"ぎんいろ","sens":"argente"},{"id":"pr-couleurs-14","theme":"couleurs","mot":"赤い","lecture":"あかい","sens":"rouge (adjectif)"},{"id":"pr-couleurs-15","theme":"couleurs","mot":"青い","lecture":"あおい","sens":"bleu (adjectif)"},{"id":"pr-couleurs-16","theme":"couleurs","mot":"黄色い","lecture":"きいろい","sens":"jaune (adjectif)"},{"id":"pr-couleurs-17","theme":"couleurs","mot":"白い","lecture":"しろい","sens":"blanc (adjectif)"},{"id":"pr-couleurs-18","theme":"couleurs","mot":"黒い","lecture":"くろい","sens":"noir (adjectif)"},{"id":"pr-couleurs-19","theme":"couleurs","mot":"茶色い","lecture":"ちゃいろい","sens":"marron (adjectif)"},{"id":"pr-couleurs-20","theme":"couleurs","mot":"何色","lecture":"なにいろ","sens":"quelle couleur"},{"id":"pr-heure-01","theme":"heure","mot":"時","lecture":"じ","sens":"heure (compteur)"},{"id":"pr-heure-02","theme":"heure","mot":"一時","lecture":"いちじ","sens":"1 heure"},{"id":"pr-heure-03","theme":"heure","mot":"二時","lecture":"にじ","sens":"2 heures"},{"id":"pr-heure-04","theme":"heure","mot":"三時","lecture":"さんじ","sens":"3 heures"},{"id":"pr-heure-05","theme":"heure","mot":"四時","lecture":"よじ","sens":"4 heures"},{"id":"pr-heure-06","theme":"heure","mot":"五時","lecture":"ごじ","sens":"5 heures"},{"id":"pr-heure-07","theme":"heure","mot":"六時","lecture":"ろくじ","sens":"6 heures"},{"id":"pr-heure-08","theme":"heure","mot":"七時","lecture":"しちじ","sens":"7 heures"},{"id":"pr-heure-09","theme":"heure","mot":"八時","lecture":"はちじ","sens":"8 heures"},{"id":"pr-heure-10","theme":"heure","mot":"九時","lecture":"くじ","sens":"9 heures"},{"id":"pr-heure-11","theme":"heure","mot":"十時","lecture":"じゅうじ","sens":"10 heures"},{"id":"pr-heure-12","theme":"heure","mot":"十一時","lecture":"じゅういちじ","sens":"11 heures"},{"id":"pr-heure-13","theme":"heure","mot":"十二時","lecture":"じゅうにじ","sens":"12 heures"},{"id":"pr-heure-14","theme":"heure","mot":"何時","lecture":"なんじ","sens":"quelle heure"},{"id":"pr-heure-15","theme":"heure","mot":"分","lecture":"ふん","sens":"minute (compteur)"},{"id":"pr-heure-16","theme":"heure","mot":"一分","lecture":"いっぷん","sens":"1 minute"},{"id":"pr-heure-17","theme":"heure","mot":"二分","lecture":"にふん","sens":"2 minutes"},{"id":"pr-heure-18","theme":"heure","mot":"三分","lecture":"さんぷん","sens":"3 minutes"},{"id":"pr-heure-19","theme":"heure","mot":"五分","lecture":"ごふん","sens":"5 minutes"},{"id":"pr-heure-20","theme":"heure","mot":"十分","lecture":"じゅっぷん","sens":"10 minutes"},{"id":"pr-heure-21","theme":"heure","mot":"半","lecture":"はん","sens":"et demie"},{"id":"pr-heure-22","theme":"heure","mot":"午前","lecture":"ごぜん","sens":"matin (avant midi, AM)"},{"id":"pr-heure-23","theme":"heure","mot":"午後","lecture":"ごご","sens":"apres-midi (apres midi, PM)"},{"id":"pr-heure-24","theme":"heure","mot":"朝","lecture":"あさ","sens":"matin"},{"id":"pr-heure-25","theme":"heure","mot":"昼","lecture":"ひる","sens":"midi / journee"},{"id":"pr-heure-26","theme":"heure","mot":"夜","lecture":"よる","sens":"soir / nuit"},{"id":"pr-heure-27","theme":"heure","mot":"今","lecture":"いま","sens":"maintenant"}];
+
+function getPratiqueList(theme) {
+  return PRATIQUE_VOCAB.filter(v => v.theme === theme);
+}
+function buildPratiqueQueue(theme) {
+  return getPratiqueList(theme).map(v => v.id);
+}
+function getPratiqueScoreEntry(theme) {
+  return (DB.scoresPratique && DB.scoresPratique[theme]) || null;
+}
+function recordPratiqueSessionResult(theme, points, maxPoints, pct) {
+  if (!DB.scoresPratique) DB.scoresPratique = {};
+  if (!DB.scoresPratique[theme]) DB.scoresPratique[theme] = { best: null, history: [] };
+  const entry = DB.scoresPratique[theme];
+  const record = { date: new Date().toISOString(), points, maxPoints, pct };
+  entry.history.push(record);
+  if (!entry.best || pct > entry.best.pct) entry.best = record;
+}
+function getValidPratiqueInProgress(theme) {
+  if (!DB.inProgressPratique) return null;
+  const saved = DB.inProgressPratique[theme];
+  if (!saved || !Array.isArray(saved.queue) || !Array.isArray(saved.answers)) return null;
+  const currentIds = new Set(getPratiqueList(theme).map(v => v.id));
+  const stillValid = saved.queue.length === currentIds.size && saved.queue.every(id => currentIds.has(id));
+  if (!stillValid || saved.index >= saved.queue.length) return null;
+  return saved;
+}
+function savePratiqueInProgress() {
+  if (!quizSession || quizSession.mode !== 'pratique') return;
+  if (!DB.inProgressPratique) DB.inProgressPratique = {};
+  DB.inProgressPratique[quizSession.theme] = {
+    queue: quizSession.queue,
+    index: quizSession.answers.length,
+    totals: { ...quizSession.totals },
+    hardcore: quizSession.hardcore,
+    answers: quizSession.answers.slice(),
+    updatedAt: new Date().toISOString()
+  };
+  persist();
+}
+function clearPratiqueInProgress(theme) {
+  if (DB.inProgressPratique) delete DB.inProgressPratique[theme];
+}
+
+function renderPratiqueQuizView(container) {
+  if (quizSession.index >= quizSession.queue.length) {
+    const { points, maxPoints } = quizSession.totals;
+    const pct = maxPoints > 0 ? Math.round((points / maxPoints) * 100) : 0;
+    const prevEntry = getPratiqueScoreEntry(quizSession.theme);
+    const prevBest = prevEntry ? prevEntry.best.pct : null;
+    const improved = prevBest === null || pct > prevBest;
+    recordPratiqueSessionResult(quizSession.theme, points, maxPoints, pct);
+    clearPratiqueInProgress(quizSession.theme);
+    persist();
+    if (typeof kvtSnapshotHistorique === 'function') kvtSnapshotHistorique();
+    const themeLabel = (PRATIQUE_THEMES.find(t => t.id === quizSession.theme) || {}).label || '';
+    const etat = pct >= 100 ? 'perfect' : (pct >= 70 ? 'good' : 'low');
+    const badge = improved
+      ? `<div class="kvt-result__badge">Record -- nouveau meilleur score</div>`
+      : (prevBest !== null ? `<div class="kvt-result__badge">Meilleur score : ${prevBest}&nbsp;%</div>` : '');
+    container.innerHTML = `
+      <h2>Vocabulaire pratique -- ${escapeHtml(themeLabel)}</h2>
+      <div class="kvt-result kvt-result--${etat}">
+        ${badge}
+        <div class="kvt-result__pct">${pct}&nbsp;%</div>
+        <div class="kvt-result__points">${points} / ${maxPoints} points</div>
+        <button class="kvt-result__btn" type="button" id="btnBackPratiqueReview">Retour</button>
+      </div>
+    `;
+    $('#btnBackPratiqueReview').addEventListener('click', () => {
+      quizSession = null;
+      renderReview();
+    });
+    return;
+  }
+
+  const v = PRATIQUE_VOCAB.find(x => x.id === quizSession.queue[quizSession.index]);
+  const progressPct = Math.round((quizSession.index / quizSession.queue.length) * 100);
+  const themeLabel = (PRATIQUE_THEMES.find(t => t.id === quizSession.theme) || {}).label || '';
+
+  container.innerHTML = `
+    <h2>Vocabulaire pratique -- ${escapeHtml(themeLabel)}</h2>
+    <div class="flashcard-wrap">
+      <div class="session-progress">
+        <div style="font-size:12px; color:var(--muted);">${quizSession.index + 1} / ${quizSession.queue.length}</div>
+        <div class="progress-bar"><div class="progress-fill" style="width:${progressPct}%"></div></div>
+      </div>
+      <div class="flashcard">
+        <div class="front-word">${escapeHtml(v.mot)}</div>
+        ${!quizSession.submitted ? `
+          ${quizSession.warning ? `<div class="quiz-feedback bad" style="margin-top:12px;">${escapeHtml(quizSession.warning)}</div>` : ''}
+          <div class="answer-input-wrap">
+            <input id="answerInputPratique" type="text" placeholder="Ecris la lecture en hiragana/katakana" style="margin-top:16px; width:280px; text-align:center; font-size:18px;"/>
+          </div>
+        ` : quizSession.hardcore ? `
+          <div class="quiz-feedback mid" style="margin-top:16px;">
+            Reponse enregistree. Correction disponible a la fin de la session.
+          </div>
+        ` : `
+          <div class="back-reading">${escapeHtml(v.lecture)}</div>
+          ${v.sens ? `<div class="back-meaning">${escapeHtml(v.sens)}</div>` : ''}
+          <div class="quiz-feedback ${quizSession.lastResult.pct >= 0.99 ? 'good' : (quizSession.lastResult.pct >= 0.6 ? 'mid' : 'bad')}">
+            Ta reponse : "${escapeHtml(quizSession.lastAnswer) || '(vide)'}" -- ${quizSession.lastResult.points}/${DB.settings.pointsPerWord} points (${Math.round(quizSession.lastResult.pct * 100)}% de similarite)
+          </div>
+        `}
+      </div>
+      ${!quizSession.submitted ? `
+        <button class="primary" id="btnSubmitPratique" style="margin-top:18px;">Valider</button>
+      ` : `
+        <button class="primary" id="btnNextPratique" style="margin-top:18px;">Mot suivant</button>
+      `}
+      <button class="secondary" id="btnQuitPratiqueQuiz" style="margin-top:12px;">Quitter la session</button>
+    </div>
+  `;
+
+  if (!quizSession.submitted) {
+    const input = $('#answerInputPratique');
+    input.focus();
+    const submit = () => {
+      const val = input.value;
+      if (containsKanji(val)) {
+        quizSession.warning = 'Ta reponse contient du kanji -- la lecture doit etre en hiragana/katakana uniquement. Retape-la.';
+        renderReview();
+        return;
+      }
+      quizSession.warning = null;
+      const result = scoreAnswer(val, v.lecture);
+      quizSession.submitted = true;
+      quizSession.lastAnswer = val;
+      quizSession.lastResult = result;
+      quizSession.totals.points += result.points;
+      quizSession.answers.push({ mot: v.mot, lecture: v.lecture, sens: v.sens, userAnswer: val, points: result.points, pct: result.pct });
+      if (typeof gagnerXp === 'function') gagnerXp(result.points, null);
+      if (typeof gagnerPieces === 'function') gagnerPieces(result.points, null);
+      if (typeof mettreAJourStreak === 'function') mettreAJourStreak();
+      savePratiqueInProgress();
+      renderReview();
+    };
+    $('#btnSubmitPratique').addEventListener('click', submit);
+    input.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter') return;
+      if (e.isComposing || e.keyCode === 229) return;
+      submit();
+    });
+  } else {
+    const nextBtn = $('#btnNextPratique');
+    setTimeout(() => nextBtn.focus(), 0);
+    nextBtn.addEventListener('click', () => {
+      quizSession.index++;
+      quizSession.submitted = false;
+      quizSession.warning = null;
+      renderReview();
+    });
+  }
+
+  $('#btnQuitPratiqueQuiz').addEventListener('click', () => {
+    quizSession = null;
+    renderReview();
+  });
+}
+
+function startPratiqueQuiz(theme, forceRestart) {
+  const saved = forceRestart ? null : getValidPratiqueInProgress(theme);
+  if (saved) {
+    quizSession = {
+      mode: 'pratique', theme,
+      queue: saved.queue,
+      index: saved.index,
+      submitted: false,
+      lastAnswer: '',
+      lastResult: null,
+      warning: null,
+      hardcore: saved.hardcore,
+      answers: saved.answers.slice(),
+      totals: { ...saved.totals }
+    };
+    return;
+  }
+  clearPratiqueInProgress(theme);
+  const queue = shuffle(buildPratiqueQueue(theme));
+  quizSession = {
+    mode: 'pratique', theme,
+    queue,
+    index: 0,
+    submitted: false,
+    lastAnswer: '',
+    lastResult: null,
+    warning: null,
+    hardcore: !!DB.settings.hardcoreMode,
+    answers: [],
+    totals: { points: 0, maxPoints: queue.length * DB.settings.pointsPerWord }
+  };
+}
+
 function renderReview() {
   const container = $('#view-review');
   // Mode "Kanji seul" : vue entièrement séparée (renderKanjiQuizView), pour
@@ -1880,6 +2411,20 @@ function renderReview() {
     renderKanaQuizView(container);
     return;
   }
+  // Les 3 nouveaux modes (17/09/2026) suivent le meme principe : vue
+  // dediee, jamais melangee aux branches vocab/kanji/kana ci-dessus.
+  if (quizSession && quizSession.mode === 'ecriture') {
+    renderEcritureQuizView(container);
+    return;
+  }
+  if (quizSession && quizSession.mode === 'traduction') {
+    renderTraductionQuizView(container);
+    return;
+  }
+  if (quizSession && quizSession.mode === 'pratique') {
+    renderPratiqueQuizView(container);
+    return;
+  }
 
   if (!quizSession) {
     const modeSelectHtml = `
@@ -1887,6 +2432,9 @@ function renderReview() {
         <option value="vocab" ${reviewPickerMode === 'vocab' ? 'selected' : ''}>Vocabulaire</option>
         <option value="kanji" ${reviewPickerMode === 'kanji' ? 'selected' : ''}>Kanji seul (onyomi/kunyomi)</option>
         <option value="kana" ${reviewPickerMode === 'kana' ? 'selected' : ''}>Hiragana / Katakana (romaji)</option>
+        <option value="ecriture" ${reviewPickerMode === 'ecriture' ? 'selected' : ''}>Ecriture (kana -> kanji sur papier)</option>
+        <option value="traduction" ${reviewPickerMode === 'traduction' ? 'selected' : ''}>Traduction (francais -> japonais)</option>
+        <option value="pratique" ${reviewPickerMode === 'pratique' ? 'selected' : ''}>Vocabulaire pratique (compteurs, couleurs, heure)</option>
       </select>
     `;
     // Menu de choix des exercices (09/09/2026) : la difficulté vit dans les
@@ -1954,14 +2502,48 @@ function renderReview() {
       return;
     }
 
+    // Mode "Vocabulaire pratique" (17/09/2026) : pas de semestre/semaine,
+    // juste un theme (compteurs/couleurs/heure) -- meme emplacement/esprit
+    // que la branche kana ci-dessus.
+    if (reviewPickerMode === 'pratique') {
+      const themeOpts = PRATIQUE_THEMES.map(t => {
+        const count = getPratiqueList(t.id).length;
+        return `<option value="${t.id}">${escapeHtml(t.label)} (${count})</option>`;
+      }).join('');
+      container.innerHTML = `
+        <h2>Réviser</h2>
+        <div class="card">
+          <div class="form-row">${modeSelectHtml}${difficulteSelectHtml}</div>
+          <div class="form-row">
+            <select id="pratiqueThemePicker">${themeOpts}</select>
+            <button class="primary" id="btnStartQuiz">Démarrer</button>
+          </div>
+        </div>
+      `;
+      $('#quizModePicker').addEventListener('change', (e) => {
+        reviewPickerMode = e.target.value;
+        renderReview();
+      });
+      brancherDifficultePicker();
+      $('#btnStartQuiz').addEventListener('click', () => {
+        const theme = $('#pratiqueThemePicker').value;
+        if (!theme) return;
+        startPratiqueQuiz(theme);
+        renderReview();
+      });
+      return;
+    }
+
     // Filtre "Mots" (09/09/2026, remplacé par 2 cases à cocher suite au
-    // retour de Paul) : uniquement pertinent en mode vocabulaire (le mode
+    // retour de Paul) : uniquement pertinent pour les modes basés sur le
+    // vocabulaire du programme (vocab/écriture/traduction) -- le mode
     // kanji seul travaille sur des lectures, pas des mots ; le mode kana
-    // n'a pas de notion de kanji groupés). Les deux cases sont cochées par
-    // défaut (= tous les mots) ; décocher l'une exclut sa catégorie.
+    // n'a pas de notion de kanji groupés ; le mode pratique a sa propre
+    // branche ci-dessus. Les deux cases sont cochées par défaut (= tous
+    // les mots) ; décocher l'une exclut sa catégorie.
     const filtreGroupeCoche = reviewVerbeFilter === 'tous' || reviewVerbeFilter === 'kanji_groupe';
     const filtreSimpleCoche = reviewVerbeFilter === 'tous' || reviewVerbeFilter === 'simple';
-    const motsSelectHtml = reviewPickerMode === 'vocab' ? `
+    const motsSelectHtml = ['vocab', 'ecriture', 'traduction'].includes(reviewPickerMode) ? `
       <div class="filtre-mots">
         <label><input type="checkbox" id="chkMotsGroupe" ${filtreGroupeCoche ? 'checked' : ''}> Mots à kanji groupés</label>
         <label><input type="checkbox" id="chkMotsSimple" ${filtreSimpleCoche ? 'checked' : ''}> Mots simples</label>
@@ -1997,7 +2579,7 @@ function renderReview() {
       renderReview();
     });
     brancherDifficultePicker();
-    if (reviewPickerMode === 'vocab') {
+    if (['vocab', 'ecriture', 'traduction'].includes(reviewPickerMode)) {
       const recalculerFiltreMots = () => {
         const groupeCoche = $('#chkMotsGroupe').checked;
         const simpleCoche = $('#chkMotsSimple').checked;
@@ -2015,6 +2597,8 @@ function renderReview() {
       if (!val) return;
       const [sem, w] = val.split('|');
       if (reviewPickerMode === 'kanji') startKanjiQuiz(sem, parseInt(w, 10));
+      else if (reviewPickerMode === 'ecriture') startEcritureQuiz(sem, parseInt(w, 10), reviewVerbeFilter);
+      else if (reviewPickerMode === 'traduction') startTraductionQuiz(sem, parseInt(w, 10), false, reviewVerbeFilter);
       else startQuiz(sem, parseInt(w, 10), false, reviewVerbeFilter);
       renderReview();
     });
