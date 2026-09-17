@@ -111,6 +111,10 @@ const JLPT_N4_SEED = {"kanjiGroups":[{"id":"kg-hu66go90952pa","semesterId":"jlpt
     // catégorie créée », pas « données absentes » : on ne la remplit jamais
     // d'office, et on ne touche pas à celle qui existe déjà.
     if (!Array.isArray(data.settings.categories)) data.settings.categories = [];
+    // Masquage personnel de mots (17/09/2026) : liste d'ids en trop par
+    // compte, jamais une suppression de donnees -- voir estMotMasque()
+    // dans app.js. Une liste absente ou vide veut dire "aucun mot masque".
+    if (!Array.isArray(data.motsMasques)) data.motsMasques = [];
     if (typeof data.settings.hardcoreMode !== 'boolean') data.settings.hardcoreMode = false;
     if (typeof data.settings.spectralMode !== 'boolean') data.settings.spectralMode = false;
     if (!data.wordStats || typeof data.wordStats !== 'object') data.wordStats = {};

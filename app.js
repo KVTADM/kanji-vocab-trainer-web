@@ -16,6 +16,7 @@ let reviewKanaType = 'hiragana'; // 'hiragana' | 'katakana' — persiste le choi
 let reviewVerbeFilter = 'tous'; // 'tous' | 'sans_verbe' | 'verbe_seul' — filtre "avec/sans verbe de base" (09/09/2026), pertinent seulement en mode vocabulaire
 let dashboardMode = 'cursus';  // 'cursus' (S0-S6) ou 'jlpt' (modules JLPT) — bascule en haut à droite de l'Accueil
 let modalSemaineOuverte = null; // { semesterId, week } — modale de choix ouverte sur une carte du Tableau de bord (09/09/2026), voir renderDashboard()
+let modalMotsMasquesOuvert = false; // modale "Mots masqués" ouverte depuis Vocabulaire (17/09/2026), voir renderVocab()
 
 const $ = (sel, root) => (root || document).querySelector(sel);
 const $$ = (sel, root) => Array.from((root || document).querySelectorAll(sel));
@@ -92,11 +93,39 @@ function getKanjiGroupsForWeek(semesterId, week) {
   return DB.kanjiGroups.filter(g => g.semesterId === semesterId && g.week === week);
 }
 function getVocabForGroup(groupId) {
-  return DB.vocab.filter(v => v.kanjiGroupId === groupId);
+  return DB.vocab.filter(v => v.kanjiGroupId === groupId && !estMotMasque(v.id));
 }
+// ---------- Masquage personnel de mots (17/09/2026) ----------
+// Demande de Paul : l'ancien bouton "Suppr." a cote de chaque mot dans
+// Vocabulaire supprimait la ligne pour de bon, sans confirmation ni retour
+// possible. Remplace par un masquage reversible : le mot disparait de
+// Parcourir et des quiz (getVocabForGroup/getVocabForWeek ci-dessous
+// filtrent dessus) mais reste dans DB.vocab -- motsMasques n'est qu'une
+// liste d'ids en trop par compte, jamais une suppression de donnees.
+// Purement personnel : n'affecte que le compte qui masque, ne touche pas
+// les autres utilisateurs ni le contenu partage.
+function estMotMasque(vocabId) {
+  return Array.isArray(DB.motsMasques) && DB.motsMasques.includes(vocabId);
+}
+async function masquerMot(vocabId) {
+  if (!Array.isArray(DB.motsMasques)) DB.motsMasques = [];
+  if (!DB.motsMasques.includes(vocabId)) DB.motsMasques.push(vocabId);
+  await persist();
+}
+async function demasquerMot(vocabId) {
+  DB.motsMasques = (DB.motsMasques || []).filter(id => id !== vocabId);
+  await persist();
+}
+function motsMasquesDetails() {
+  const ids = new Set(DB.motsMasques || []);
+  return DB.vocab
+    .filter(v => ids.has(v.id))
+    .map(v => ({ ...v, kanjiGroup: getKanjiGroup(v.kanjiGroupId) }));
+}
+
 function getVocabForWeek(semesterId, week) {
   const groupIds = new Set(getKanjiGroupsForWeek(semesterId, week).map(g => g.id));
-  return DB.vocab.filter(v => groupIds.has(v.kanjiGroupId));
+  return DB.vocab.filter(v => groupIds.has(v.kanjiGroupId) && !estMotMasque(v.id));
 }
 
 // ---------- Filtre "avec/sans verbe de base" (09/09/2026) ----------
@@ -1237,7 +1266,7 @@ function renderVocab() {
                   <td>${escapeHtml(v.mot)}</td>
                   <td>${escapeHtml(v.lecture)}</td>
                   <td>${escapeHtml(v.sens)}</td>
-                  <td><button class="secondary small btn-del-vocab" data-vocab="${v.id}">Suppr.</button></td>
+                  <td><button class="secondary small btn-masquer-vocab" data-vocab="${v.id}" title="Masquer ce mot (reversible, voir Mots masques)">Masquer</button></td>
                 </tr>
               `).join('')}
             </tbody>
@@ -1281,10 +1310,38 @@ function renderVocab() {
     </div>
 
     <div class="card">
-      <h3>Parcourir le vocabulaire et les fiches</h3>
+      <div class="semestre-tete">
+        <h3>Parcourir le vocabulaire et les fiches</h3>
+        <button class="lien-retour" id="btnVoirMotsMasques">Mots masqués (${motsMasquesDetails().length})</button>
+      </div>
       <select id="browseWeekPicker" style="margin-bottom:14px;">${selectHtml}</select>
       ${browseHtml}
     </div>
+    ${modalMotsMasquesOuvert ? `
+      <div class="modal-backdrop" id="modalMotsMasquesBackdrop">
+        <div class="modal-box">
+          <div class="modal-tete">
+            <h3>Mots masqués</h3>
+            <button class="modal-fermer" id="btnFermerModalMasques" title="Fermer" aria-label="Fermer">✕</button>
+          </div>
+          ${motsMasquesDetails().length === 0
+            ? '<p style="color:var(--muted); font-size:13px;">Aucun mot masqué pour l\'instant.</p>'
+            : `<table>
+                <thead><tr><th>Mot</th><th>Lecture</th><th>Sens</th><th></th></tr></thead>
+                <tbody>
+                  ${motsMasquesDetails().map(v => `
+                    <tr>
+                      <td>${escapeHtml(v.mot)}</td>
+                      <td>${escapeHtml(v.lecture)}</td>
+                      <td>${escapeHtml(v.sens)}</td>
+                      <td><button class="secondary small btn-demasquer-vocab" data-vocab="${v.id}">Restaurer</button></td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>`}
+        </div>
+      </div>
+    ` : ''}
   `;
 
   $('#btnParseImport').addEventListener('click', () => {
@@ -1330,13 +1387,31 @@ function renderVocab() {
       renderVocab();
     });
   });
-  $$('.btn-del-vocab').forEach(btn => {
+  $$('.btn-masquer-vocab').forEach(btn => {
     btn.addEventListener('click', async () => {
-      DB.vocab = DB.vocab.filter(v => v.id !== btn.dataset.vocab);
-      await persist();
+      await masquerMot(btn.dataset.vocab);
+      showToast('Mot masqué — récupérable depuis « Mots masqués »');
       renderVocab();
     });
   });
+
+  const btnVoirMasques = $('#btnVoirMotsMasques');
+  if (btnVoirMasques) btnVoirMasques.addEventListener('click', () => { modalMotsMasquesOuvert = true; renderVocab(); });
+
+  if (modalMotsMasquesOuvert) {
+    const fermerModalMasques = () => { modalMotsMasquesOuvert = false; renderVocab(); };
+    $('#btnFermerModalMasques').addEventListener('click', fermerModalMasques);
+    $('#modalMotsMasquesBackdrop').addEventListener('click', (e) => {
+      if (e.target.id === 'modalMotsMasquesBackdrop') fermerModalMasques();
+    });
+    $$('.btn-demasquer-vocab').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        await demasquerMot(btn.dataset.vocab);
+        showToast('Mot restauré');
+        renderVocab();
+      });
+    });
+  }
 }
 
 function renderImportPreview() {
