@@ -245,3 +245,33 @@ essai('tracesDisponibles : renvoie les traits du caractere si KANJIVG_DATA est p
     delete global.KANJIVG_DATA;
   }
 });
+
+essai('scoreDoubleAnswer : les deux champs justes -> score plein (minimum des deux pourcentages = 1)', () => {
+  DB = { settings: { pointsPerWord: 10 } };
+  const v = { mot: '食べる', lecture: 'たべる', sens: 'Manger' };
+  const res = scoreDoubleAnswer('たべる', 'Manger', v);
+  if (res.pct !== 1) throw new Error(JSON.stringify(res));
+  if (res.points !== 10) throw new Error(JSON.stringify(res));
+});
+
+essai('scoreDoubleAnswer : lecture juste mais sens faux -> le sens plafonne le score (minimum, pas moyenne)', () => {
+  DB = { settings: { pointsPerWord: 10 } };
+  const v = { mot: '食べる', lecture: 'たべる', sens: 'Manger' };
+  const res = scoreDoubleAnswer('たべる', 'xyzabc totalement faux', v);
+  if (res.pct !== res.sens.pct) throw new Error('le minimum devrait etre le pct du sens : ' + JSON.stringify(res));
+  if (res.pct >= res.lecture.pct) throw new Error('le sens rate doit plafonner en dessous de la lecture juste : ' + JSON.stringify(res));
+});
+
+essai('scoreDoubleAnswer : sens juste mais lecture fausse -> la lecture plafonne le score', () => {
+  DB = { settings: { pointsPerWord: 10 } };
+  const v = { mot: '食べる', lecture: 'たべる', sens: 'Manger' };
+  const res = scoreDoubleAnswer('zzzzzz totalement faux', 'Manger', v);
+  if (res.pct !== res.lecture.pct) throw new Error('le minimum devrait etre le pct de la lecture : ' + JSON.stringify(res));
+});
+
+essai('scoreDoubleAnswer : une petite faute de frappe dans un champ reste tolerée (scoreAnswer deja tolerant)', () => {
+  DB = { settings: { pointsPerWord: 10 } };
+  const v = { mot: '食べる', lecture: 'たべる', sens: 'Manger' };
+  const res = scoreDoubleAnswer('たべる', 'Mangger', v); // une lettre en trop
+  if (res.pct < 0.6) throw new Error('une petite faute ne devrait pas ecraser le score : ' + JSON.stringify(res));
+});

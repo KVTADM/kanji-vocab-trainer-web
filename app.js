@@ -649,6 +649,23 @@ function scoreAnswer(input, correct) {
   return { pct, points };
 }
 
+// Mode "Double reponse" (tache #11, rang 4) : une seule carte affiche le
+// mot en kanji, DEUX champs a remplir (lecture + sens), les deux doivent
+// etre justes pour marquer des points -- validee par Paul le 22/09/2026
+// ("Oui exactement ca"). On reutilise scoreAnswer() tel quel sur chaque
+// champ (tolerance aux fautes de frappe deja geree, alternatives "/"
+// deja gerees pour les lectures a choix multiple) et on combine par le
+// MINIMUM des deux pourcentages, pas une moyenne : une lecture parfaite
+// ne doit pas racheter un sens invente, et inversement. La tolerance
+// reste au niveau de CHAQUE champ ; seule la combinaison est stricte.
+function scoreDoubleAnswer(inputLecture, inputSens, v) {
+  const resLecture = scoreAnswer(inputLecture, v.lecture);
+  const resSens = scoreAnswer(inputSens, v.sens);
+  const pct = Math.min(resLecture.pct, resSens.pct);
+  const points = Math.round(pct * DB.settings.pointsPerWord);
+  return { pct, points, lecture: resLecture, sens: resSens };
+}
+
 // ---------- Saisie kana sans IME (romaji -> hiragana, tache #22) ----------
 // Jusque-la, repondre en kana dans les champs qui l'exigent (Pratique,
 // Vocabulaire de base, Kanji seul) demandait d'activer le clavier japonais
@@ -1188,16 +1205,17 @@ function renderDashboard() {
   }
 
   if (dashboardMode === 'special') {
-    // Onglet "Special" (17/09/2026) : regroupe les 3 nouveaux modes
-    // (Ecriture, Traduction, Vocabulaire pratique) au meme niveau de
-    // visibilite que Cursus/JLPT, plutot que de les enterrer dans le menu
-    // deroulant de l'ecran Reviser comme Kanji seul/Kana -- demande
-    // explicite de Paul. Pas de semestres ici : chaque carte mene
-    // directement a l'ecran de choix du mode concerne (Reviser), avec le
-    // bon mode deja preselectionne.
+    // Onglet "Special" (17/09/2026, complete le 22/09/2026 avec Double
+    // reponse) : regroupe les modes recents (Ecriture, Traduction, Double
+    // reponse, Vocabulaire pratique) au meme niveau de visibilite que
+    // Cursus/JLPT, plutot que de les enterrer dans le menu deroulant de
+    // l'ecran Reviser comme Kanji seul/Kana -- demande explicite de Paul.
+    // Pas de semestres ici : chaque carte mene directement a l'ecran de
+    // choix du mode concerne (Reviser), avec le bon mode deja preselectionne.
     const specialModes = [
       { id: 'ecriture', titre: 'Écriture', desc: 'La lecture (kana) s’affiche, tu écris le kanji toi-même sur papier, puis tu révèles la réponse pour t’auto-corriger. Pas de notation automatique.' },
       { id: 'traduction', titre: 'Traduction', desc: 'Le sens en français s’affiche, tu réponds en kanji ou en kana. Notation automatique comme en mode Vocabulaire.' },
+      { id: 'double', titre: 'Double réponse', desc: 'Le mot s’affiche en kanji, tu tapes la lecture ET le sens sur le même écran. Les deux doivent être justes pour marquer des points.' },
       { id: 'pratique', titre: 'Vocabulaire pratique', desc: 'Compteurs, couleurs et expressions de temps/heure -- du vocabulaire utile en dehors du programme.' }
     ];
     html += `<div class="special-modes-grid">`;
@@ -2576,6 +2594,225 @@ function startTraductionQuiz(semesterId, week, forceRestart, verbeFilter) {
   };
 }
 
+// ---------- Mode "Double reponse" (lecture + sens simultanes, tache #11) ----------
+// Le mot s'affiche en kanji (comme en Ecriture), mais ICI on demande de
+// taper la lecture ET le sens sur le meme ecran, plutot que de les revoir
+// separement dans deux modes distincts (Vocabulaire = lecture seule,
+// Traduction = sens -> mot) -- plus proche d'un vrai controle de
+// connaissance complete du mot. Scoring : voir scoreDoubleAnswer() plus
+// haut (minimum des deux pourcentages, pas une moyenne). Namespace a
+// part (DB.scoresDouble / DB.inProgressDouble), meme discipline que les
+// autres modes dedies (Kanji seul, Kana, Traduction...).
+function getDoubleScoreEntry(semesterId, week) {
+  return (DB.scoresDouble && DB.scoresDouble[weekKey(semesterId, week)]) || null;
+}
+function recordDoubleSessionResult(semesterId, week, points, maxPoints, pct, dureeMs) {
+  if (!DB.scoresDouble) DB.scoresDouble = {};
+  const key = weekKey(semesterId, week);
+  if (!DB.scoresDouble[key]) DB.scoresDouble[key] = { best: null, history: [] };
+  const entry = DB.scoresDouble[key];
+  const record = { date: new Date().toISOString(), points, maxPoints, pct, dureeMs };
+  entry.history.push(record);
+  if (!entry.best || pct > entry.best.pct) entry.best = record;
+}
+function getValidDoubleInProgress(semesterId, week) {
+  if (!DB.inProgressDouble) return null;
+  const saved = DB.inProgressDouble[weekKey(semesterId, week)];
+  if (!saved || !Array.isArray(saved.queue) || !Array.isArray(saved.answers)) return null;
+  const vocabList = filtrerVocabParVerbe(getVocabForWeek(semesterId, week), saved.verbeFilter || 'tous');
+  const currentIds = new Set(vocabList.map(v => v.id));
+  const stillValid = saved.queue.length === vocabList.length && saved.queue.every(id => currentIds.has(id));
+  if (!stillValid || saved.index >= saved.queue.length) return null;
+  return saved;
+}
+function saveDoubleInProgress() {
+  if (!quizSession || quizSession.mode !== 'double') return;
+  if (!DB.inProgressDouble) DB.inProgressDouble = {};
+  DB.inProgressDouble[weekKey(quizSession.semesterId, quizSession.week)] = {
+    queue: quizSession.queue,
+    index: quizSession.answers.length,
+    totals: { ...quizSession.totals },
+    hardcore: quizSession.hardcore,
+    verbeFilter: quizSession.verbeFilter || 'tous',
+    answers: quizSession.answers.slice(),
+    updatedAt: new Date().toISOString()
+  };
+  persist();
+}
+function clearDoubleInProgress(semesterId, week) {
+  if (DB.inProgressDouble) delete DB.inProgressDouble[weekKey(semesterId, week)];
+}
+
+function renderDoubleQuizView(container) {
+  if (quizSession.index >= quizSession.queue.length) {
+    const { points, maxPoints, startedAt } = quizSession.totals;
+    const dureeMs = Number.isFinite(startedAt) ? Date.now() - startedAt : null;
+    const pct = maxPoints > 0
+      ? (points >= maxPoints ? 100 : Math.min(99, Math.round((points / maxPoints) * 100)))
+      : 0;
+    const prevEntry = getDoubleScoreEntry(quizSession.semesterId, quizSession.week);
+    const prevBest = prevEntry ? prevEntry.best.pct : null;
+    const improved = prevBest === null || pct > prevBest;
+    recordDoubleSessionResult(quizSession.semesterId, quizSession.week, points, maxPoints, pct, dureeMs);
+    clearDoubleInProgress(quizSession.semesterId, quizSession.week);
+    persist();
+    if (typeof kvtSnapshotHistorique === 'function') kvtSnapshotHistorique();
+    const semLabel = getSemester(quizSession.semesterId).label;
+    const etat = pct >= 100 ? 'perfect' : (pct >= 70 ? 'good' : 'low');
+    const badge = improved
+      ? `<div class="kvt-result__badge">Record -- nouveau meilleur score</div>`
+      : (prevBest !== null ? `<div class="kvt-result__badge">Meilleur score : ${prevBest}&nbsp;%</div>` : '');
+    container.innerHTML = `
+      <h2>Double réponse -- ${escapeHtml(semLabel)} Semaine ${quizSession.week}</h2>
+      <div class="kvt-result kvt-result--${etat}">
+        ${badge}
+        <div class="kvt-result__pct">${pct}&nbsp;%</div>
+        <div class="kvt-result__points">${points} / ${maxPoints} points</div>
+        ${dureeMs !== null ? `<div class="kvt-result__duree">Termine en ${formatDuree(dureeMs)}</div>` : ''}
+        <button class="kvt-result__btn" type="button" id="btnBackDoubleReview">Retour</button>
+      </div>
+    `;
+    $('#btnBackDoubleReview').addEventListener('click', () => {
+      quizSession = null;
+      renderReview();
+    });
+    return;
+  }
+
+  const vocabId = quizSession.queue[quizSession.index];
+  const v = DB.vocab.find(x => x.id === vocabId);
+  const progressPct = Math.round((quizSession.index / quizSession.queue.length) * 100);
+
+  container.innerHTML = `
+    <h2>Double réponse -- ${escapeHtml(getSemester(quizSession.semesterId).label)} Semaine ${quizSession.week}</h2>
+    <div class="flashcard-wrap">
+      <div class="session-progress">
+        <div style="font-size:12px; color:var(--muted);">${quizSession.index + 1} / ${quizSession.queue.length}</div>
+        <div class="progress-bar"><div class="progress-fill" style="width:${progressPct}%"></div></div>
+      </div>
+      <div class="flashcard">
+        <div class="front-word">${escapeHtml(v.mot)}</div>
+        <div class="hint">Lecture ET sens attendus -- les deux doivent etre justes pour marquer des points.</div>
+        ${!quizSession.submitted ? `
+          ${quizSession.warning ? `<div class="quiz-feedback bad" style="margin-top:12px;">${escapeHtml(quizSession.warning)}</div>` : ''}
+          <div class="answer-input-wrap double-answer-wrap">
+            <input id="answerInputDoubleLecture" type="text" placeholder="Lecture (hiragana/katakana)" style="margin-top:16px; width:280px; text-align:center; font-size:18px;"/>
+            <input id="answerInputDoubleSens" type="text" placeholder="Sens (en français)" style="margin-top:10px; width:280px; text-align:center; font-size:18px;"/>
+          </div>
+        ` : quizSession.hardcore ? `
+          <div class="quiz-feedback mid" style="margin-top:16px;">
+            Reponses enregistrees. Correction disponible a la fin de la session.
+          </div>
+        ` : `
+          <div class="back-reading">${escapeHtml(v.lecture)}${registreBadge(v)}</div>
+          <div class="back-meaning">${escapeHtml(v.sens)}</div>
+          <div class="quiz-feedback ${quizSession.lastResult.pct >= 0.99 ? 'good' : (quizSession.lastResult.pct >= 0.6 ? 'mid' : 'bad')}">
+            Lecture : "${escapeHtml(quizSession.lastAnswer.lecture) || '(vide)'}" (${Math.round(quizSession.lastResult.lecture.pct * 100)}%) ·
+            Sens : "${escapeHtml(quizSession.lastAnswer.sens) || '(vide)'}" (${Math.round(quizSession.lastResult.sens.pct * 100)}%)
+            -- ${quizSession.lastResult.points}/${DB.settings.pointsPerWord} points
+          </div>
+        `}
+      </div>
+      ${!quizSession.submitted ? `
+        <button class="primary" id="btnSubmitDouble" style="margin-top:18px;">Valider</button>
+      ` : `
+        <button class="primary" id="btnNextDouble" style="margin-top:18px;">Mot suivant</button>
+      `}
+      <button class="secondary" id="btnQuitDoubleQuiz" style="margin-top:12px;">Quitter la session</button>
+    </div>
+  `;
+
+  if (!quizSession.submitted) {
+    const inputLecture = $('#answerInputDoubleLecture');
+    const inputSens = $('#answerInputDoubleSens');
+    inputLecture.focus();
+    activerSaisieKanaDirecte(inputLecture, false);
+    const submit = () => {
+      const valLecture = inputLecture.value;
+      const valSens = inputSens.value;
+      quizSession.warning = null;
+      const result = scoreDoubleAnswer(valLecture, valSens, v);
+      quizSession.submitted = true;
+      quizSession.lastAnswer = { lecture: valLecture, sens: valSens };
+      quizSession.lastResult = result;
+      quizSession.totals.points += result.points;
+      quizSession.answers.push({ mot: v.mot, lecture: v.lecture, sens: v.sens, userAnswerLecture: valLecture, userAnswerSens: valSens, points: result.points, pct: result.pct });
+      recordWordAttempt(v.id, result.pct);
+      if (typeof gagnerXp === 'function') gagnerXp(result.points, quizSession.semesterId);
+      if (typeof gagnerPieces === 'function') gagnerPieces(result.points, quizSession.semesterId);
+      if (typeof mettreAJourStreak === 'function') mettreAJourStreak();
+      saveDoubleInProgress();
+      renderReview();
+    };
+    // Entree dans le champ Lecture -> passe au champ Sens (encore un champ a
+    // remplir, pas de validation) ; Entree dans le champ Sens -> valide les
+    // deux d'un coup. Meme garde IME (isComposing/229) que partout ailleurs.
+    inputLecture.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter') return;
+      if (e.isComposing || e.keyCode === 229) return;
+      e.preventDefault();
+      inputSens.focus();
+    });
+    inputSens.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter') return;
+      if (e.isComposing || e.keyCode === 229) return;
+      submit();
+    });
+    $('#btnSubmitDouble').addEventListener('click', submit);
+  } else {
+    const nextBtn = $('#btnNextDouble');
+    setTimeout(() => nextBtn.focus(), 0);
+    nextBtn.addEventListener('click', () => {
+      quizSession.index++;
+      quizSession.submitted = false;
+      quizSession.warning = null;
+      renderReview();
+    });
+  }
+
+  $('#btnQuitDoubleQuiz').addEventListener('click', () => {
+    quizSession = null;
+    renderReview();
+  });
+}
+
+function startDoubleQuiz(semesterId, week, forceRestart, verbeFilter) {
+  const filtre = verbeFilter || 'tous';
+  const vocabList = filtrerVocabParVerbe(getVocabForWeek(semesterId, week), filtre);
+  const saved = forceRestart ? null : getValidDoubleInProgress(semesterId, week);
+  if (saved) {
+    quizSession = {
+      mode: 'double', semesterId, week,
+      queue: saved.queue,
+      index: saved.index,
+      submitted: false,
+      lastAnswer: { lecture: '', sens: '' },
+      lastResult: null,
+      warning: null,
+      hardcore: saved.hardcore,
+      verbeFilter: saved.verbeFilter || 'tous',
+      answers: saved.answers.slice(),
+      totals: { ...saved.totals }
+    };
+    return;
+  }
+  clearDoubleInProgress(semesterId, week);
+  const queue = shuffle(vocabList.map(v => v.id));
+  quizSession = {
+    mode: 'double', semesterId, week,
+    queue,
+    index: 0,
+    submitted: false,
+    lastAnswer: { lecture: '', sens: '' },
+    lastResult: null,
+    warning: null,
+    hardcore: !!DB.settings.hardcoreMode,
+    verbeFilter: filtre,
+    answers: [],
+    totals: { points: 0, maxPoints: queue.length * DB.settings.pointsPerWord, startedAt: Date.now() }
+  };
+}
+
 // ---------- Mode "Vocabulaire pratique" (compteurs, couleurs, heure) ----------
 // Contenu thematique nouveau (17/09/2026, demande de Paul), hors programme
 // JLPT/Cursus -- pas de semestre/semaine, juste un theme. Meme direction
@@ -2815,6 +3052,10 @@ function renderReview() {
     renderTraductionQuizView(container);
     return;
   }
+  if (quizSession && quizSession.mode === 'double') {
+    renderDoubleQuizView(container);
+    return;
+  }
   if (quizSession && quizSession.mode === 'pratique') {
     renderPratiqueQuizView(container);
     return;
@@ -2828,6 +3069,7 @@ function renderReview() {
         <option value="kana" ${reviewPickerMode === 'kana' ? 'selected' : ''}>Hiragana / Katakana (romaji)</option>
         <option value="ecriture" ${reviewPickerMode === 'ecriture' ? 'selected' : ''}>Ecriture (kana -> kanji sur papier)</option>
         <option value="traduction" ${reviewPickerMode === 'traduction' ? 'selected' : ''}>Traduction (francais -> japonais)</option>
+        <option value="double" ${reviewPickerMode === 'double' ? 'selected' : ''}>Double reponse (lecture + sens ensemble)</option>
         <option value="pratique" ${reviewPickerMode === 'pratique' ? 'selected' : ''}>Vocabulaire pratique (compteurs, couleurs, heure)</option>
       </select>
     `;
@@ -2937,7 +3179,7 @@ function renderReview() {
     // les mots) ; décocher l'une exclut sa catégorie.
     const filtreGroupeCoche = reviewVerbeFilter === 'tous' || reviewVerbeFilter === 'kanji_groupe';
     const filtreSimpleCoche = reviewVerbeFilter === 'tous' || reviewVerbeFilter === 'simple';
-    const motsSelectHtml = ['vocab', 'ecriture', 'traduction'].includes(reviewPickerMode) ? `
+    const motsSelectHtml = ['vocab', 'ecriture', 'traduction', 'double'].includes(reviewPickerMode) ? `
       <div class="filtre-mots">
         <label><input type="checkbox" id="chkMotsGroupe" ${filtreGroupeCoche ? 'checked' : ''}> Mots à kanji groupés</label>
         <label><input type="checkbox" id="chkMotsSimple" ${filtreSimpleCoche ? 'checked' : ''}> Mots simples</label>
@@ -2957,7 +3199,7 @@ function renderReview() {
     // renderDashboard(), qui tourne sur TOUT le document -- les reutiliser
     // accrocherait la logique de la modale du Tableau de bord sur ces
     // cartes des qu'on rouvre ensuite le Tableau de bord.
-    const grilleSemaines = ['ecriture', 'traduction'].includes(reviewPickerMode);
+    const grilleSemaines = ['ecriture', 'traduction', 'double'].includes(reviewPickerMode);
 
     let semainesHtml;
     if (!grilleSemaines) {
@@ -2984,9 +3226,9 @@ function renderReview() {
         let cartesHtml = '';
         for (let w = 1; w <= sem.weeks; w++) {
           const count = filtrerVocabParVerbe(getVocabForWeek(sem.id, w), reviewVerbeFilter).length;
-          if (reviewPickerMode === 'traduction') {
-            const entry = getTraductionScoreEntry(sem.id, w);
-            const saved = getValidTraductionInProgress(sem.id, w);
+          if (reviewPickerMode === 'traduction' || reviewPickerMode === 'double') {
+            const entry = reviewPickerMode === 'double' ? getDoubleScoreEntry(sem.id, w) : getTraductionScoreEntry(sem.id, w);
+            const saved = reviewPickerMode === 'double' ? getValidDoubleInProgress(sem.id, w) : getValidTraductionInProgress(sem.id, w);
             const typeTagScore = entry && entry.best.verbeFilter
               ? `<span class="week-type-tag">${escapeHtml(libelleFiltreMots(entry.best.verbeFilter))}</span>` : '';
             const typeTagProgress = saved
@@ -3037,7 +3279,7 @@ function renderReview() {
       renderReview();
     });
     brancherDifficultePicker();
-    if (['vocab', 'ecriture', 'traduction'].includes(reviewPickerMode)) {
+    if (['vocab', 'ecriture', 'traduction', 'double'].includes(reviewPickerMode)) {
       const recalculerFiltreMots = () => {
         const groupeCoche = $('#chkMotsGroupe').checked;
         const simpleCoche = $('#chkMotsSimple').checked;
@@ -3064,7 +3306,8 @@ function renderReview() {
         btn.addEventListener('click', (e) => {
           e.stopPropagation();
           const sem = btn.dataset.sem, w = parseInt(btn.dataset.week, 10);
-          startTraductionQuiz(sem, w, true, reviewVerbeFilter);
+          if (reviewPickerMode === 'double') startDoubleQuiz(sem, w, true, reviewVerbeFilter);
+          else startTraductionQuiz(sem, w, true, reviewVerbeFilter);
           renderReview();
         });
       });
@@ -3074,6 +3317,7 @@ function renderReview() {
           const count = filtrerVocabParVerbe(getVocabForWeek(sem, w), reviewVerbeFilter).length;
           if (count === 0) { showToast('Aucun mot pour cette semaine avec ce filtre.'); return; }
           if (reviewPickerMode === 'ecriture') startEcritureQuiz(sem, w, reviewVerbeFilter);
+          else if (reviewPickerMode === 'double') startDoubleQuiz(sem, w, false, reviewVerbeFilter);
           else startTraductionQuiz(sem, w, false, reviewVerbeFilter);
           renderReview();
         });

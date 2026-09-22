@@ -988,6 +988,9 @@ code {
 
 /* ---------- Mode spectral (calque fantôme + bouton œil) ---------- */
 .answer-input-wrap { position: relative; display: inline-flex; align-items: center; gap: 8px; }
+/* Mode Double reponse (tache #11) : 2 champs empiles plutot que cote a
+   cote (defaut de .answer-input-wrap), pour rester lisible sur mobile. */
+.double-answer-wrap { flex-direction: column; }
 .spectral-overlay {
   position: absolute;
   top: 16px; left: 0; right: 0;
