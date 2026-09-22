@@ -53,29 +53,31 @@ echo "Fichiers modifiés :"
 git status --short
 echo
 
-# ---------- 4. Le message du commit ----------
+# ---------- 4. Le message du commit (seulement s'il y a du nouveau) ----------
+# Si le depot n'a que des commits deja faits (par exemple par Claude) en
+# attente d'envoi, il n'y a rien a decrire : on saute directement au push
+# au lieu de forcer une reponse a une question qui n'a pas de sens ici.
 
-echo "Décris en une phrase ce que tu as changé."
-echo "(Laisse vide et appuie sur Entrée pour annuler.)"
-printf "> "
-read -r message
+if [ -n "$(git status --porcelain)" ]; then
+  echo "Décris en une phrase ce que tu as changé."
+  echo "(Laisse vide et appuie sur Entrée pour annuler.)"
+  printf "> "
+  read -r message
 
-if [ -z "$message" ]; then
-  echo "Annulé. Rien n'a été envoyé."
-  read -n 1 -s -r -p "Appuie sur une touche pour fermer."
-  exit 0
+  if [ -z "$message" ]; then
+    echo "Annulé. Rien n'a été envoyé."
+    read -n 1 -s -r -p "Appuie sur une touche pour fermer."
+    exit 0
+  fi
+
+  echo
+  git add -A || exit 1
+  git commit -m "$message" || exit 1
+else
+  echo "Rien de nouveau à commiter (tout est déjà validé) — envoi direct des commits en attente."
 fi
 
 # ---------- 5. Envoi ----------
-
-echo
-git add -A || exit 1
-
-# S'il n'y avait que des commits déjà faits et rien de nouveau à ajouter,
-# git commit échoue : ce n'est pas une erreur, on passe directement au push.
-if ! git diff --cached --quiet; then
-  git commit -m "$message" || exit 1
-fi
 
 echo
 echo "Envoi vers GitHub…"
