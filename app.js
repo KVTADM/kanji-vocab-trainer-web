@@ -606,6 +606,136 @@ function scoreAnswer(input, correct) {
   return { pct, points };
 }
 
+// ---------- Saisie kana sans IME (romaji -> hiragana, tache #22) ----------
+// Jusque-la, repondre en kana dans les champs qui l'exigent (Pratique,
+// Vocabulaire de base, Kanji seul) demandait d'activer le clavier japonais
+// du systeme (IME) : romaji -> conversion hiragana -> l'IME propose ensuite
+// souvent un candidat en KANJI au moment de valider, alors que l'app ne
+// veut jamais de kanji dans ces champs precis (containsKanji() plus haut
+// existe deja pour avertir dans ce cas). Plutot que de lutter contre l'IME,
+// on integre notre propre transcription romaji -> kana en JS (meme principe
+// que wanakana.js, utilise par WaniKani) : l'utilisateur tape des lettres
+// latines ordinaires, sans jamais activer de clavier japonais, et voit le
+// hiragana apparaitre directement. Limite volontairement a un sous-ensemble
+// courant (pas de ligne "v", pas de ゐ/ゑ archaiques, pas de raccourcis
+// xtsu/ltsu) : le vocabulaire de l'app n'en a pratiquement jamais besoin
+// (4 mots sur 4208 seulement ont une lecture 100% katakana/emprunt).
+const ROMAJI_VERS_HIRAGANA = {
+  a: 'あ', i: 'い', u: 'う', e: 'え', o: 'お',
+  ka: 'か', ki: 'き', ku: 'く', ke: 'け', ko: 'こ',
+  ga: 'が', gi: 'ぎ', gu: 'ぐ', ge: 'げ', go: 'ご',
+  sa: 'さ', shi: 'し', si: 'し', su: 'す', se: 'せ', so: 'そ',
+  za: 'ざ', ji: 'じ', zi: 'じ', zu: 'ず', ze: 'ぜ', zo: 'ぞ',
+  ta: 'た', chi: 'ち', ti: 'ち', tsu: 'つ', tu: 'つ', te: 'て', to: 'と',
+  da: 'だ', di: 'ぢ', du: 'づ', de: 'で', do: 'ど',
+  na: 'な', ni: 'に', nu: 'ぬ', ne: 'ね', no: 'の',
+  ha: 'は', hi: 'ひ', fu: 'ふ', hu: 'ふ', he: 'へ', ho: 'ほ',
+  ba: 'ば', bi: 'び', bu: 'ぶ', be: 'べ', bo: 'ぼ',
+  pa: 'ぱ', pi: 'ぴ', pu: 'ぷ', pe: 'ぺ', po: 'ぽ',
+  ma: 'ま', mi: 'み', mu: 'む', me: 'め', mo: 'も',
+  ya: 'や', yu: 'ゆ', yo: 'よ',
+  ra: 'ら', ri: 'り', ru: 'る', re: 'れ', ro: 'ろ',
+  wa: 'わ', wo: 'を',
+  kya: 'きゃ', kyu: 'きゅ', kyo: 'きょ',
+  gya: 'ぎゃ', gyu: 'ぎゅ', gyo: 'ぎょ',
+  sha: 'しゃ', shu: 'しゅ', sho: 'しょ',
+  ja: 'じゃ', ju: 'じゅ', jo: 'じょ',
+  cha: 'ちゃ', chu: 'ちゅ', cho: 'ちょ',
+  nya: 'にゃ', nyu: 'にゅ', nyo: 'にょ',
+  hya: 'ひゃ', hyu: 'ひゅ', hyo: 'ひょ',
+  bya: 'びゃ', byu: 'びゅ', byo: 'びょ',
+  pya: 'ぴゃ', pyu: 'ぴゅ', pyo: 'ぴょ',
+  mya: 'みゃ', myu: 'みゅ', myo: 'みょ',
+  rya: 'りゃ', ryu: 'りゅ', ryo: 'りょ',
+  '-': 'ー',
+};
+const SOKUON_CONSONNES = new Set(['k','g','s','z','t','d','h','b','p','m','y','r','w','f','j','c']);
+
+function romajiVersHiragana(brut) {
+  const s = String(brut || '').toLowerCase();
+  let out = '';
+  let i = 0;
+  while (i < s.length) {
+    const c = s[i];
+    // Consonne doublee (hors "n") -> petit tsu (ex. "kekkon" -> "けっこん")
+    if (c === s[i + 1] && SOKUON_CONSONNES.has(c)) {
+      out += 'っ';
+      i += 1;
+      continue;
+    }
+    // "n" isole : "nn" -> ん ; suivi d'une consonne ou en fin de saisie -> ん
+    // (converti tout de suite, pas laisse en attente : vu que toute la
+    // chaine est retraitee a chaque frappe, un "n" isole redevient な/に/...
+    // de lui-meme si une voyelle est tapee juste apres). Suivi d'une voyelle
+    // ou d'un "y" : laisse la correspondance normale ci-dessous s'en charger
+    // (na/ni/nu/ne/no, nya/nyu/nyo).
+    if (c === 'n') {
+      const suivant = s[i + 1];
+      // "nn" ne represente JAMAIS deux ん de suite (inexistant en japonais) :
+      // c'est la convention standard pour ecrire ん explicitement devant une
+      // syllabe qui commencerait sinon par n+voyelle (ex. "konnichiwa" =
+      // こ+ん+に+ち+は, pas こ+ん+ん+い+ち+は). Le premier "n" devient ん et on
+      // n'avance que d'UN caractere : le second "n" est retraite au tour
+      // suivant, libre de former sa propre syllabe (na/ni/nu/ne/no) si une
+      // voyelle le suit, ou son propre ん sinon.
+      if (suivant === undefined || suivant === 'n' || !'aiueoy'.includes(suivant)) {
+        out += 'ん';
+        i += 1;
+        continue;
+      }
+    }
+    // Plus long groupe romaji connu (3, puis 2, puis 1 caractere)
+    let trouve = false;
+    for (let len = 3; len >= 1; len--) {
+      const bloc = s.slice(i, i + len);
+      if (Object.prototype.hasOwnProperty.call(ROMAJI_VERS_HIRAGANA, bloc)) {
+        out += ROMAJI_VERS_HIRAGANA[bloc];
+        i += len;
+        trouve = true;
+        break;
+      }
+    }
+    if (!trouve) {
+      // Romaji incomplet (ex. "k" en attente de sa voyelle) : garde tel quel
+      // le temps que la frappe se poursuive.
+      out += c;
+      i += 1;
+    }
+  }
+  return out;
+}
+
+function hiraganaVersKatakana(str) {
+  return (str || '').replace(/[ぁ-ゖ]/g, ch => String.fromCharCode(ch.charCodeAt(0) + 0x60));
+}
+
+// Branche la transcription en direct sur un <input> de reponse en kana.
+// katakana=true pour le champ onyomi (Kanji seul) : la conversion interne
+// reste en hiragana (le bareme normalise deja les deux, voir toHiragana()
+// ci-dessus), seul l'affichage passe en katakana pour rester coherent avec
+// la consigne "onyomi (katakana)".
+function activerSaisieKanaDirecte(input, katakana) {
+  if (!input) return;
+  input.addEventListener('input', (e) => {
+    // Si un IME systeme est malgre tout actif (l'utilisateur peut toujours
+    // choisir de taper en japonais plutot qu'en romaji latin), ne pas
+    // toucher au champ pendant la composition en cours -- memes gardes que
+    // pour la validation par Entree ailleurs dans ce fichier (e.isComposing
+    // / keyCode 229), pour ne jamais interferer avec l'IME lui-meme.
+    if (e.isComposing || e.keyCode === 229) return;
+    const brut = input.value;
+    const hira = romajiVersHiragana(brut);
+    const converti = katakana ? hiraganaVersKatakana(hira) : hira;
+    if (converti === brut) return;
+    input.value = converti;
+    // La frappe se fait quasi toujours en ajoutant a la fin (petit champ
+    // d'un seul mot) : replacer le curseur en fin de champ evite qu'il
+    // saute ailleurs a cause du changement de longueur texte tapee ->
+    // kana (ex. "ka" 2 caracteres -> "か" 1 seul).
+    input.setSelectionRange(converti.length, converti.length);
+  });
+}
+
 // ---------- Import en masse ----------
 function parseImportText(text) {
   const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
@@ -1666,6 +1796,7 @@ function renderKanjiQuizView(container) {
   if (!quizSession.submitted) {
     const input = $('#answerInputKanji');
     input.focus();
+    activerSaisieKanaDirecte(input, item.type === 'onyomi');
     const submit = () => {
       const val = input.value;
       quizSession.warning = null;
@@ -2397,6 +2528,7 @@ function renderPratiqueQuizView(container) {
   if (!quizSession.submitted) {
     const input = $('#answerInputPratique');
     input.focus();
+    activerSaisieKanaDirecte(input, false);
     const submit = () => {
       const val = input.value;
       if (containsKanji(val)) {
@@ -2914,6 +3046,7 @@ function renderReview() {
   if (!quizSession.submitted) {
     const input = $('#answerInput');
     input.focus();
+    activerSaisieKanaDirecte(input, false);
     const eyeBtn = $('#btnSpectralEye');
     if (eyeBtn) {
       const overlay = $('#spectralOverlay');

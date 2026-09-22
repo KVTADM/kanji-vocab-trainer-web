@@ -86,3 +86,87 @@ essai('recordSessionResult sans duree precisee (anciens appels) ne plante pas', 
   const entry = getScoreEntry('s1', 7);
   if (entry.best.dureeMs !== undefined) throw new Error(JSON.stringify(entry));
 });
+
+// ---- Saisie kana sans IME (romajiVersHiragana / hiraganaVersKatakana), tache #22 ----
+
+essai('romajiVersHiragana : voyelles et syllabes simples', () => {
+  if (romajiVersHiragana('konnichiha') !== 'こんにちは') throw new Error(romajiVersHiragana('konnichiha'));
+  if (romajiVersHiragana('arigatou') !== 'ありがとう') throw new Error(romajiVersHiragana('arigatou'));
+  if (romajiVersHiragana('tabemasu') !== 'たべます') throw new Error(romajiVersHiragana('tabemasu'));
+});
+
+essai('romajiVersHiragana : shi/chi/tsu et leurs variantes si/ti/tu', () => {
+  if (romajiVersHiragana('sushi') !== 'すし') throw new Error(romajiVersHiragana('sushi'));
+  if (romajiVersHiragana('chizu') !== 'ちず') throw new Error(romajiVersHiragana('chizu'));
+  if (romajiVersHiragana('tsukau') !== 'つかう') throw new Error(romajiVersHiragana('tsukau'));
+  if (romajiVersHiragana('tukau') !== 'つかう') throw new Error(romajiVersHiragana('tukau'));
+  if (romajiVersHiragana('siru') !== 'しる') throw new Error(romajiVersHiragana('siru'));
+});
+
+essai('romajiVersHiragana : syllabes palatalisees (kya/sha/cha/nya/rya...)', () => {
+  if (romajiVersHiragana('kyou') !== 'きょう') throw new Error(romajiVersHiragana('kyou'));
+  if (romajiVersHiragana('shukudai') !== 'しゅくだい') throw new Error(romajiVersHiragana('shukudai'));
+  if (romajiVersHiragana('byouin') !== 'びょういん') throw new Error(romajiVersHiragana('byouin'));
+  if (romajiVersHiragana('ryokou') !== 'りょこう') throw new Error(romajiVersHiragana('ryokou'));
+});
+
+essai('romajiVersHiragana : consonne doublee -> petit tsu (soku-on)', () => {
+  if (romajiVersHiragana('kekkon') !== 'けっこん') throw new Error(romajiVersHiragana('kekkon'));
+  if (romajiVersHiragana('kitte') !== 'きって') throw new Error(romajiVersHiragana('kitte'));
+  if (romajiVersHiragana('kocchi') !== 'こっち') throw new Error(romajiVersHiragana('kocchi'));
+  if (romajiVersHiragana('zasshi') !== 'ざっし') throw new Error(romajiVersHiragana('zasshi'));
+});
+
+essai('romajiVersHiragana : "n" isole devient ん (fin de mot, devant consonne, "nn")', () => {
+  if (romajiVersHiragana('hon') !== 'ほん') throw new Error(romajiVersHiragana('hon'));
+  if (romajiVersHiragana('kantan') !== 'かんたん') throw new Error(romajiVersHiragana('kantan'));
+  if (romajiVersHiragana('annai') !== 'あんない') throw new Error(romajiVersHiragana('annai'));
+});
+
+essai('romajiVersHiragana : "n" devant une voyelle ou "y" reste rattache a la syllabe (na/ni/nu/ne/no, nya...)', () => {
+  if (romajiVersHiragana('sakana') !== 'さかな') throw new Error(romajiVersHiragana('sakana'));
+  if (romajiVersHiragana('inu') !== 'いぬ') throw new Error(romajiVersHiragana('inu'));
+  if (romajiVersHiragana('konya') !== 'こにゃ') throw new Error(romajiVersHiragana('konya'));
+});
+
+essai('romajiVersHiragana : romaji incomplet en fin de saisie reste tel quel (en attente de la voyelle)', () => {
+  if (romajiVersHiragana('k') !== 'k') throw new Error(romajiVersHiragana('k'));
+  if (romajiVersHiragana('ky') !== 'ky') throw new Error(romajiVersHiragana('ky'));
+  if (romajiVersHiragana('tabek') !== 'たべk') throw new Error(romajiVersHiragana('tabek'));
+});
+
+essai('romajiVersHiragana : deja-hiragana ou vide n\'est jamais casse', () => {
+  if (romajiVersHiragana('あいう') !== 'あいう') throw new Error(romajiVersHiragana('あいう'));
+  if (romajiVersHiragana('') !== '') throw new Error(JSON.stringify(romajiVersHiragana('')));
+  if (romajiVersHiragana(null) !== '') throw new Error(JSON.stringify(romajiVersHiragana(null)));
+});
+
+essai('hiraganaVersKatakana : convertit pour le champ onyomi, laisse le reste intact', () => {
+  if (hiraganaVersKatakana('たべる') !== 'タベル') throw new Error(hiraganaVersKatakana('たべる'));
+  if (hiraganaVersKatakana('') !== '') throw new Error(JSON.stringify(hiraganaVersKatakana('')));
+  if (hiraganaVersKatakana('コウ') !== 'コウ') throw new Error(hiraganaVersKatakana('コウ'));
+});
+
+essai('activerSaisieKanaDirecte : convertit en direct sur l\'evenement input et replace le curseur en fin de champ', () => {
+  const input = { value: 'ka', _listeners: {}, addEventListener(evt, fn) { this._listeners[evt] = fn; }, setSelectionRange(a, b) { this._sel = [a, b]; } };
+  activerSaisieKanaDirecte(input, false);
+  input._listeners.input({});
+  if (input.value !== 'か') throw new Error(input.value);
+  if (JSON.stringify(input._sel) !== JSON.stringify([1, 1])) throw new Error(JSON.stringify(input._sel));
+});
+
+essai('activerSaisieKanaDirecte : katakana=true convertit pour le champ onyomi', () => {
+  const input = { value: 'kou', _listeners: {}, addEventListener(evt, fn) { this._listeners[evt] = fn; }, setSelectionRange() {} };
+  activerSaisieKanaDirecte(input, true);
+  input._listeners.input({});
+  if (input.value !== 'コウ') throw new Error(input.value);
+});
+
+essai('activerSaisieKanaDirecte : ne touche pas au champ pendant une composition IME en cours (isComposing/keyCode 229)', () => {
+  const input = { value: 'ka', _listeners: {}, addEventListener(evt, fn) { this._listeners[evt] = fn; }, setSelectionRange() { throw new Error('ne doit pas etre appele pendant une composition'); } };
+  activerSaisieKanaDirecte(input, false);
+  input._listeners.input({ isComposing: true });
+  if (input.value !== 'ka') throw new Error(input.value);
+  input._listeners.input({ keyCode: 229 });
+  if (input.value !== 'ka') throw new Error(input.value);
+});
