@@ -209,3 +209,39 @@ essai('motsConfondables : mot sans lecture ou absent -> tableau vide (pas d\'exc
   if (motsConfondables(undefined).length !== 0) throw new Error('undefined');
   if (motsConfondables(DB.vocab[0]).length !== 0) throw new Error('lecture vide');
 });
+
+essai('caracteresKanjiDistincts : isole chaque caractere kanji reel d\'une fiche a plusieurs kanji (ex. "歳/才")', () => {
+  const res = caracteresKanjiDistincts('歳/才');
+  if (JSON.stringify(res) !== JSON.stringify(['歳', '才'])) throw new Error(JSON.stringify(res));
+});
+
+essai('caracteresKanjiDistincts : un seul kanji -> tableau a un element', () => {
+  const res = caracteresKanjiDistincts('木');
+  if (JSON.stringify(res) !== JSON.stringify(['木'])) throw new Error(JSON.stringify(res));
+});
+
+essai('caracteresKanjiDistincts : deduplique tout en gardant l\'ordre d\'apparition', () => {
+  const res = caracteresKanjiDistincts('木木水');
+  if (JSON.stringify(res) !== JSON.stringify(['木', '水'])) throw new Error(JSON.stringify(res));
+});
+
+essai('caracteresKanjiDistincts : chaine vide ou sans kanji -> tableau vide, jamais d\'exception', () => {
+  if (caracteresKanjiDistincts('').length !== 0) throw new Error('vide');
+  if (caracteresKanjiDistincts(null).length !== 0) throw new Error('null');
+  if (caracteresKanjiDistincts(undefined).length !== 0) throw new Error('undefined');
+  if (caracteresKanjiDistincts('ABC123').length !== 0) throw new Error('sans kanji');
+});
+
+essai('tracesDisponibles : renvoie null proprement quand KANJIVG_DATA est absent (comme dans ce harnais de tests)', () => {
+  if (tracesDisponibles('木') !== null) throw new Error(JSON.stringify(tracesDisponibles('木')));
+});
+
+essai('tracesDisponibles : renvoie les traits du caractere si KANJIVG_DATA est present, sinon null', () => {
+  global.KANJIVG_DATA = { '木': ['M1,1', 'M2,2'] };
+  try {
+    if (JSON.stringify(tracesDisponibles('木')) !== JSON.stringify(['M1,1', 'M2,2'])) throw new Error('trouve');
+    if (tracesDisponibles('不-connu') !== null) throw new Error('absent devrait etre null');
+  } finally {
+    delete global.KANJIVG_DATA;
+  }
+});

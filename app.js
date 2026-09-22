@@ -17,6 +17,7 @@ let reviewVerbeFilter = 'tous'; // 'tous' | 'sans_verbe' | 'verbe_seul' — filt
 let dashboardMode = 'cursus';  // 'cursus' (S0-S6) ou 'jlpt' (modules JLPT) — bascule en haut à droite de l'Accueil
 let modalSemaineOuverte = null; // { semesterId, week } — modale de choix ouverte sur une carte du Tableau de bord (09/09/2026), voir renderDashboard()
 let modalMotsMasquesOuvert = false; // modale "Mots masqués" ouverte depuis Vocabulaire (17/09/2026), voir renderVocab()
+let modalTraceKanji = null; // caractere(s) kanji affiche(s) dans la modale de trace des traits (tache #13, KanjiVG), ou null si fermee
 
 const $ = (sel, root) => (root || document).querySelector(sel);
 const $$ = (sel, root) => Array.from((root || document).querySelectorAll(sel));
@@ -156,6 +157,31 @@ function motsConfondables(v) {
   return DB.vocab
     .filter(autre => autre.id !== v.id && autre.lecture === v.lecture)
     .slice(0, 3);
+}
+
+// Trace des traits (tache #13, donnees KanjiVG -- licence CC BY-SA 3.0,
+// voir kanjivg-data.js) : certaines fiches kanjiGroup.kanji contiennent
+// PLUSIEURS caracteres (ex. "歳/才" ou "在大", deux kanji lies enseignes
+// sur la meme fiche) -- on isole chaque caractere kanji reel individuel
+// pour afficher son propre trace, dans l'ordre ou il apparait.
+function caracteresKanjiDistincts(str) {
+  if (!str) return [];
+  const trouves = str.match(/[\u4e00-\u9faf\u3400-\u4dbf]/g) || [];
+  const vus = new Set();
+  const resultat = [];
+  for (const c of trouves) {
+    if (!vus.has(c)) { vus.add(c); resultat.push(c); }
+  }
+  return resultat;
+}
+
+// KANJIVG_DATA est une variable globale definie par kanjivg-data.js (charge
+// avant app.js dans index.html) : { "kanji": ["chemin SVG trait 1", ...] }.
+// Absente dans le harnais de tests (fichier non charge) -- renvoie null
+// plutot que de planter, comme pour tout caractere hors perimetre KanjiVG.
+function tracesDisponibles(kanji) {
+  if (typeof KANJIVG_DATA === 'undefined' || !KANJIVG_DATA) return null;
+  return KANJIVG_DATA[kanji] || null;
 }
 
 // ---------- Filtre "avec/sans verbe de base" (09/09/2026) ----------
@@ -1502,6 +1528,7 @@ function renderVocab() {
           <div class="kanji-block-head">
             <span class="kj">${escapeHtml(g.kanji)}</span>
             <strong>${escapeHtml(g.titre || '')}</strong>
+            <button class="secondary small btn-voir-trace-groupe" data-kanji="${escapeHtml(g.kanji)}">Voir le tracé</button>
             <button class="secondary small btn-del-group" data-group="${g.id}">Supprimer ce kanji</button>
           </div>
           ${learnInfo}
@@ -1589,6 +1616,7 @@ function renderVocab() {
         </div>
       </div>
     ` : ''}
+    ${htmlModalTraceKanji()}
   `;
 
   $('#btnParseImport').addEventListener('click', () => {
@@ -1634,6 +1662,13 @@ function renderVocab() {
       renderVocab();
     });
   });
+  $$('.btn-voir-trace-groupe').forEach(btn => {
+    btn.addEventListener('click', () => {
+      modalTraceKanji = btn.dataset.kanji;
+      renderVocab();
+    });
+  });
+  wireModalTraceKanji(renderVocab);
   $$('.btn-masquer-vocab').forEach(btn => {
     btn.addEventListener('click', async () => {
       await masquerMot(btn.dataset.vocab);
@@ -1747,6 +1782,104 @@ function startQuiz(semesterId, week, forceRestart, verbeFilter) {
   };
 }
 
+// ---------- Modale de trace des traits (tache #13, rang 4) ----------
+// Ouvrable depuis "Kanji seul" (revele) et depuis Vocabulaire (fiche kanji).
+// Un seul jeu de fonctions partage par les deux vues : modalTraceKanji
+// (variable globale, voir haut de fichier) contient soit null (fermee)
+// soit la chaine kanjiGroup.kanji d'origine (peut contenir plusieurs
+// caracteres, voir caracteresKanjiDistincts ci-dessus).
+
+function construireSvgTraceKanji(paths, idSvg) {
+  // viewBox 0 0 109 109 : convention fixe de KanjiVG, reprise telle quelle.
+  // Calque "squelette" (tous les traits, tres pale) en dessous : garde le
+  // caractere entier visible pendant que les traits s'animent un par un
+  // par dessus, plutot que de partir d'un cadre vide.
+  const squelette = paths.map(d => `<path d="${d}" class="trait-squelette"/>`).join('');
+  const traits = paths.map((d, i) => `<path d="${d}" class="trait-kanji" data-ordre="${i + 1}"/>`).join('');
+  // Numero au point de depart de chaque trait (premiere paire de
+  // coordonnees du "d", juste apres le M) : aide a suivre l'ordre sans
+  // devoir deviner quel trait vient de s'animer.
+  const numeros = paths.map((d, i) => {
+    const m = /^M\s*(-?[\d.]+)[,\s]+(-?[\d.]+)/.exec(d);
+    if (!m) return '';
+    return `<text x="${parseFloat(m[1]) - 3}" y="${parseFloat(m[2]) - 3}" class="numero-trait">${i + 1}</text>`;
+  }).join('');
+  return `<svg id="${idSvg}" viewBox="0 0 109 109" class="svg-trace-kanji">${squelette}${traits}${numeros}</svg>`;
+}
+
+function animerTraceKanji(svgEl) {
+  const traits = $$('.trait-kanji', svgEl);
+  const DUREE_PAR_TRAIT_MS = 380;
+  traits.forEach((path, i) => {
+    const longueur = path.getTotalLength();
+    path.style.transition = 'none';
+    path.style.strokeDasharray = String(longueur);
+    path.style.strokeDashoffset = String(longueur);
+    // Force le reflow pour que le navigateur applique bien l'etat "cache"
+    // AVANT qu'on programme la transition -- sinon les traits ulterieurs
+    // (delai > 0) sautent directement a l'etat final sans s'animer.
+    void path.getBoundingClientRect();
+    path.style.transition = `stroke-dashoffset ${DUREE_PAR_TRAIT_MS}ms ease-in-out ${i * DUREE_PAR_TRAIT_MS}ms`;
+    path.style.strokeDashoffset = '0';
+  });
+}
+
+function htmlModalTraceKanji() {
+  if (!modalTraceKanji) return '';
+  const caracteres = caracteresKanjiDistincts(modalTraceKanji);
+  const blocs = caracteres.map((kanji, i) => {
+    const paths = tracesDisponibles(kanji);
+    if (!paths) {
+      return `
+        <div class="trace-bloc">
+          <div class="trace-bloc-titre">${escapeHtml(kanji)}</div>
+          <p style="color:var(--muted); font-size:13px;">Trace indisponible pour ce caractere.</p>
+        </div>
+      `;
+    }
+    return `
+      <div class="trace-bloc">
+        <div class="trace-bloc-titre">${escapeHtml(kanji)}</div>
+        <div class="trace-svg-wrap">${construireSvgTraceKanji(paths, `svgTraceKanji-${i}`)}</div>
+        <button class="secondary small btn-rejouer-trace" data-svg="svgTraceKanji-${i}">Rejouer le trace</button>
+      </div>
+    `;
+  }).join('');
+  return `
+    <div class="modal-backdrop" id="modalTraceKanjiBackdrop">
+      <div class="modal-box modal-box--trace">
+        <div class="modal-tete">
+          <h3>Trace des traits</h3>
+          <button class="modal-fermer" id="btnFermerModalTrace" title="Fermer" aria-label="Fermer">✕</button>
+        </div>
+        <div class="trace-blocs">${blocs}</div>
+        <p class="trace-attribution">Traces : projet <a href="https://kanjivg.tagaini.net" target="_blank" rel="noopener">KanjiVG</a> (CC BY-SA 3.0).</p>
+      </div>
+    </div>
+  `;
+}
+
+// rerender : fonction de la vue APPELANTE a relancer apres fermeture --
+// ce modal s'ouvre depuis plusieurs vues (Kanji seul, Vocabulaire), donc
+// pas de vue "propriétaire" fixe a rappeler en dur (contrairement aux
+// autres modales du fichier qui n'ont qu'un seul point d'ouverture).
+function wireModalTraceKanji(rerender) {
+  if (!modalTraceKanji) return;
+  const fermer = () => { modalTraceKanji = null; rerender(); };
+  const backdrop = $('#modalTraceKanjiBackdrop');
+  if (backdrop) {
+    $('#btnFermerModalTrace').addEventListener('click', fermer);
+    backdrop.addEventListener('click', (e) => { if (e.target === backdrop) fermer(); });
+  }
+  $$('.svg-trace-kanji').forEach(svg => animerTraceKanji(svg));
+  $$('.btn-rejouer-trace').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const svg = document.getElementById(btn.dataset.svg);
+      if (svg) animerTraceKanji(svg);
+    });
+  });
+}
+
 // Vue "Kanji seul" : séparée de renderReview() par choix (aucune branche
 // supplémentaire ajoutée au quiz vocabulaire déjà testé), même esprit
 // (saisie libre, correction par similarité, historique séparé).
@@ -1817,6 +1950,7 @@ function renderKanjiQuizView(container) {
           <div class="quiz-feedback ${quizSession.lastResult.pct >= 0.99 ? 'good' : (quizSession.lastResult.pct >= 0.6 ? 'mid' : 'bad')}">
             Ta réponse : "${escapeHtml(quizSession.lastAnswer) || '(vide)'}" — ${quizSession.lastResult.points}/${DB.settings.pointsPerWord} points
           </div>
+          <button class="secondary small" id="btnVoirTraceKanji" style="margin-top:10px;">Voir le tracé des traits</button>
         `}
       </div>
       ${!quizSession.submitted ? `
@@ -1826,6 +1960,7 @@ function renderKanjiQuizView(container) {
       `}
       <button class="secondary" id="btnQuitKanjiQuiz" style="margin-top:12px;">Quitter la session</button>
     </div>
+    ${htmlModalTraceKanji()}
   `;
 
   if (!quizSession.submitted) {
@@ -1870,6 +2005,15 @@ function renderKanjiQuizView(container) {
     quizSession = null;
     renderReview();
   });
+
+  const btnVoirTrace = $('#btnVoirTraceKanji');
+  if (btnVoirTrace) {
+    btnVoirTrace.addEventListener('click', () => {
+      modalTraceKanji = g.kanji;
+      renderReview();
+    });
+  }
+  wireModalTraceKanji(renderReview);
 }
 
 // ---------- Mode "Kana" (hiragana/katakana -> romaji, 09/09/2026) ----------
