@@ -335,6 +335,64 @@ const JLPT_N4_SEED = {"kanjiGroups":[{"id":"kg-hu66go90952pa","semesterId":"jlpt
         }
       });
     }
+    // Verbes de base manquants au vocabulaire N4 (releve du 14/09/2026,
+    // 154 candidats bruts signales dans 212bd3d -- traites ici avec la
+    // meme rigueur que N5/cursus : comparaison du kunyomi de chaque
+    // groupe de kanji jlpt-n4 aux entrees "vocab" reellement presentes
+    // pour ce groupe). Beaucoup de candidats bruts etaient soit deja
+    // couverts (ex : 作る, 使う, 待つ deja presents), soit ecartes en
+    // revue manuelle pour registre trop archaique/litteraire/formel
+    // (ex : 以て, 問う, 図る, 用いる, 病む, 究める -- ce dernier deja
+    // ecarte pour le cursus en 15ca36c) ou trop proches d'un synonyme
+    // deja enseigne sous un autre kanji (ex : 代える vs 変える).
+    // Dedoublonnage PAR GROUPE DE KANJI comme le bloc CURSUS ci-dessus
+    // (necessaire ici aussi : 写 et 動 recoivent chacun 2 mots).
+    const VERBES_N4_A_AJOUTER = [
+      { id: 'v-pl186s9de2y', kanjiGroupId: 'kg-c8rwjau5i8o4i', mot: '仕える', lecture: 'つかえる', sens: 'Servir, être au service de' },
+      { id: 'v-bmqpo872ymx', kanjiGroupId: 'kg-yagyedwwbb64u', mot: '代わる', lecture: 'かわる', sens: 'Remplacer, prendre la place de' },
+      { id: 'v-mfke41ig4u2', kanjiGroupId: 'kg-fytlwlq350s3l', mot: '会う', lecture: 'あう', sens: 'Rencontrer' },
+      { id: 'v-jebypri6f6c', kanjiGroupId: 'kg-3v08lbwkw98nh', mot: '住む', lecture: 'すむ', sens: 'Habiter, résider' },
+      { id: 'v-423w6piiaj3', kanjiGroupId: 'kg-7blu8jkbh6axe', mot: '写す', lecture: 'うつす', sens: 'Copier, prendre en photo' },
+      { id: 'v-2vodtlnrbtl', kanjiGroupId: 'kg-7blu8jkbh6axe', mot: '写る', lecture: 'うつる', sens: 'Apparaître sur une photo, se refléter' },
+      { id: 'v-1t2i1x5fkiv', kanjiGroupId: 'kg-u5zulm3oww0yn', mot: '切る', lecture: 'きる', sens: 'Couper' },
+      { id: 'v-o1x54ixolzy', kanjiGroupId: 'kg-rovj9hrs3zzb9', mot: '別れる', lecture: 'わかれる', sens: 'Se séparer' },
+      { id: 'v-ssngcel5tul', kanjiGroupId: 'kg-vwu4q5uqc5ib4', mot: '動く', lecture: 'うごく', sens: 'Bouger' },
+      { id: 'v-w2w51bbwpv4', kanjiGroupId: 'kg-vwu4q5uqc5ib4', mot: '動かす', lecture: 'うごかす', sens: 'Déplacer, faire bouger (quelque chose)' },
+      { id: 'v-ptuqy1ebum6', kanjiGroupId: 'kg-167i6nr5i9uxz', mot: '去る', lecture: 'さる', sens: "Partir, s'éloigner" },
+      { id: 'v-zp5k2cb8d0p', kanjiGroupId: 'kg-77grscfce72gy', mot: '味わう', lecture: 'あじわう', sens: 'Savourer, apprécier' },
+      { id: 'v-2pixmmxm221', kanjiGroupId: 'kg-goxe0fqu1to7l', mot: '始まる', lecture: 'はじまる', sens: 'Commencer (intransitif)' },
+      { id: 'v-uxkwjvpsjy6', kanjiGroupId: 'kg-cw551dvxm8q97', mot: '広がる', lecture: 'ひろがる', sens: "S'étendre, se répandre" },
+      { id: 'v-p612gs3qmxy', kanjiGroupId: 'kg-cw551dvxm8q97', mot: '広げる', lecture: 'ひろげる', sens: 'Étendre, déployer' },
+      { id: 'v-mtsqclgmcjo', kanjiGroupId: 'kg-ot033crsfcr3v', mot: '建てる', lecture: 'たてる', sens: 'Construire, bâtir' },
+      { id: 'v-5cpepur57tr', kanjiGroupId: 'kg-higs5bz4vuq8u', mot: '急ぐ', lecture: 'いそぐ', sens: 'Se dépêcher' },
+      { id: 'v-wbcnbuk71rc', kanjiGroupId: 'kg-d1m5e4ehkropx', mot: '教わる', lecture: 'おそわる', sens: "Apprendre de quelqu'un, recevoir un enseignement" },
+      { id: 'v-0b7ofriqoo2', kanjiGroupId: 'kg-yjrrne32r1yrn', mot: '明ける', lecture: 'あける', sens: 'Prendre fin, se terminer (une période : la nuit, les vacances)' },
+      { id: 'v-4vdsevwodws', kanjiGroupId: 'kg-st2z2iwle8cnn', mot: '映る', lecture: 'うつる', sens: "Apparaître (à l'écran, dans un miroir), se refléter" },
+      { id: 'v-ju0710wvcfz', kanjiGroupId: 'kg-m97ze8atre71e', mot: '楽しむ', lecture: 'たのしむ', sens: 'Profiter de, prendre plaisir à' },
+      { id: 'v-hs59tiz8h19', kanjiGroupId: 'kg-9bkx328e5y765', mot: '止める', lecture: 'とめる', sens: "Arrêter (quelque chose, quelqu'un)" },
+      { id: 'v-kemq9taqds8', kanjiGroupId: 'kg-7m0rcmiaef2ki', mot: '歩く', lecture: 'あるく', sens: 'Marcher' },
+      { id: 'v-w0cjrd9jdix', kanjiGroupId: 'kg-562mzz4t4et3m', mot: '注ぐ', lecture: 'そそぐ', sens: 'Verser (un liquide)' },
+      { id: 'v-gyq6w9x2prr', kanjiGroupId: 'kg-mni8vgcdkslst', mot: '空く', lecture: 'すく', sens: 'Être vide, avoir faim (お腹が空く)' },
+      { id: 'v-3elfdhusu5v', kanjiGroupId: 'kg-pv2zhumdvxjhg', mot: '立てる', lecture: 'たてる', sens: 'Dresser, ériger ; formuler (un plan)' },
+      { id: 'v-uahig4rygds', kanjiGroupId: 'kg-egyujdcpsz7rj', mot: '終える', lecture: 'おえる', sens: 'Terminer, finir (quelque chose)' },
+      { id: 'v-rhqjk6ey77a', kanjiGroupId: 'kg-ua3enxptpy8zo', mot: '計る', lecture: 'はかる', sens: 'Mesurer (le temps, la quantité)' },
+      { id: 'v-fb9jxwsrnj7', kanjiGroupId: 'kg-6wjy7h69fib1r', mot: '試す', lecture: 'ためす', sens: 'Essayer, tester' },
+      { id: 'v-05vzmrv5rew', kanjiGroupId: 'kg-zpr3z8ybrdhq6', mot: '起こす', lecture: 'おこす', sens: "Réveiller quelqu'un ; provoquer, causer" },
+      { id: 'v-n4nfjnao483', kanjiGroupId: 'kg-5d06orhcpl5fj', mot: '足りる', lecture: 'たりる', sens: 'Suffire, être suffisant' },
+      { id: 'v-5qggd1b20bh', kanjiGroupId: 'kg-qi4cx5uurb8fv', mot: '転ぶ', lecture: 'ころぶ', sens: 'Tomber, chuter' },
+      { id: 'v-l5zo9mbpwz2', kanjiGroupId: 'kg-gklkx5d7f3oyl', mot: '通る', lecture: 'とおる', sens: 'Passer par, traverser' },
+      { id: 'v-i001q42hbwo', kanjiGroupId: 'kg-kfsruzvmm7jnk', mot: '運ぶ', lecture: 'はこぶ', sens: 'Transporter, porter' },
+      { id: 'v-775yjuimaxk', kanjiGroupId: 'kg-s2noa9zqnk6sq', mot: '開ける', lecture: 'あける', sens: 'Ouvrir (quelque chose)' },
+      { id: 'v-uj5ke6eebmu', kanjiGroupId: 'kg-eptkb52qhywu5', mot: '集まる', lecture: 'あつまる', sens: 'Se rassembler, se réunir' },
+    ];
+    if (Array.isArray(data.vocab) && data.kanjiGroups.some(g => g.semesterId === 'jlpt-n4')) {
+      VERBES_N4_A_AJOUTER.forEach(nouveauMot => {
+        const dejaPresent = data.vocab.some(v => v.kanjiGroupId === nouveauMot.kanjiGroupId && v.mot === nouveauMot.mot);
+        if (!dejaPresent) {
+          data.vocab.push({ ...nouveauMot });
+        }
+      });
+    }
     data.settings.pointsPerWord = 10;
     return data;
   }
