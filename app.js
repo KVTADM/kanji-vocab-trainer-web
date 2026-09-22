@@ -737,6 +737,21 @@ function switchView(view) {
     // sinon le navigateur regroupe les deux et l'animation ne repart pas.
     void el.offsetWidth;
     el.classList.add('view-enter');
+    // Bug #1 (22/09/2026) : tant que .view-enter reste posee, .view a une
+    // animation CSS qui touche `transform` -- meme terminee, meme revenue a
+    // `none` via l'''animation elle-meme, ca suffit pour que les navigateurs
+    // traitent .view comme un bloc de reference pour tout descendant en
+    // position:fixed. Resultat : le modal de choix de semaine (position:fixed
+    // cense se centrer sur l'''ecran) se retrouvait cale sur la boite de .view
+    // -- une zone qui peut faire des milliers de pixels de haut sur un
+    // Tableau de bord charge -- au lieu de la fenetre. D'''ou le modal qui
+    // s'''ouvrait hors ecran, plus bas ou plus haut selon le defilement. On
+    // retire la classe des que l'''animation d'''entree est finie (ou tout de
+    // suite si prefers-reduced-motion l'''a supprimee, d'''ou le filet via
+    // setTimeout) pour que .view redevienne un conteneur normal.
+    const finirEntreeVue = () => el.classList.remove('view-enter');
+    el.addEventListener('animationend', (e) => { if (e.target === el) finirEntreeVue(); }, { once: true });
+    setTimeout(finirEntreeVue, 260);
   }
 }
 
@@ -1547,7 +1562,13 @@ function renderKanjiQuizView(container) {
   // Session terminée
   if (quizSession.index >= quizSession.queue.length) {
     const { points, maxPoints } = quizSession.totals;
-    const pct = maxPoints > 0 ? Math.round((points / maxPoints) * 100) : 0;
+    const pct = maxPoints > 0
+      // Bug #19 (22/09/2026) : un score presque parfait (ex. 569/570)
+      // arrondissait a 100%, ce qui donnait un faux sentiment de sans-faute.
+      // 100% est reserve au score reellement parfait ; sinon on plafonne a 99%
+      // meme si l'''arrondi mathematique donnerait 100.
+      ? (points >= maxPoints ? 100 : Math.min(99, Math.round((points / maxPoints) * 100)))
+      : 0;
     const prevEntry = getKanjiScoreEntry(quizSession.semesterId, quizSession.week);
     const prevBest = prevEntry ? prevEntry.best.pct : null;
     const improved = prevBest === null || pct > prevBest;
@@ -1724,7 +1745,13 @@ function clearKanaInProgress(kanaType, groupId) {
 function renderKanaQuizView(container) {
   if (quizSession.index >= quizSession.queue.length) {
     const { points, maxPoints } = quizSession.totals;
-    const pct = maxPoints > 0 ? Math.round((points / maxPoints) * 100) : 0;
+    const pct = maxPoints > 0
+      // Bug #19 (22/09/2026) : un score presque parfait (ex. 569/570)
+      // arrondissait a 100%, ce qui donnait un faux sentiment de sans-faute.
+      // 100% est reserve au score reellement parfait ; sinon on plafonne a 99%
+      // meme si l'''arrondi mathematique donnerait 100.
+      ? (points >= maxPoints ? 100 : Math.min(99, Math.round((points / maxPoints) * 100)))
+      : 0;
     const prevEntry = getKanaScoreEntry(quizSession.kanaType, quizSession.groupId);
     const prevBest = prevEntry ? prevEntry.best.pct : null;
     const improved = prevBest === null || pct > prevBest;
@@ -2045,7 +2072,13 @@ function clearTraductionInProgress(semesterId, week) {
 function renderTraductionQuizView(container) {
   if (quizSession.index >= quizSession.queue.length) {
     const { points, maxPoints } = quizSession.totals;
-    const pct = maxPoints > 0 ? Math.round((points / maxPoints) * 100) : 0;
+    const pct = maxPoints > 0
+      // Bug #19 (22/09/2026) : un score presque parfait (ex. 569/570)
+      // arrondissait a 100%, ce qui donnait un faux sentiment de sans-faute.
+      // 100% est reserve au score reellement parfait ; sinon on plafonne a 99%
+      // meme si l'''arrondi mathematique donnerait 100.
+      ? (points >= maxPoints ? 100 : Math.min(99, Math.round((points / maxPoints) * 100)))
+      : 0;
     const prevEntry = getTraductionScoreEntry(quizSession.semesterId, quizSession.week);
     const prevBest = prevEntry ? prevEntry.best.pct : null;
     const improved = prevBest === null || pct > prevBest;
@@ -2252,7 +2285,13 @@ function clearPratiqueInProgress(theme) {
 function renderPratiqueQuizView(container) {
   if (quizSession.index >= quizSession.queue.length) {
     const { points, maxPoints } = quizSession.totals;
-    const pct = maxPoints > 0 ? Math.round((points / maxPoints) * 100) : 0;
+    const pct = maxPoints > 0
+      // Bug #19 (22/09/2026) : un score presque parfait (ex. 569/570)
+      // arrondissait a 100%, ce qui donnait un faux sentiment de sans-faute.
+      // 100% est reserve au score reellement parfait ; sinon on plafonne a 99%
+      // meme si l'''arrondi mathematique donnerait 100.
+      ? (points >= maxPoints ? 100 : Math.min(99, Math.round((points / maxPoints) * 100)))
+      : 0;
     const prevEntry = getPratiqueScoreEntry(quizSession.theme);
     const prevBest = prevEntry ? prevEntry.best.pct : null;
     const improved = prevBest === null || pct > prevBest;
@@ -2691,7 +2730,13 @@ function renderReview() {
   // Session terminée
   if (quizSession.index >= quizSession.queue.length) {
     const { points, maxPoints } = quizSession.totals;
-    const pct = maxPoints > 0 ? Math.round((points / maxPoints) * 100) : 0;
+    const pct = maxPoints > 0
+      // Bug #19 (22/09/2026) : un score presque parfait (ex. 569/570)
+      // arrondissait a 100%, ce qui donnait un faux sentiment de sans-faute.
+      // 100% est reserve au score reellement parfait ; sinon on plafonne a 99%
+      // meme si l'''arrondi mathematique donnerait 100.
+      ? (points >= maxPoints ? 100 : Math.min(99, Math.round((points / maxPoints) * 100)))
+      : 0;
     const key = weekKey(quizSession.semesterId, quizSession.week);
     const prevBest = DB.scores[key] ? DB.scores[key].best.pct : null;
     const improved = prevBest === null || pct > prevBest;
