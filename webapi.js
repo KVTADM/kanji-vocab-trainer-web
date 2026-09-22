@@ -154,6 +154,36 @@ const JLPT_N4_SEED = {"kanjiGroups":[{"id":"kg-hu66go90952pa","semesterId":"jlpt
         if (MOTS_PARENTHESES_A_NETTOYER[v.id]) v.mot = MOTS_PARENTHESES_A_NETTOYER[v.id];
       });
     }
+    // Registre des lectures (poli/humble/familier, 22/09/2026, tache #15
+    // du chantier) : ces mots du cursus (S1-S4 + Debutant L0, priorite de
+    // Paul -- le N5/JLPT n'est PAS touche ici) melangeaient jusque-la le
+    // registre directement dans le champ "sens" affiche pendant le quiz,
+    // ex "Dire (humble)". Deplace dans un champ dedie vocab.registre (voir
+    // registreBadge() dans app.js pour l'affichage) et "sens" nettoye de
+    // la parenthese redondante. Idempotent comme MOTS_PARENTHESES_A_NETTOYER
+    // ci-dessus : import ponctuel par id, ne touche que ces 10 mots, sans
+    // jamais ecraser un "sens"/"registre" modifie entretemps par l'utilisateur.
+    const REGISTRE_A_PRECISER = {
+      'v-mrhvk4uw0qut7': { registre: 'poli', sens: 'Aller, venir' },
+      'v-mrhvk4v0pm61v': { registre: 'poli', sens: 'Connaître' },
+      'v-mrhvk4v7vz68d': { registre: 'humble', sens: 'Dire' },
+      'v-pqiseuyz52u51': { registre: 'poli', sens: 'Tout le monde' },
+      'v-mrhvk4vb0zj37': { registre: 'poli', sens: 'Informations / Guidage' },
+      'v-mrhvk4vrwkps3': { registre: 'humble', sens: 'recevoir' },
+      'v-l0s1-w2-05-05': { registre: 'poli', sens: 'mère' },
+      'v-l0s1-w2-06-05': { registre: 'poli', sens: 'père' },
+      'v-l0s1-w2-07-03': { registre: 'poli', sens: 'grand frère' },
+      'v-l0s1-w2-09-03': { registre: 'poli', sens: 'grande sœur' },
+    };
+    if (Array.isArray(data.vocab)) {
+      data.vocab.forEach(v => {
+        const fix = REGISTRE_A_PRECISER[v.id];
+        if (fix && !v.registre) {
+          v.registre = fix.registre;
+          v.sens = fix.sens;
+        }
+      });
+    }
     // Scission des mots-question combinant 2 a 4 mots avec "/" (09/09/2026,
     // suite au meme retour de Paul : "questions avec des parentheses" ->
     // "je voulais dire les /"). Meme souci que les parentheses : le champ

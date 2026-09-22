@@ -930,6 +930,11 @@ code {
 }
 .flashcard .back-reading { font-size: 24px; color: var(--accent-bright); margin-top: 12px; font-weight: 700; }
 .flashcard .back-meaning { font-size: 16px; margin-top: 8px; color: var(--muted); font-style: italic; }
+.registre-badge{
+  display:inline-block; vertical-align:middle; margin-left:7px;
+  font-size:10.5px; font-weight:600; letter-spacing:.02em; text-transform:lowercase;
+  padding:1px 8px; border-radius:999px; border:1px solid var(--border); color:var(--muted);
+}
 .flashcard .hint {
   /* Etait en 10px avec --label-dim a 2:1 de contraste : quasi illisible
      (retour d'un utilisateur le 27/07, confirme par mesure). Passe en 13px

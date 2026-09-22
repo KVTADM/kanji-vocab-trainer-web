@@ -38,6 +38,19 @@ function escapeHtml(str) {
   }[c]));
 }
 
+// Registre des lectures (poli/humble/familier, 22/09/2026) : quelques mots
+// du cursus (参る, 申す, お母さん...) melangeaient jusque-la ce renseignement
+// directement dans le champ "sens" affiche pendant le quiz (ex : "Dire
+// (humble)"). Deplace ici dans un champ dedie vocab.registre (voir
+// REGISTRE_A_PRECISER dans webapi.js) pour un badge visuel plutot qu'une
+// parenthese dans la traduction -- affiche partout ou mot/lecture/sens
+// sont montres (tableau de traduction, cartes de quiz).
+const REGISTRE_LABELS = { poli: 'poli', humble: 'humble', familier: 'familier', litteraire: 'litteraire' };
+function registreBadge(v) {
+  if (!v || !v.registre || !REGISTRE_LABELS[v.registre]) return '';
+  return `<span class="registre-badge registre-${escapeHtml(v.registre)}">${REGISTRE_LABELS[v.registre]}</span>`;
+}
+
 function shuffle(arr) {
   const a = arr.slice();
   for (let i = a.length - 1; i > 0; i--) {
@@ -1332,7 +1345,7 @@ function renderVocab() {
             <tbody>
               ${vocabList.map(v => `
                 <tr>
-                  <td>${escapeHtml(v.mot)}</td>
+                  <td>${escapeHtml(v.mot)}${registreBadge(v)}</td>
                   <td>${escapeHtml(v.lecture)}</td>
                   <td>${escapeHtml(v.sens)}</td>
                   <td><button class="secondary small btn-masquer-vocab" data-vocab="${v.id}" title="Masquer ce mot (reversible, voir Mots masques)">Masquer</button></td>
@@ -1400,7 +1413,7 @@ function renderVocab() {
                 <tbody>
                   ${motsMasquesDetails().map(v => `
                     <tr>
-                      <td>${escapeHtml(v.mot)}</td>
+                      <td>${escapeHtml(v.mot)}${registreBadge(v)}</td>
                       <td>${escapeHtml(v.lecture)}</td>
                       <td>${escapeHtml(v.sens)}</td>
                       <td><button class="secondary small btn-demasquer-vocab" data-vocab="${v.id}">Restaurer</button></td>
@@ -2002,7 +2015,7 @@ function renderEcritureQuizView(container) {
         <div class="front-word">${escapeHtml(v.lecture)}</div>
         <div class="hint" style="margin-top:8px;">Ecris le kanji sur papier, puis revele pour verifier.</div>
         ${quizSession.revealed ? `
-          <div class="back-reading">${escapeHtml(v.mot)}</div>
+          <div class="back-reading">${escapeHtml(v.mot)}${registreBadge(v)}</div>
           ${v.sens ? `<div class="back-meaning">${escapeHtml(v.sens)}</div>` : ''}
         ` : ''}
       </div>
@@ -2150,7 +2163,7 @@ function renderTraductionQuizView(container) {
             Reponse enregistree. Correction disponible a la fin de la session.
           </div>
         ` : `
-          <div class="back-reading">${escapeHtml(v.mot)} (${escapeHtml(v.lecture)})</div>
+          <div class="back-reading">${escapeHtml(v.mot)} (${escapeHtml(v.lecture)})${registreBadge(v)}</div>
           <div class="quiz-feedback ${quizSession.lastResult.pct >= 0.99 ? 'good' : (quizSession.lastResult.pct >= 0.6 ? 'mid' : 'bad')}">
             Ta reponse : "${escapeHtml(quizSession.lastAnswer) || '(vide)'}" -- ${quizSession.lastResult.points}/${DB.settings.pointsPerWord} points (${Math.round(quizSession.lastResult.pct * 100)}% de similarite)
           </div>
@@ -2365,7 +2378,7 @@ function renderPratiqueQuizView(container) {
             Reponse enregistree. Correction disponible a la fin de la session.
           </div>
         ` : `
-          <div class="back-reading">${escapeHtml(v.lecture)}</div>
+          <div class="back-reading">${escapeHtml(v.lecture)}${registreBadge(v)}</div>
           ${v.sens ? `<div class="back-meaning">${escapeHtml(v.sens)}</div>` : ''}
           <div class="quiz-feedback ${quizSession.lastResult.pct >= 0.99 ? 'good' : (quizSession.lastResult.pct >= 0.6 ? 'mid' : 'bad')}">
             Ta reponse : "${escapeHtml(quizSession.lastAnswer) || '(vide)'}" -- ${quizSession.lastResult.points}/${DB.settings.pointsPerWord} points (${Math.round(quizSession.lastResult.pct * 100)}% de similarite)
@@ -2876,13 +2889,13 @@ function renderReview() {
             Réponse enregistrée. Correction disponible à la fin de la session.
           </div>
         ` : quizSession.usedSpectral ? `
-          <div class="back-reading">${escapeHtml(v.lecture)}</div>
+          <div class="back-reading">${escapeHtml(v.lecture)}${registreBadge(v)}</div>
           ${v.sens ? `<div class="back-meaning">${escapeHtml(v.sens)}</div>` : ''}
           <div class="quiz-feedback bad">
             Mode spectral utilisé — 0/${DB.settings.pointsPerWord} points, cette réponse ne compte pas.
           </div>
         ` : `
-          <div class="back-reading">${escapeHtml(v.lecture)}</div>
+          <div class="back-reading">${escapeHtml(v.lecture)}${registreBadge(v)}</div>
           ${v.sens ? `<div class="back-meaning">${escapeHtml(v.sens)}</div>` : ''}
           <div class="quiz-feedback ${quizSession.lastResult.pct >= 0.99 ? 'good' : (quizSession.lastResult.pct >= 0.6 ? 'mid' : 'bad')}">
             Ta réponse : "${escapeHtml(quizSession.lastAnswer) || '(vide)'}" — ${quizSession.lastResult.points}/${DB.settings.pointsPerWord} points (${Math.round(quizSession.lastResult.pct * 100)}% de similarité)
