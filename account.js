@@ -97,10 +97,15 @@ function faitUneSnapshotHistorique(dernierSnapshotIso, maintenantMs, intervalleM
 // l'utilisateur n'aurait aucun moyen de définir son mot de passe.
 let kvtPasswordRecovery = false;
 
-// Seul admin autorisé (voir aussi la vraie vérification, côté serveur,
-// dans la Edge Function admin-users — ce flag ici ne sert qu'à
-// afficher/cacher l'onglet, jamais à autoriser quoi que ce soit tout seul).
-const ADMIN_USER_ID = 'e511a05f-899e-4c50-9390-b31330d4dda8';
+// Statut admin (22/09/2026) : plus d'UUID en dur ici -- dérivé de
+// session.user.app_metadata.is_admin, un champ que seul le service role
+// peut écrire (jamais modifiable par le compte lui-même via updateUser()).
+// Comme avant, ce flag ne sert qu'à afficher/cacher l'onglet Admin : la
+// vraie vérification est refaite côté serveur dans la Edge Function
+// admin-users, à partir du token, jamais d'une valeur envoyée par le client.
+function calculerIsAdmin(session) {
+  return !!(session.user.app_metadata && session.user.app_metadata.is_admin === true);
+}
 
 async function buildAccountUser(session) {
   const [{ data: profile }, { data: pro }] = await Promise.all([
@@ -115,7 +120,7 @@ async function buildAccountUser(session) {
     email: session.user.email,
     pseudo: profile ? profile.pseudo : null,
     isPro: !!(pro && pro.is_pro),
-    isAdmin: session.user.id === ADMIN_USER_ID
+    isAdmin: calculerIsAdmin(session)
   };
 }
 

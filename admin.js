@@ -46,9 +46,19 @@ async function renderAdmin() {
     <div class="card">
       <h3>Comptes</h3>
       <div id="adminUsersBox"><p style="color:var(--muted);">Chargement…</p></div>
+    </div>
+    <div class="card">
+      <h3>Résultats par joueur</h3>
+      <p style="color:var(--muted);font-size:12.5px;line-height:1.6;margin:0 0 12px;">
+        Vue réservée à l'admin : un joueur ne voit jamais les résultats d'un
+        autre. Le score par mode est la moyenne du meilleur essai de chaque
+        semaine/thème déjà travaillé (n = nombre de semaines/thèmes concernés).
+      </p>
+      <div id="adminStatsBox"><p style="color:var(--muted);">Chargement…</p></div>
     </div>`;
 
   chargerAudience();
+  chargerStatsJoueurs();
 
   const result = await callAdminFunction({ action: 'list' });
   const box = $('#adminUsersBox');
@@ -91,6 +101,77 @@ async function renderAdmin() {
       renderAdmin();
     });
   });
+}
+
+// ------------------------------------------------------------
+// Résultats par joueur (22/09/2026) : lecture agrégée de user_backups
+// (le DB complet de chaque compte) via la Edge Function admin-users,
+// jamais directement depuis le client -- RLS interdit à quiconque de lire
+// la ligne user_backups d'un autre compte, seul le service role (côté
+// Edge Function, après vérification admin) peut tout lire.
+// ------------------------------------------------------------
+const LIB_MODES_STATS = ['Vocabulaire', 'Kanji seul', 'Kana', 'Traduction', 'Pratique'];
+
+function formatDateRelative(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '—';
+  return d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
+function moyenneGlobale(modes) {
+  let sommePonderee = 0, totalN = 0;
+  LIB_MODES_STATS.forEach(label => {
+    const m = modes[label];
+    if (!m) return;
+    sommePonderee += m.avgPct * m.n;
+    totalN += m.n;
+  });
+  return totalN ? Math.round((sommePonderee / totalN) * 10) / 10 : null;
+}
+
+async function chargerStatsJoueurs() {
+  const box = $('#adminStatsBox');
+  if (!box) return;
+  const result = await callAdminFunction({ action: 'stats' });
+  if (result.error) {
+    box.innerHTML = `<p style="color:var(--pink);">Erreur : ${escapeHtml(result.error)}</p>`;
+    return;
+  }
+  const rows = result.rows || [];
+  if (!rows.length) {
+    box.innerHTML = `<p class="empty-state">Aucun résultat synchronisé pour l'instant.</p>`;
+    return;
+  }
+  box.innerHTML = `
+    <div style="overflow-x:auto;">
+    <table class="admin-audience">
+      <thead>
+        <tr>
+          <th>Compte</th><th>Classe</th>
+          ${LIB_MODES_STATS.map(l => `<th>${l}</th>`).join('')}
+          <th>Moyenne</th><th>Dernière activité</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rows.map(r => {
+          const moyenne = moyenneGlobale(r.modes);
+          return `<tr>
+            <td><strong>${escapeHtml(r.pseudo || r.email || r.user_id)}</strong>${r.pseudo && r.email ? `<br><span style="font-size:11px;color:var(--muted);">${escapeHtml(r.email)}</span>` : ''}</td>
+            <td>${escapeHtml(r.class_code || '—')}</td>
+            ${LIB_MODES_STATS.map(l => {
+              const m = r.modes[l];
+              return `<td>${m ? `${m.avgPct}% <span style="color:var(--muted);font-size:11px;">(${m.n})</span>` : '—'}</td>`;
+            }).join('')}
+            <td><strong>${moyenne !== null ? moyenne + '%' : '—'}</strong></td>
+            <td>${formatDateRelative(r.derniere_activite)}</td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>
+    </div>
+    <p style="font-size:12px; color:var(--muted); margin-top:10px;">${rows.length} compte(s) avec des données synchronisées.</p>
+  `;
 }
 
 // ------------------------------------------------------------
