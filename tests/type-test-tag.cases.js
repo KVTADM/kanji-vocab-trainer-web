@@ -170,3 +170,42 @@ essai('activerSaisieKanaDirecte : ne touche pas au champ pendant une composition
   input._listeners.input({ keyCode: 229 });
   if (input.value !== 'ka') throw new Error(input.value);
 });
+
+essai('motsConfondables : detecte les autres mots du programme partageant exactement la meme lecture', () => {
+  DB = { vocab: [
+    { id: 'v1', mot: '聞く', lecture: 'きく', sens: 'ecouter' },
+    { id: 'v2', mot: '効く', lecture: 'きく', sens: 'faire effet' },
+    { id: 'v3', mot: '利く', lecture: 'きく', sens: 'etre efficace' },
+    { id: 'v4', mot: '食べる', lecture: 'たべる', sens: 'manger' },
+  ] };
+  const res = motsConfondables(DB.vocab[0]);
+  if (res.length !== 2) throw new Error(JSON.stringify(res));
+  if (!res.some(r => r.id === 'v2') || !res.some(r => r.id === 'v3')) throw new Error(JSON.stringify(res));
+  if (res.some(r => r.id === 'v1')) throw new Error('ne doit pas se renvoyer lui-meme : ' + JSON.stringify(res));
+});
+
+essai('motsConfondables : aucun homophone -> tableau vide (pas de bruit visuel)', () => {
+  DB = { vocab: [
+    { id: 'v1', mot: '食べる', lecture: 'たべる', sens: 'manger' },
+    { id: 'v2', mot: '飲む', lecture: 'のむ', sens: 'boire' },
+  ] };
+  if (motsConfondables(DB.vocab[0]).length !== 0) throw new Error(JSON.stringify(motsConfondables(DB.vocab[0])));
+});
+
+essai('motsConfondables : plafonne a 3 resultats meme si plus d\'homophones existent', () => {
+  DB = { vocab: [
+    { id: 'v0', mot: '汽', lecture: 'き', sens: 'a' },
+    { id: 'v1', mot: '木', lecture: 'き', sens: 'arbre' },
+    { id: 'v2', mot: '気', lecture: 'き', sens: 'esprit' },
+    { id: 'v3', mot: '黄', lecture: 'き', sens: 'jaune' },
+    { id: 'v4', mot: '生', lecture: 'き', sens: 'cru' },
+  ] };
+  if (motsConfondables(DB.vocab[0]).length !== 3) throw new Error(JSON.stringify(motsConfondables(DB.vocab[0])));
+});
+
+essai('motsConfondables : mot sans lecture ou absent -> tableau vide (pas d\'exception)', () => {
+  DB = { vocab: [{ id: 'v1', mot: '？', lecture: '' }] };
+  if (motsConfondables(null).length !== 0) throw new Error('null');
+  if (motsConfondables(undefined).length !== 0) throw new Error('undefined');
+  if (motsConfondables(DB.vocab[0]).length !== 0) throw new Error('lecture vide');
+});

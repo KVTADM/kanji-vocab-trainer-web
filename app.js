@@ -141,6 +141,23 @@ function getVocabForWeek(semesterId, week) {
   return DB.vocab.filter(v => groupIds.has(v.kanjiGroupId) && !estMotMasque(v.id));
 }
 
+// Indice anti-confusion en mode Ecriture (tache #14, demande de Paul) :
+// vu une lecture (kana) affichee cote pile, plusieurs mots differents du
+// programme peuvent partager EXACTEMENT la meme lecture (homophones,
+// ex. きく -> 聞く "ecouter" / 効く "faire effet" / 利く "etre efficace") --
+// l'eleve risque d'ecrire le mauvais kanji sans le savoir tant qu'il n'a
+// pas vu qu'un piege existe. Cherche dans tout le vocabulaire (pas
+// seulement la semaine en cours : le risque de confusion existe meme si
+// l'autre mot vient d'un module different) tout autre mot (id different)
+// de lecture strictement identique. Plafonne a 3 resultats pour rester
+// lisible -- un homophone a 4+ variantes est rarissime dans ce programme.
+function motsConfondables(v) {
+  if (!v || !v.lecture) return [];
+  return DB.vocab
+    .filter(autre => autre.id !== v.id && autre.lecture === v.lecture)
+    .slice(0, 3);
+}
+
 // ---------- Filtre "avec/sans verbe de base" (09/09/2026) ----------
 // Distingue un verbe de base (kanji + terminaison de conjugaison, ex.
 // 泳ぐ/話す/取る, ou un verbe en +する comme 愛する) d'un mot à kanji
@@ -2164,8 +2181,17 @@ function renderEcritureQuizView(container) {
         <div class="front-word">${escapeHtml(v.lecture)}</div>
         <div class="hint" style="margin-top:8px;">Ecris le kanji sur papier, puis revele pour verifier.</div>
         ${quizSession.revealed ? `
-          <div class="back-reading">${escapeHtml(v.mot)}${registreBadge(v)}</div>
+          <div class="back-reading back-reading--grand">${escapeHtml(v.mot)}${registreBadge(v)}</div>
           ${v.sens ? `<div class="back-meaning">${escapeHtml(v.sens)}</div>` : ''}
+          ${(() => {
+            // Indice anti-confusion (tache #14) : n'apparait que s'il existe
+            // reellement un piege pour CE mot -- silencieux sinon, pas de
+            // bruit visuel pour les mots sans homophone dans le programme.
+            const confondables = motsConfondables(v);
+            if (confondables.length === 0) return '';
+            const liste = confondables.map(c => `${escapeHtml(c.mot)}${c.sens ? ' (' + escapeHtml(c.sens) + ')' : ''}`).join(', ');
+            return `<div class="anti-confusion">⚠ Ne pas confondre avec : ${liste} — meme lecture, kanji different.</div>`;
+          })()}
         ` : ''}
       </div>
       ${!quizSession.revealed ? `

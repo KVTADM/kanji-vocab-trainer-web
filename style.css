@@ -935,6 +935,17 @@ code {
   font-size:10.5px; font-weight:600; letter-spacing:.02em; text-transform:lowercase;
   padding:1px 8px; border-radius:999px; border:1px solid var(--border); color:var(--muted);
 }
+/* Mode Ecriture (tache #14) : le kanji revele est ce que l'eleve doit
+   apprendre a tracer -- on l'agrandit nettement par rapport aux autres
+   modes (traduction/pratique) ou la reponse revelee est juste a relire. */
+.back-reading--grand {
+  font-size: 40px;
+}
+.anti-confusion {
+  margin-top: 10px; font-size: 13px; color: var(--muted);
+  border: 1px dashed var(--border); border-radius: 8px; padding: 6px 10px;
+  text-align: left;
+}
 .flashcard .hint {
   /* Etait en 10px avec --label-dim a 2:1 de contraste : quasi illisible
      (retour d'un utilisateur le 27/07, confirme par mesure). Passe en 13px
