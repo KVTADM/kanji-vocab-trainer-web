@@ -2553,26 +2553,90 @@ function renderReview() {
       </div>
     ` : '';
 
-    const opts = [];
-    DB.settings.semesters.forEach(sem => {
-      for (let w = 1; w <= sem.weeks; w++) {
-        const count = reviewPickerMode === 'kanji'
-          ? buildKanjiQueue(sem.id, w).length
-          : filtrerVocabParVerbe(getVocabForWeek(sem.id, w), reviewVerbeFilter).length;
-        const label = reviewPickerMode === 'kanji' ? `${count} lecture(s)` : `${count} mots`;
-        opts.push(`<option value="${sem.id}|${w}" ${count === 0 ? 'disabled' : ''}>${sem.label} — Semaine ${w} (${label})</option>`);
-      }
-    });
+    // Grille de semaines (22/09/2026) pour Ecriture/Traduction : demande de
+    // Paul, memes cartes cliquables que Cursus/JLPT (score visible dessus)
+    // plutot que le menu deroulant "semestre - semaine (n mots)" + bouton
+    // Demarrer, garde tel quel pour Vocabulaire/Kanji seul. Classes CSS
+    // dediees .review-week-card / .review-week-restart-btn (voir style.css) :
+    // jamais .week-card / .week-restart-btn ici, ces classes-la sont
+    // reliees par document.querySelectorAll(...) a la fin de
+    // renderDashboard(), qui tourne sur TOUT le document -- les reutiliser
+    // accrocherait la logique de la modale du Tableau de bord sur ces
+    // cartes des qu'on rouvre ensuite le Tableau de bord.
+    const grilleSemaines = ['ecriture', 'traduction'].includes(reviewPickerMode);
+
+    let semainesHtml;
+    if (!grilleSemaines) {
+      const opts = [];
+      DB.settings.semesters.forEach(sem => {
+        for (let w = 1; w <= sem.weeks; w++) {
+          const count = reviewPickerMode === 'kanji'
+            ? buildKanjiQueue(sem.id, w).length
+            : filtrerVocabParVerbe(getVocabForWeek(sem.id, w), reviewVerbeFilter).length;
+          const label = reviewPickerMode === 'kanji' ? `${count} lecture(s)` : `${count} mots`;
+          opts.push(`<option value="${sem.id}|${w}" ${count === 0 ? 'disabled' : ''}>${sem.label} — Semaine ${w} (${label})</option>`);
+        }
+      });
+      semainesHtml = `
+        <div class="form-row">
+          <select id="quizWeekPicker">${opts.join('')}</select>
+          <button class="primary" id="btnStartQuiz">Démarrer</button>
+        </div>
+      `;
+    } else {
+      semainesHtml = '';
+      DB.settings.semesters.forEach(sem => {
+        const unitPrefix = sem.id.startsWith('jlpt') ? 'C' : 'S';
+        let cartesHtml = '';
+        for (let w = 1; w <= sem.weeks; w++) {
+          const count = filtrerVocabParVerbe(getVocabForWeek(sem.id, w), reviewVerbeFilter).length;
+          if (reviewPickerMode === 'traduction') {
+            const entry = getTraductionScoreEntry(sem.id, w);
+            const saved = getValidTraductionInProgress(sem.id, w);
+            const typeTagScore = entry && entry.best.verbeFilter
+              ? `<span class="week-type-tag">${escapeHtml(libelleFiltreMots(entry.best.verbeFilter))}</span>` : '';
+            const typeTagProgress = saved
+              ? `<span class="week-type-tag">${escapeHtml(libelleFiltreMots(saved.verbeFilter))}</span>` : '';
+            cartesHtml += `
+              <div class="review-week-card ${count === 0 ? 'empty' : ''}" data-sem="${sem.id}" data-week="${w}">
+                <div class="week-num">${unitPrefix}${w}</div>
+                <div class="week-meta">${count} mots</div>
+                ${entry ? `<div class="week-score">${entry.best.points}/${entry.best.maxPoints} pts <span class="week-score-pct">(${entry.best.pct}%)</span> ${typeTagScore}</div>` : '<div class="week-score muted">—</div>'}
+                ${saved ? `
+                  <div class="week-progress-bar"><div class="week-progress-fill" style="width:${Math.round((saved.index / saved.queue.length) * 100)}%"></div></div>
+                  <div class="week-progress-label">
+                    ${saved.index}/${saved.queue.length} mots · ${saved.totals.points} pts gagnés ${typeTagProgress}
+                    <button class="review-week-restart-btn" data-sem="${sem.id}" data-week="${w}" title="Recommencer cette semaine">↺ Recommencer</button>
+                  </div>
+                ` : ''}
+              </div>
+            `;
+          } else {
+            // Ecriture : stateless par choix explicite de Paul (pas de
+            // notation automatique) -- jamais de score/progression a
+            // afficher, pour ne pas laisser croire qu'un suivi existe alors
+            // qu'aucune tentative n'est jamais enregistree.
+            cartesHtml += `
+              <div class="review-week-card ${count === 0 ? 'empty' : ''}" data-sem="${sem.id}" data-week="${w}">
+                <div class="week-num">${unitPrefix}${w}</div>
+                <div class="week-meta">${count} mots</div>
+                <div class="week-score muted">Entraînement libre, sans note</div>
+              </div>
+            `;
+          }
+        }
+        semainesHtml += `<div class="card"><h3>${escapeHtml(sem.label)}</h3><div class="week-grid">${cartesHtml}</div></div>`;
+      });
+    }
+
     container.innerHTML = `
       <h2>Réviser</h2>
       <div class="card">
         <div class="form-row">${modeSelectHtml}${difficulteSelectHtml}</div>
         ${motsSelectHtml ? `<div class="form-row">${motsSelectHtml}</div>` : ''}
-        <div class="form-row">
-          <select id="quizWeekPicker">${opts.join('')}</select>
-          <button class="primary" id="btnStartQuiz">Démarrer</button>
-        </div>
+        ${!grilleSemaines ? semainesHtml : ''}
       </div>
+      ${grilleSemaines ? semainesHtml : ''}
     `;
     $('#quizModePicker').addEventListener('change', (e) => {
       reviewPickerMode = e.target.value;
@@ -2592,16 +2656,35 @@ function renderReview() {
       $('#chkMotsGroupe').addEventListener('change', recalculerFiltreMots);
       $('#chkMotsSimple').addEventListener('change', recalculerFiltreMots);
     }
-    $('#btnStartQuiz').addEventListener('click', () => {
-      const val = $('#quizWeekPicker').value;
-      if (!val) return;
-      const [sem, w] = val.split('|');
-      if (reviewPickerMode === 'kanji') startKanjiQuiz(sem, parseInt(w, 10));
-      else if (reviewPickerMode === 'ecriture') startEcritureQuiz(sem, parseInt(w, 10), reviewVerbeFilter);
-      else if (reviewPickerMode === 'traduction') startTraductionQuiz(sem, parseInt(w, 10), false, reviewVerbeFilter);
-      else startQuiz(sem, parseInt(w, 10), false, reviewVerbeFilter);
-      renderReview();
-    });
+    if (!grilleSemaines) {
+      $('#btnStartQuiz').addEventListener('click', () => {
+        const val = $('#quizWeekPicker').value;
+        if (!val) return;
+        const [sem, w] = val.split('|');
+        if (reviewPickerMode === 'kanji') startKanjiQuiz(sem, parseInt(w, 10));
+        else startQuiz(sem, parseInt(w, 10), false, reviewVerbeFilter);
+        renderReview();
+      });
+    } else {
+      $$('.review-week-restart-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const sem = btn.dataset.sem, w = parseInt(btn.dataset.week, 10);
+          startTraductionQuiz(sem, w, true, reviewVerbeFilter);
+          renderReview();
+        });
+      });
+      $$('.review-week-card').forEach(el => {
+        el.addEventListener('click', () => {
+          const sem = el.dataset.sem, w = parseInt(el.dataset.week, 10);
+          const count = filtrerVocabParVerbe(getVocabForWeek(sem, w), reviewVerbeFilter).length;
+          if (count === 0) { showToast('Aucun mot pour cette semaine avec ce filtre.'); return; }
+          if (reviewPickerMode === 'ecriture') startEcritureQuiz(sem, w, reviewVerbeFilter);
+          else startTraductionQuiz(sem, w, false, reviewVerbeFilter);
+          renderReview();
+        });
+      });
+    }
     return;
   }
 

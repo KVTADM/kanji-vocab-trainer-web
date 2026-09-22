@@ -741,12 +741,20 @@ code {
 .toast.show { opacity: 1; transform: translateY(0); }
 
 /* ---------- Accueil : grille des semaines ---------- */
+/* .review-week-card / .review-week-restart-btn (22/09/2026) partagent tout
+   le style de .week-card / .week-restart-btn ci-dessous, mais restent des
+   classes séparées exprès : renderDashboard() attache ses gestionnaires de
+   clic avec document.querySelectorAll('.week-card')/('.week-restart-btn'),
+   sur TOUT le document. Les réutiliser telles quelles depuis l'écran
+   Réviser (grille de semaines Écriture/Traduction, voir renderReview())
+   accrocherait aussi la logique de la modale du Tableau de bord sur ces
+   cartes dès qu'on rouvre le Tableau de bord ensuite. */
 .week-grid {
   display: grid;
   grid-template-columns: repeat(6, 1fr);
   gap: 10px;
 }
-.week-card {
+.week-card, .review-week-card {
   border: 1px solid var(--border);
   border-top: 3px solid var(--accent);
   border-radius: 12px;
@@ -756,8 +764,8 @@ code {
   background: var(--panel-alt);
   transition: transform 0.1s ease, border-color 0.15s ease;
 }
-.week-card:hover { border-color: var(--accent-bright); transform: translateY(-1px); }
-.week-card.empty { opacity: 0.4; border-top-color: var(--border); }
+.week-card:hover, .review-week-card:hover { border-color: var(--accent-bright); transform: translateY(-1px); }
+.week-card.empty, .review-week-card.empty { opacity: 0.4; border-top-color: var(--border); }
 .week-num { font-weight: 700; font-size: 15px; color: var(--cream); }
 .week-meta { font-size: 12px; color: var(--muted); margin-top: 3px; }
 .week-score {
@@ -787,7 +795,7 @@ code {
   align-items: center;
   gap: 4px;
 }
-.week-restart-btn {
+.week-restart-btn, .review-week-restart-btn {
   background: none;
   border: 1px solid var(--border);
   color: var(--muted);
@@ -796,7 +804,7 @@ code {
   border-radius: 8px;
   cursor: pointer;
 }
-.week-restart-btn:hover { border-color: var(--pink); color: var(--pink); }
+.week-restart-btn:hover, .review-week-restart-btn:hover { border-color: var(--pink); color: var(--pink); }
 
 /* Onglet "Special" (17/09/2026) : 3 cartes d'entree vers Ecriture,
    Traduction et Vocabulaire pratique -- aussi visibles que Cursus/JLPT. */
