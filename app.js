@@ -3092,12 +3092,12 @@ function detectPlatform() {
 
 function renderDownload() {
   const detected = detectPlatform();
-  const APP_VERSION = '1.1.1';
+  const APP_VERSION = '1.2.0';
   // Les installeurs sont heberges sur les Releases GitHub et non sur Netlify :
   // ils pesaient 166 Mo sur 168, soit 98,7 % de chaque deploiement, et ils
   // repartaient en entier a chaque changement d'une ligne de CSS.
   const RELEASES = 'https://github.com/KVTADM/kanji-vocab-trainer-web/releases/download/v' + APP_VERSION;
-  const RELEASE_DATE = '25 juillet 2026';
+  const RELEASE_DATE = '22 septembre 2026';
   $('#view-download').innerHTML = `
     <h2>Applications</h2>
     <div class="card">
