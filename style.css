@@ -23,6 +23,7 @@
   --warn: #c07830;
   --warn-bright: #e0a050;
   --bad: #c04060;
+  --bad-bright: #d68398;
   --border: #2a2a50;
   --radius: 12px;
   --sur-accent: #ffffff;
@@ -53,6 +54,7 @@
   --warn: #b5730a;
   --warn-bright: #c9860f;
   --bad: #c0405f;
+  --bad-bright: #c75470;
   --border: #ddd8cc;
   --sur-accent: #ffffff;
 }
@@ -76,6 +78,7 @@
   --warn: #c08a3a;
   --warn-bright: #e0a860;
   --bad: #d6455a;
+  --bad-bright: #e68190;
   --border: #3a2838;
   --sur-accent: #10101c;
 }
@@ -114,6 +117,7 @@
   --warn: #876107;
   --warn-bright: #6d4e06;
   --bad: #931f42;
+  --bad-bright: #831c3b;
   --border: #d5cab6;
   --sur-accent: #ffffff;
 }
@@ -138,6 +142,7 @@
   --warn: #d9a53c;
   --warn-bright: #f0c257;
   --bad: #cc3a66;
+  --bad-bright: #dd688b;
   --border: #22334f;
   --sur-accent: #10101c;
 }
@@ -162,6 +167,7 @@
   --warn: #e09a2e;
   --warn-bright: #f7bc55;
   --bad: #cc3a66;
+  --bad-bright: #dd688b;
   --border: #3f2b21;
   --sur-accent: #10101c;
 }
@@ -186,6 +192,7 @@
   --warn: #d9a53c;
   --warn-bright: #f2c058;
   --bad: #cc3a66;
+  --bad-bright: #dd688b;
   --border: #1f3327;
   --sur-accent: #10101c;
 }
@@ -981,7 +988,7 @@ code {
 }
 .quiz-feedback.good { background: rgba(58, 122, 58, 0.18); border-color: var(--good-bright); color: var(--good-bright); }
 .quiz-feedback.mid  { background: rgba(192, 120, 48, 0.18); border-color: var(--warn-bright); color: var(--warn-bright); }
-.quiz-feedback.bad  { background: rgba(192, 64, 96, 0.18); border-color: var(--pink); color: var(--pink); }
+.quiz-feedback.bad  { background: rgba(192, 64, 96, 0.18); border-color: var(--bad-bright); color: var(--bad-bright); }
 
 /* ---------- Statistiques : historique visuel des erreurs ---------- */
 .error-history-list { display: flex; flex-direction: column; gap: 14px; margin-top: 10px; }
