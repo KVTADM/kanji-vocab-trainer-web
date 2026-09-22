@@ -48,3 +48,41 @@ essai('une meilleure tentative avec un filtre different met a jour le filtre aff
   if (entry.best.verbeFilter !== 'kanji_groupe' || entry.best.pct !== 90) throw new Error(JSON.stringify(entry));
   if (entry.history.length !== 2) throw new Error('les 2 tentatives doivent rester dans l\'historique');
 });
+
+// ---------- Chrono par quiz (rang 2 de la feuille de route, 22/09/2026) ----------
+// Fondation demandee par Paul : "un temps de 5 min bat un de 10". formatDuree()
+// est la fonction de mise en forme partagee par les 5 modes de quiz ;
+// recordSessionResult() accepte maintenant un 7e argument optionnel dureeMs,
+// ajoute APRES verbeFilter pour ne pas casser les appels positionnels
+// existants (voir les essais "retro-compatible" ci-dessus).
+
+essai('formatDuree : moins d\'une minute -> "X s"', () => {
+  if (formatDuree(45000) !== '45 s') throw new Error(formatDuree(45000));
+  if (formatDuree(0) !== '0 s') throw new Error(formatDuree(0));
+});
+
+essai('formatDuree : une minute ou plus -> "X min YY s"', () => {
+  if (formatDuree(272000) !== '4 min 32 s') throw new Error(formatDuree(272000));
+  if (formatDuree(60000) !== '1 min 00 s') throw new Error(formatDuree(60000));
+});
+
+essai('formatDuree : valeur absente ou invalide -> null (pas d\'affichage plutot qu\'un plantage)', () => {
+  if (formatDuree(null) !== null) throw new Error(String(formatDuree(null)));
+  if (formatDuree(undefined) !== null) throw new Error(String(formatDuree(undefined)));
+  if (formatDuree(-5) !== null) throw new Error(String(formatDuree(-5)));
+  if (formatDuree(NaN) !== null) throw new Error(String(formatDuree(NaN)));
+});
+
+essai('recordSessionResult enregistre la duree passee en 7e argument', () => {
+  DB = { scores: {} };
+  recordSessionResult('s1', 6, 80, 100, 80, 'tous', 272000);
+  const entry = getScoreEntry('s1', 6);
+  if (entry.best.dureeMs !== 272000) throw new Error(JSON.stringify(entry));
+});
+
+essai('recordSessionResult sans duree precisee (anciens appels) ne plante pas', () => {
+  DB = { scores: {} };
+  recordSessionResult('s1', 7, 80, 100, 80, 'tous');
+  const entry = getScoreEntry('s1', 7);
+  if (entry.best.dureeMs !== undefined) throw new Error(JSON.stringify(entry));
+});

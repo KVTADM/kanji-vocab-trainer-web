@@ -167,3 +167,11 @@ essai('clearKanjiInProgress supprime uniquement l\'entree kanji, jamais DB.inPro
   if (DB.inProgressKanji['l0-s2-w3']) throw new Error('DB.inProgressKanji aurait du etre efface');
   if (!DB.inProgress['l0-s2-w3']) throw new Error('DB.inProgress (vocabulaire) n\'aurait pas du etre touche');
 });
+
+// ---------- Chrono par quiz (rang 2 de la feuille de route, 22/09/2026) ----------
+essai('recordKanjiSessionResult enregistre la duree passee en 6e argument', () => {
+  DB = { scoresKanji: {} };
+  recordKanjiSessionResult('l0-s2', 9, 20, 20, 100, 145000);
+  const entry = getKanjiScoreEntry('l0-s2', 9);
+  if (entry.best.dureeMs !== 145000) throw new Error(JSON.stringify(entry));
+});

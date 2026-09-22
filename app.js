@@ -199,15 +199,29 @@ function libelleFiltreMots(filtre) {
 // les scores du quiz vocabulaire existant (voir la panne de synchronisation
 // du 29-30/08/2026 — depuis, toute nouvelle mécanique vit dans son propre
 // coin des données, jamais superposée à un namespace existant).
+// Rang 2 du chantier de septembre 2026 (fondation demandee par Paul :
+// "un temps de 5 min bat un de 10") -- chronometre chaque session de quiz
+// depuis son debut (ou sa reprise si une session sauvegardee existait,
+// startedAt est alors conserve tel quel) jusqu'a la derniere reponse.
+// Sert de base a un futur classement par vitesse (voir la feuille de
+// route) ; pour l'instant seulement enregistre et affiche en fin de
+// session.
+function formatDuree(ms) {
+  if (!Number.isFinite(ms) || ms < 0) return null;
+  const totalSec = Math.round(ms / 1000);
+  const min = Math.floor(totalSec / 60);
+  const sec = totalSec % 60;
+  return min === 0 ? `${sec} s` : `${min} min ${String(sec).padStart(2, '0')} s`;
+}
 function getKanjiScoreEntry(semesterId, week) {
   return (DB.scoresKanji && DB.scoresKanji[weekKey(semesterId, week)]) || null;
 }
-function recordKanjiSessionResult(semesterId, week, points, maxPoints, pct) {
+function recordKanjiSessionResult(semesterId, week, points, maxPoints, pct, dureeMs) {
   if (!DB.scoresKanji) DB.scoresKanji = {};
   const key = weekKey(semesterId, week);
   if (!DB.scoresKanji[key]) DB.scoresKanji[key] = { best: null, history: [] };
   const entry = DB.scoresKanji[key];
-  const record = { date: new Date().toISOString(), points, maxPoints, pct };
+  const record = { date: new Date().toISOString(), points, maxPoints, pct, dureeMs };
   entry.history.push(record);
   if (!entry.best || pct > entry.best.pct) entry.best = record;
 }
@@ -294,7 +308,7 @@ function getMaxRelevantWeek(sem) {
   });
   return max;
 }
-function recordSessionResult(semesterId, week, points, maxPoints, pct, verbeFilter) {
+function recordSessionResult(semesterId, week, points, maxPoints, pct, verbeFilter, dureeMs) {
   const key = weekKey(semesterId, week);
   if (!DB.scores[key]) DB.scores[key] = { best: null, history: [] };
   const entry = DB.scores[key];
@@ -303,7 +317,7 @@ function recordSessionResult(semesterId, week, points, maxPoints, pct, verbeFilt
   // le Tableau de bord -- Paul veut savoir quel type de test a ete fait,
   // pas seulement le score. Absent sur les tentatives enregistrees avant
   // ce changement (undefined, gere a l'affichage).
-  const record = { date: new Date().toISOString(), points, maxPoints, pct, verbeFilter: verbeFilter || 'tous' };
+  const record = { date: new Date().toISOString(), points, maxPoints, pct, dureeMs, verbeFilter: verbeFilter || 'tous' };
   entry.history.push(record);
   if (!entry.best || pct > entry.best.pct) {
     entry.best = record;
@@ -1551,7 +1565,7 @@ function startQuiz(semesterId, week, forceRestart, verbeFilter) {
     verbeFilter: filtre, // filtre "avec/sans verbe de base" actif au démarrage (09/09/2026) — figé pour la reprise
     usedSpectral: false, // vrai si le calque fantôme (mode spectral) a été utilisé sur le mot en cours -> annule ses points
     answers: [], // récap complet, rempli au fil de la session, affiché à la fin en mode hardcore
-    totals: { points: 0, maxPoints: vocabList.length * DB.settings.pointsPerWord }
+    totals: { points: 0, maxPoints: vocabList.length * DB.settings.pointsPerWord, startedAt: Date.now() }
   };
 }
 
@@ -1561,7 +1575,8 @@ function startQuiz(semesterId, week, forceRestart, verbeFilter) {
 function renderKanjiQuizView(container) {
   // Session terminée
   if (quizSession.index >= quizSession.queue.length) {
-    const { points, maxPoints } = quizSession.totals;
+    const { points, maxPoints, startedAt } = quizSession.totals;
+    const dureeMs = Number.isFinite(startedAt) ? Date.now() - startedAt : null;
     const pct = maxPoints > 0
       // Bug #19 (22/09/2026) : un score presque parfait (ex. 569/570)
       // arrondissait a 100%, ce qui donnait un faux sentiment de sans-faute.
@@ -1572,7 +1587,7 @@ function renderKanjiQuizView(container) {
     const prevEntry = getKanjiScoreEntry(quizSession.semesterId, quizSession.week);
     const prevBest = prevEntry ? prevEntry.best.pct : null;
     const improved = prevBest === null || pct > prevBest;
-    recordKanjiSessionResult(quizSession.semesterId, quizSession.week, points, maxPoints, pct);
+    recordKanjiSessionResult(quizSession.semesterId, quizSession.week, points, maxPoints, pct, dureeMs);
     clearKanjiInProgress(quizSession.semesterId, quizSession.week);
     persist();
     if (typeof kvtSnapshotHistorique === 'function') kvtSnapshotHistorique();
@@ -1587,6 +1602,7 @@ function renderKanjiQuizView(container) {
         ${badge}
         <div class="kvt-result__pct">${pct}&nbsp;%</div>
         <div class="kvt-result__points">${points} / ${maxPoints} points</div>
+        ${dureeMs !== null ? `<div class="kvt-result__duree">Termine en ${formatDuree(dureeMs)}</div>` : ''}
         <button class="kvt-result__btn" type="button" id="btnBackKanjiReview">Retour</button>
       </div>
     `;
@@ -1701,12 +1717,12 @@ function buildKanaQueue(kanaType, groupId) {
 function getKanaScoreEntry(kanaType, groupId) {
   return (DB.scoresKana && DB.scoresKana[kanaScoreKey(kanaType, groupId)]) || null;
 }
-function recordKanaSessionResult(kanaType, groupId, points, maxPoints, pct) {
+function recordKanaSessionResult(kanaType, groupId, points, maxPoints, pct, dureeMs) {
   if (!DB.scoresKana) DB.scoresKana = {};
   const key = kanaScoreKey(kanaType, groupId);
   if (!DB.scoresKana[key]) DB.scoresKana[key] = { best: null, history: [] };
   const entry = DB.scoresKana[key];
-  const record = { date: new Date().toISOString(), points, maxPoints, pct };
+  const record = { date: new Date().toISOString(), points, maxPoints, pct, dureeMs };
   entry.history.push(record);
   if (!entry.best || pct > entry.best.pct) entry.best = record;
 }
@@ -1744,7 +1760,8 @@ function clearKanaInProgress(kanaType, groupId) {
 // pas besoin d'une logique de correspondance dédiée.
 function renderKanaQuizView(container) {
   if (quizSession.index >= quizSession.queue.length) {
-    const { points, maxPoints } = quizSession.totals;
+    const { points, maxPoints, startedAt } = quizSession.totals;
+    const dureeMs = Number.isFinite(startedAt) ? Date.now() - startedAt : null;
     const pct = maxPoints > 0
       // Bug #19 (22/09/2026) : un score presque parfait (ex. 569/570)
       // arrondissait a 100%, ce qui donnait un faux sentiment de sans-faute.
@@ -1755,7 +1772,7 @@ function renderKanaQuizView(container) {
     const prevEntry = getKanaScoreEntry(quizSession.kanaType, quizSession.groupId);
     const prevBest = prevEntry ? prevEntry.best.pct : null;
     const improved = prevBest === null || pct > prevBest;
-    recordKanaSessionResult(quizSession.kanaType, quizSession.groupId, points, maxPoints, pct);
+    recordKanaSessionResult(quizSession.kanaType, quizSession.groupId, points, maxPoints, pct, dureeMs);
     clearKanaInProgress(quizSession.kanaType, quizSession.groupId);
     persist();
     if (typeof kvtSnapshotHistorique === 'function') kvtSnapshotHistorique();
@@ -1771,6 +1788,7 @@ function renderKanaQuizView(container) {
         ${badge}
         <div class="kvt-result__pct">${pct}&nbsp;%</div>
         <div class="kvt-result__points">${points} / ${maxPoints} points</div>
+        ${dureeMs !== null ? `<div class="kvt-result__duree">Termine en ${formatDuree(dureeMs)}</div>` : ''}
         <button class="kvt-result__btn" type="button" id="btnBackKanaReview">Retour</button>
       </div>
     `;
@@ -1893,7 +1911,7 @@ function startKanaQuiz(kanaType, groupId, forceRestart) {
     warning: null,
     hardcore: !!DB.settings.hardcoreMode, // figé au démarrage, comme les autres modes
     answers: [],
-    totals: { points: 0, maxPoints: queue.length * DB.settings.pointsPerWord }
+    totals: { points: 0, maxPoints: queue.length * DB.settings.pointsPerWord, startedAt: Date.now() }
   };
 }
 
@@ -1931,7 +1949,7 @@ function startKanjiQuiz(semesterId, week, forceRestart) {
     warning: null,
     hardcore: !!DB.settings.hardcoreMode,
     answers: [],
-    totals: { points: 0, maxPoints: queue.length * DB.settings.pointsPerWord }
+    totals: { points: 0, maxPoints: queue.length * DB.settings.pointsPerWord, startedAt: Date.now() }
   };
 }
 
@@ -2032,12 +2050,12 @@ function scoreTraductionAnswer(input, v) {
 function getTraductionScoreEntry(semesterId, week) {
   return (DB.scoresTraduction && DB.scoresTraduction[weekKey(semesterId, week)]) || null;
 }
-function recordTraductionSessionResult(semesterId, week, points, maxPoints, pct) {
+function recordTraductionSessionResult(semesterId, week, points, maxPoints, pct, dureeMs) {
   if (!DB.scoresTraduction) DB.scoresTraduction = {};
   const key = weekKey(semesterId, week);
   if (!DB.scoresTraduction[key]) DB.scoresTraduction[key] = { best: null, history: [] };
   const entry = DB.scoresTraduction[key];
-  const record = { date: new Date().toISOString(), points, maxPoints, pct };
+  const record = { date: new Date().toISOString(), points, maxPoints, pct, dureeMs };
   entry.history.push(record);
   if (!entry.best || pct > entry.best.pct) entry.best = record;
 }
@@ -2071,7 +2089,8 @@ function clearTraductionInProgress(semesterId, week) {
 
 function renderTraductionQuizView(container) {
   if (quizSession.index >= quizSession.queue.length) {
-    const { points, maxPoints } = quizSession.totals;
+    const { points, maxPoints, startedAt } = quizSession.totals;
+    const dureeMs = Number.isFinite(startedAt) ? Date.now() - startedAt : null;
     const pct = maxPoints > 0
       // Bug #19 (22/09/2026) : un score presque parfait (ex. 569/570)
       // arrondissait a 100%, ce qui donnait un faux sentiment de sans-faute.
@@ -2082,7 +2101,7 @@ function renderTraductionQuizView(container) {
     const prevEntry = getTraductionScoreEntry(quizSession.semesterId, quizSession.week);
     const prevBest = prevEntry ? prevEntry.best.pct : null;
     const improved = prevBest === null || pct > prevBest;
-    recordTraductionSessionResult(quizSession.semesterId, quizSession.week, points, maxPoints, pct);
+    recordTraductionSessionResult(quizSession.semesterId, quizSession.week, points, maxPoints, pct, dureeMs);
     clearTraductionInProgress(quizSession.semesterId, quizSession.week);
     persist();
     if (typeof kvtSnapshotHistorique === 'function') kvtSnapshotHistorique();
@@ -2097,6 +2116,7 @@ function renderTraductionQuizView(container) {
         ${badge}
         <div class="kvt-result__pct">${pct}&nbsp;%</div>
         <div class="kvt-result__points">${points} / ${maxPoints} points</div>
+        ${dureeMs !== null ? `<div class="kvt-result__duree">Termine en ${formatDuree(dureeMs)}</div>` : ''}
         <button class="kvt-result__btn" type="button" id="btnBackTraductionReview">Retour</button>
       </div>
     `;
@@ -2220,7 +2240,7 @@ function startTraductionQuiz(semesterId, week, forceRestart, verbeFilter) {
     hardcore: !!DB.settings.hardcoreMode,
     verbeFilter: filtre,
     answers: [],
-    totals: { points: 0, maxPoints: queue.length * DB.settings.pointsPerWord }
+    totals: { points: 0, maxPoints: queue.length * DB.settings.pointsPerWord, startedAt: Date.now() }
   };
 }
 
@@ -2248,11 +2268,11 @@ function buildPratiqueQueue(theme) {
 function getPratiqueScoreEntry(theme) {
   return (DB.scoresPratique && DB.scoresPratique[theme]) || null;
 }
-function recordPratiqueSessionResult(theme, points, maxPoints, pct) {
+function recordPratiqueSessionResult(theme, points, maxPoints, pct, dureeMs) {
   if (!DB.scoresPratique) DB.scoresPratique = {};
   if (!DB.scoresPratique[theme]) DB.scoresPratique[theme] = { best: null, history: [] };
   const entry = DB.scoresPratique[theme];
-  const record = { date: new Date().toISOString(), points, maxPoints, pct };
+  const record = { date: new Date().toISOString(), points, maxPoints, pct, dureeMs };
   entry.history.push(record);
   if (!entry.best || pct > entry.best.pct) entry.best = record;
 }
@@ -2284,7 +2304,8 @@ function clearPratiqueInProgress(theme) {
 
 function renderPratiqueQuizView(container) {
   if (quizSession.index >= quizSession.queue.length) {
-    const { points, maxPoints } = quizSession.totals;
+    const { points, maxPoints, startedAt } = quizSession.totals;
+    const dureeMs = Number.isFinite(startedAt) ? Date.now() - startedAt : null;
     const pct = maxPoints > 0
       // Bug #19 (22/09/2026) : un score presque parfait (ex. 569/570)
       // arrondissait a 100%, ce qui donnait un faux sentiment de sans-faute.
@@ -2295,7 +2316,7 @@ function renderPratiqueQuizView(container) {
     const prevEntry = getPratiqueScoreEntry(quizSession.theme);
     const prevBest = prevEntry ? prevEntry.best.pct : null;
     const improved = prevBest === null || pct > prevBest;
-    recordPratiqueSessionResult(quizSession.theme, points, maxPoints, pct);
+    recordPratiqueSessionResult(quizSession.theme, points, maxPoints, pct, dureeMs);
     clearPratiqueInProgress(quizSession.theme);
     persist();
     if (typeof kvtSnapshotHistorique === 'function') kvtSnapshotHistorique();
@@ -2310,6 +2331,7 @@ function renderPratiqueQuizView(container) {
         ${badge}
         <div class="kvt-result__pct">${pct}&nbsp;%</div>
         <div class="kvt-result__points">${points} / ${maxPoints} points</div>
+        ${dureeMs !== null ? `<div class="kvt-result__duree">Termine en ${formatDuree(dureeMs)}</div>` : ''}
         <button class="kvt-result__btn" type="button" id="btnBackPratiqueReview">Retour</button>
       </div>
     `;
@@ -2434,7 +2456,7 @@ function startPratiqueQuiz(theme, forceRestart) {
     warning: null,
     hardcore: !!DB.settings.hardcoreMode,
     answers: [],
-    totals: { points: 0, maxPoints: queue.length * DB.settings.pointsPerWord }
+    totals: { points: 0, maxPoints: queue.length * DB.settings.pointsPerWord, startedAt: Date.now() }
   };
 }
 
@@ -2729,7 +2751,8 @@ function renderReview() {
 
   // Session terminée
   if (quizSession.index >= quizSession.queue.length) {
-    const { points, maxPoints } = quizSession.totals;
+    const { points, maxPoints, startedAt } = quizSession.totals;
+    const dureeMs = Number.isFinite(startedAt) ? Date.now() - startedAt : null;
     const pct = maxPoints > 0
       // Bug #19 (22/09/2026) : un score presque parfait (ex. 569/570)
       // arrondissait a 100%, ce qui donnait un faux sentiment de sans-faute.
@@ -2740,7 +2763,7 @@ function renderReview() {
     const key = weekKey(quizSession.semesterId, quizSession.week);
     const prevBest = DB.scores[key] ? DB.scores[key].best.pct : null;
     const improved = prevBest === null || pct > prevBest;
-    recordSessionResult(quizSession.semesterId, quizSession.week, points, maxPoints, pct, quizSession.verbeFilter);
+    recordSessionResult(quizSession.semesterId, quizSession.week, points, maxPoints, pct, quizSession.verbeFilter, dureeMs);
     // Gamification : bonus de pièces si la session est réussie (>= 80%).
     if (typeof bonusFinSession === 'function') bonusFinSession(pct, quizSession.semesterId);
     // Le palier qui compte vraiment : quelqu'un a fait un quiz en entier.
@@ -2809,6 +2832,7 @@ function renderReview() {
         ${badge}
         <div class="kvt-result__pct">${pct}&nbsp;%</div>
         <div class="kvt-result__points">${points} / ${maxPoints} points</div>
+        ${dureeMs !== null ? `<div class="kvt-result__duree">Termine en ${formatDuree(dureeMs)}</div>` : ''}
         <div class="kvt-result__title">${textes.titre}</div>
         <div class="kvt-result__sub">${textes.sub}</div>
         <button class="kvt-result__btn" type="button" id="btnBackReview">Retour</button>

@@ -170,3 +170,11 @@ essai('clearKanaInProgress supprime uniquement l\'entree kana concernee, jamais 
   if (!DB.inProgressKana['katakana-g1']) throw new Error('katakana-g1 n\'aurait pas du etre touche');
   if (!DB.inProgressKanji['l0-s2-w3']) throw new Error('DB.inProgressKanji n\'aurait pas du etre touche');
 });
+
+// ---------- Chrono par quiz (rang 2 de la feuille de route, 22/09/2026) ----------
+essai('recordKanaSessionResult enregistre la duree passee en 6e argument', () => {
+  DB = { scoresKana: {} };
+  recordKanaSessionResult('hiragana', 'g9', 100, 100, 100, 30000);
+  const entry = getKanaScoreEntry('hiragana', 'g9');
+  if (entry.best.dureeMs !== 30000) throw new Error(JSON.stringify(entry));
+});

@@ -204,3 +204,18 @@ essai('un compte sans DB.scoresPratique/DB.inProgressPratique (avant migration) 
   if (getPratiqueScoreEntry('compteurs') !== null) throw new Error('attendu null sans DB.scoresPratique');
   if (getValidPratiqueInProgress('compteurs') !== null) throw new Error('attendu null sans DB.inProgressPratique');
 });
+
+// ---------- Chrono par quiz (rang 2 de la feuille de route, 22/09/2026) ----------
+essai('recordTraductionSessionResult enregistre la duree passee en 6e argument', () => {
+  DB = { scoresTraduction: {} };
+  recordTraductionSessionResult('s1', 9, 27, 30, 90, 88000);
+  const entry = getTraductionScoreEntry('s1', 9);
+  if (entry.best.dureeMs !== 88000) throw new Error(JSON.stringify(entry));
+});
+
+essai('recordPratiqueSessionResult enregistre la duree passee en 5e argument', () => {
+  DB = { scoresPratique: {} };
+  recordPratiqueSessionResult('heure', 250, 270, 92, 60000);
+  const entry = getPratiqueScoreEntry('heure');
+  if (entry.best.dureeMs !== 60000) throw new Error(JSON.stringify(entry));
+});
