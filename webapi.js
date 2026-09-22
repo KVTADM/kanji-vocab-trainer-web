@@ -314,6 +314,27 @@ const JLPT_N4_SEED = {"kanjiGroups":[{"id":"kg-hu66go90952pa","semesterId":"jlpt
         }
       });
     }
+    // Verbes de base manquants au cursus Debutant S1/S2 (verifie le
+    // 22/09/2026, meme methode que pour le N5 ci-dessus : comparaison du
+    // kunyomi de chaque groupe de kanji l0-s1/l0-s2 aux entrees "vocab"
+    // reellement presentes pour ce groupe).
+    // Dedoublonnage PAR GROUPE DE KANJI (kanjiGroupId), pas juste par "mot"
+    // comme le bloc N5 ci-dessus : le kanji 下 existe a la fois dans l0-s1
+    // (kg-l0s1-w3-02) et dans jlpt-n5 (autre kanjiGroupId), qui a deja recu
+    // son propre "下りる" -- un dedoublonnage global par texte aurait empeche
+    // l0-s1 de recevoir sa propre entree pour sa propre semaine.
+    const VERBES_CURSUS_A_AJOUTER = [
+      { id: 'v-hbrpoig8f1c', kanjiGroupId: 'kg-l0s1-w3-02', mot: '下りる', lecture: 'おりる', sens: "Descendre (d'un véhicule, d'un escalier)" },
+      { id: 'v-bfno6b9m80o', kanjiGroupId: 'kg-l0s2-w2-02', mot: '明ける', lecture: 'あける', sens: 'Prendre fin, se terminer (une période : la nuit, les vacances)' },
+    ];
+    if (Array.isArray(data.vocab) && data.kanjiGroups.some(g => g.semesterId === 'l0-s1' || g.semesterId === 'l0-s2')) {
+      VERBES_CURSUS_A_AJOUTER.forEach(nouveauMot => {
+        const dejaPresent = data.vocab.some(v => v.kanjiGroupId === nouveauMot.kanjiGroupId && v.mot === nouveauMot.mot);
+        if (!dejaPresent) {
+          data.vocab.push({ ...nouveauMot });
+        }
+      });
+    }
     data.settings.pointsPerWord = 10;
     return data;
   }
