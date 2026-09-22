@@ -284,6 +284,36 @@ const JLPT_N4_SEED = {"kanjiGroups":[{"id":"kg-hu66go90952pa","semesterId":"jlpt
     if (Array.isArray(data.vocab)) {
       data.vocab = data.vocab.filter(v => !VOCAB_DOUBLONS_A_SUPPRIMER.has(v.id));
     }
+    // Verbes de base manquants au vocabulaire N5 (signale par Paul le
+    // 14/09/2026) : certains verbes parmi les plus fondamentaux du N5
+    // (書く, 来る, 行く...) n'avaient jamais eu leur propre entree de
+    // vocabulaire -- seuls des mots composes utilisant le meme kanji
+    // etaient presents (ex : 来週/来月/来年 mais pas 来る tout seul).
+    // Repere en comparant le kunyomi de chaque groupe de kanji N5 aux
+    // entrees "vocab" reellement presentes pour ce groupe. Idempotent
+    // comme LECTURES_A_CORRIGER ci-dessus : n'ajoute un mot que s'il
+    // n'existe pas deja (par "mot", peu importe l'id) et seulement si
+    // le module N5 est bien charge pour ce compte.
+    const VERBES_N5_A_AJOUTER = [
+      { id: 'v-xg6a6e97ce3', kanjiGroupId: 'kg-vn7pezspevrxd', mot: '上がる', lecture: 'あがる', sens: "Monter, s'elever" },
+      { id: 'v-0d6nj87g8ny', kanjiGroupId: 'kg-mb8hz52zdsk64', mot: '下がる', lecture: 'さがる', sens: 'Descendre, baisser' },
+      { id: 'v-ksqtgzxehh0', kanjiGroupId: 'kg-mb8hz52zdsk64', mot: '下りる', lecture: 'おりる', sens: "Descendre (d'un vehicule, d'un escalier)" },
+      { id: 'v-t5npeurblj8', kanjiGroupId: 'kg-d4aavlvs6b7k9', mot: '入れる', lecture: 'いれる', sens: 'Mettre dedans, inserer' },
+      { id: 'v-blidjjmnbqg', kanjiGroupId: 'kg-ho3pz95y8iahl', mot: '出す', lecture: 'だす', sens: 'Sortir quelque chose, faire sortir' },
+      { id: 'v-94wwfdv7vqh', kanjiGroupId: 'kg-anu6f171v6855', mot: '書く', lecture: 'かく', sens: 'Ecrire' },
+      { id: 'v-nvai6nfxk7q', kanjiGroupId: 'kg-lkugw0478awzs', mot: '来る', lecture: 'くる', sens: 'Venir' },
+      { id: 'v-nycgc46dwgh', kanjiGroupId: 'kg-mt92ttxqhqtff', mot: '行く', lecture: 'いく', sens: 'Aller' },
+      { id: 'v-8irvwuc18gc', kanjiGroupId: 'kg-tz1msndbo70la', mot: '生まれる', lecture: 'うまれる', sens: 'Naitre' },
+    ];
+    if (Array.isArray(data.vocab) && data.kanjiGroups.some(g => g.semesterId === 'jlpt-n5')) {
+      const motsExistants = new Set(data.vocab.map(v => v.mot));
+      VERBES_N5_A_AJOUTER.forEach(nouveauMot => {
+        if (!motsExistants.has(nouveauMot.mot)) {
+          data.vocab.push({ ...nouveauMot });
+          motsExistants.add(nouveauMot.mot);
+        }
+      });
+    }
     data.settings.pointsPerWord = 10;
     return data;
   }
