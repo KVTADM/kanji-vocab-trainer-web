@@ -1244,6 +1244,9 @@ function renderDashboard() {
             <h3>${escapeHtml(semModal.label)} — Semaine ${weekModal}</h3>
             <button class="modal-fermer" id="btnFermerModalSemaine" title="Fermer" aria-label="Fermer">✕</button>
           </div>
+          ${vocabModalTous.length > 0 ? `
+            <button type="button" class="secondary small" id="btnVoirVocabModalSemaine" style="margin-bottom:10px;">Voir le vocabulaire de cette semaine</button>
+          ` : ''}
           ${savedModal ? `
             <div class="modal-reprise">
               <div>Session en cours : ${savedModal.index}/${savedModal.queue.length} mots · ${savedModal.totals.points} pts gagnés</div>
@@ -1383,6 +1386,21 @@ function renderDashboard() {
     $('#modalSemaineBackdrop').addEventListener('click', (e) => {
       if (e.target.id === 'modalSemaineBackdrop') fermerModal();
     });
+    // Raccourci vers le tableau de traduction de cette semaine (tache #17,
+    // "moins de clics pour y arriver") : avant ce bouton, il fallait fermer
+    // la modale, aller dans "Vocabulaire" via le menu, puis reselectionner
+    // la meme semaine dans le menu deroulant -- 3 etapes pour revoir des
+    // mots qu'on a justement la semaine sous les yeux ici. N'apparait que
+    // s'il y a du vocabulaire pour cette semaine (voir le rendu plus haut).
+    const btnVoirVocabModal = $('#btnVoirVocabModalSemaine');
+    if (btnVoirVocabModal) {
+      btnVoirVocabModal.addEventListener('click', () => {
+        const { semesterId, week } = modalSemaineOuverte;
+        modalSemaineOuverte = null;
+        browsingWeek = { semesterId, week };
+        switchView('manage');
+      });
+    }
     const recalculerFiltreMotsModal = () => {
       const groupeCoche = $('#chkModalMotsGroupe').checked;
       const simpleCoche = $('#chkModalMotsSimple').checked;
@@ -3006,7 +3024,13 @@ function renderReview() {
       </div>
       <div class="flashcard">
         <div class="front-word">${escapeHtml(v.mot)}</div>
-        ${!quizSession.hardcore ? `<div class="hint">${g ? escapeHtml(g.kanji) + (g.titre ? ' · ' + escapeHtml(g.titre) : '') : ''}</div>` : ''}
+        ${/* Indice (kanji du groupe + titre) : reserve au mode Facile
+           (tache #7, demande de Paul le 14/09/2026 -- "RETIRER les
+           indices en mode normal"). Avant ce correctif il s'affichait
+           des que hardcore etait desactive, donc aussi en mode Normal ;
+           ne dependait pas de DB.settings.spectralMode. Le mode Hardcore
+           reste sans indice comme avant (!quizSession.hardcore). */ ''}
+        ${!quizSession.hardcore && DB.settings.spectralMode ? `<div class="hint">${g ? escapeHtml(g.kanji) + (g.titre ? ' · ' + escapeHtml(g.titre) : '') : ''}</div>` : ''}
         ${!quizSession.submitted ? `
           ${quizSession.warning ? `<div class="quiz-feedback bad" style="margin-top:12px;">${escapeHtml(quizSession.warning)}</div>` : ''}
           <div class="answer-input-wrap">
