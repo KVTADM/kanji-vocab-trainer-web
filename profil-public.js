@@ -30,7 +30,7 @@ async function chargerProfilPublic(userId) {
   const res = { profil: null, decks: [], avis: [], amis: null };
   try {
     const requetes = [
-      window.sb.from('profiles').select('id,pseudo,avatar_url,niveau,bio,created_at,banniere_active')
+      window.sb.from('profiles').select('id,pseudo,avatar_url,niveau,bio,created_at,banniere_active,hexagone_stats')
         .eq('id', userId).maybeSingle()
         .then(r => { res.profil = r.data || null; }),
 
@@ -138,6 +138,32 @@ function renderProfilPublic() {
   if (cestMoi) onglets.push(['amis', 'Amis', amis ? amis.length : 0]);
   if (!onglets.some(o => o[0] === profilOnglet)) profilOnglet = 'decks';
 
+  // Graphique hexagonal de performance (deplace des Statistiques vers le
+  // profil, demande de Paul le 23/09/2026 : "devrai etre sur le profile et
+  // visible par tout ce qui reguarde le profile des autre"). Sur son propre
+  // profil, calcule en direct (plus a jour que la derniere synchronisation)
+  // et repousse au passage ; sur celui de quelqu'un d'autre, seulement ce
+  // qu'il a lui-meme synchronise -- getHexagoneStats() ne lit que la base
+  // locale du visiteur, inutilisable pour le profil d'un tiers.
+  let hexaStats = null;
+  if (cestMoi && typeof getHexagoneStats === 'function') {
+    hexaStats = getHexagoneStats();
+    if (typeof window.kvtPushHexagoneStats === 'function') window.kvtPushHexagoneStats(hexaStats);
+  } else {
+    hexaStats = profil.hexagone_stats || null;
+  }
+  const hexaHtml = (typeof renderHexagoneSvg !== 'function') ? '' : `
+    <div class="card profil-hexagone">
+      <h3>Graphique de performance</h3>
+      <p style="font-size:12px; color:var(--muted); margin-top:-4px;">
+        Précision, vitesse, régularité, volume de mots vus, difficulté du contenu travaillé et progression récente.
+      </p>
+      ${(!hexaStats || hexaStats.aucuneDonnee) ? profilVide(cestMoi
+          ? 'Termine une première session pour voir apparaître ton graphique de performance.'
+          : "Cette personne n'a pas encore de données de performance.")
+        : `<div class="hexa-wrap">${renderHexagoneSvg(hexaStats)}</div>`}
+    </div>`;
+
   const contenuDecks = decks.length ? `
     <div class="profil-grille">
       ${decks.map(d => `
@@ -210,6 +236,8 @@ function renderProfilPublic() {
         <span><strong>${avis.length}</strong> avis écrit${avis.length > 1 ? 's' : ''}</span>
       </div>
     </header>
+
+    ${hexaHtml}
 
     <div class="profil-onglets" role="tablist">
       ${onglets.map(([cle, lib, n]) => `

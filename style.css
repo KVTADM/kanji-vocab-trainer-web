@@ -2315,38 +2315,10 @@ code {
   border: 1px dashed var(--border); border-radius: var(--radius); padding: 14px;
 }
 
-.comm-avis { padding: 12px 0; border-top: 1px solid var(--border); }
-.comm-avis:first-of-type { border-top: none; padding-top: 0; }
-.comm-avis-tete { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.comm-pseudo { font-size: 14px; }
-.comm-avis-texte { margin: 6px 0 4px; font-size: 14px; line-height: 1.6; }
 .comm-source { font-size: 12px; color: var(--muted); }
-
-.comm-ligne {
-  display: flex; align-items: center; gap: 14px; width: 100%;
-  background: none; border: none; border-top: 1px solid var(--border);
-  padding: 12px 0; cursor: pointer; text-align: left; color: inherit; font: inherit;
-}
-.comm-ligne:first-of-type { border-top: none; }
-.comm-ligne:hover .comm-ligne-titre { color: var(--accent-bright); }
-.comm-ligne-corps { flex: 1; min-width: 0; }
-.comm-ligne-titre { display: block; font-size: 14px; }
-.comm-ligne-detail { display: block; font-size: 12px; color: var(--muted); margin-top: 2px; }
-.comm-ligne-valeur { flex: none; text-align: right; }
-.comm-ligne-valeur strong { display: block; font-size: 18px; color: var(--good-bright); font-weight: normal; }
-.comm-ligne-valeur span { font-size: 12px; color: var(--muted); }
 
 .comm-arrive { display: flex; align-items: flex-start; gap: 10px; padding: 8px 0; font-size: 14px; line-height: 1.5; }
 .comm-arrive .maj-statut { flex: none; min-width: 68px; text-align: center; }
-
-.comm-demande { display: flex; align-items: center; gap: 14px; padding: 8px 0; font-size: 14px; line-height: 1.5; }
-.comm-soutiens {
-  flex: none; width: 44px; text-align: center;
-  border: 1px solid var(--border); border-radius: var(--radius); padding: 5px 0;
-  display: flex; flex-direction: column; gap: 1px;
-}
-.comm-soutiens span { font-size: 11px; color: var(--muted); line-height: 1; }
-.comm-soutiens strong { font-size: 14px; font-weight: normal; }
 
 .comm-videos { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
 .comm-video { display: block; text-decoration: none; color: inherit; }
@@ -2379,14 +2351,6 @@ code {
 .comm-banniere-texte strong { display: block; font-size: 19px; font-weight: 600; }
 .comm-banniere-texte span {
   display: block; margin-top: 6px; font-size: 14px; line-height: 1.6; color: var(--muted);
-}
-
-/* ---- Avis d'exemple ---- */
-
-.comm-avis.est-exemple { opacity: .72; }
-.comm-exemple-marque {
-  font-size: 11px; color: var(--muted);
-  border: 1px dashed var(--border); border-radius: 99px; padding: 0 8px;
 }
 
 /* ============================================================
@@ -2790,71 +2754,6 @@ code {
    Trois etages, du plus large au plus dense : une entete centree qui dit ce
    qu'est KVT, deux colonnes pour ce qui bouge, les videos en pleine largeur.
    ============================================================ */
-.accueil-entete {
-  text-align: center;
-  max-width: 680px;
-  margin: 8px auto 36px;
-  padding: 0 4px;
-}
-.accueil-surtitre {
-  margin: 0 0 12px;
-  font-size: 12px;
-  letter-spacing: 1.6px;
-  text-transform: uppercase;
-  color: var(--accent-bright);
-  font-weight: 600;
-}
-.accueil-titre {
-  margin: 0;
-  font-size: clamp(26px, 3.4vw, 40px);
-  line-height: 1.25;
-  font-weight: 700;
-  color: var(--cream);
-  letter-spacing: -0.4px;
-  /* `text-wrap: balance` egalise les lignes d'un titre au lieu de laisser un
-     mot seul en bas. Ignore par les navigateurs qui ne le connaissent pas,
-     donc sans repli a prevoir. */
-  text-wrap: balance;
-}
-.accueil-pitch {
-  margin: 16px auto 0;
-  max-width: 56ch;
-  font-size: 15px;
-  line-height: 1.7;
-  color: var(--muted);
-}
-
-.accueil-chiffres {
-  display: flex;
-  justify-content: center;
-  flex-wrap: wrap;
-  gap: 14px;
-  margin-top: 28px;
-}
-.accueil-chiffre {
-  flex: 1 1 150px;
-  max-width: 200px;
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 16px 14px;
-}
-.accueil-chiffre__valeur {
-  display: block;
-  font-size: 26px;
-  font-weight: 700;
-  line-height: 1.2;
-  color: var(--cream);
-  font-variant-numeric: tabular-nums;
-}
-.accueil-chiffre__libelle {
-  display: block;
-  margin-top: 4px;
-  font-size: 12px;
-  line-height: 1.5;
-  color: var(--muted);
-}
-
 /* Deux colonnes des qu'il y a la place. `auto-fit` avec un minimum : la
    grille decide seule du nombre de colonnes selon la largeur reelle, sans
    qu'on ait a deviner des points de rupture. */
@@ -2866,22 +2765,9 @@ code {
 }
 .accueil-grille .card { margin-bottom: 0; }
 
-.accueil-lien-tout {
-  margin: 14px 0 0;
-  font-size: 13px;
-}
-.accueil-lien-tout a { color: var(--accent-bright); text-decoration: none; }
-.accueil-lien-tout a:hover { text-decoration: underline; }
-
 /* Le proverbe du jour et les videos gardent la pleine largeur, mais leur
    texte reste lisible : une ligne de 120 caracteres ne se lit pas. */
 #view-communaute .proverb-card { max-width: 680px; margin-left: auto; margin-right: auto; }
-
-@media (max-width: 640px) {
-  .accueil-entete { margin-bottom: 26px; }
-  .accueil-chiffre { flex-basis: 100px; padding: 12px 10px; }
-  .accueil-chiffre__valeur { font-size: 20px; }
-}
 
 /* ============================================================
    Formulaire de publication d'un deck

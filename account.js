@@ -256,6 +256,21 @@ window.kvtPushScore = async function (semesterId, week, points, maxPoints, pct, 
   }, { onConflict: 'user_id,semester_id,week,mode' });
 };
 
+// Graphique hexagonal de performance (deplace des Statistiques vers le
+// Profil public, demande de Paul le 23/09/2026) : pour qu'il soit visible
+// sur le profil de quelqu'un d'autre, ses 6 axes doivent exister cote
+// serveur -- getHexagoneStats() (app.js) ne lit que la base locale du
+// visiteur, inutilisable pour le profil d'un tiers. On pousse donc un
+// simple instantane JSON, comme pseudo/niveau/bio le sont deja sur
+// `profiles`, plutot que de reconstruire les 6 axes cote serveur (deux
+// d'entre eux -- regularite/streak, volume/mots vus -- n'ont pas
+// d'equivalent dans `scores`). Appelee a chaque score pousse (voir app.js)
+// et a l'ouverture de son propre profil, jamais bloquante pour l'affichage.
+window.kvtPushHexagoneStats = async function (stats) {
+  if (!window.accountUser || !stats) return;
+  await window.sb.from('profiles').update({ hexagone_stats: stats }).eq('id', window.accountUser.id);
+};
+
 // Pousse les meilleurs scores locaux vers le classement de la classe, sans
 // jamais écraser un meilleur score déjà en ligne pour la même semaine ET le
 // même mode. Sert notamment quand une sauvegarde faite hors ligne (app Mac,

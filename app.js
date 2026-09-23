@@ -1339,21 +1339,16 @@ function renderDashboard() {
   // tableau de bord — la première chose vue à l'ouverture de l'app.
   if (typeof widgetGamification === 'function') html += widgetGamification();
 
-  // Classement + nouveautés (#21, rang 5, fusionné avec #23 -- même
-  // chantier selon Paul) : aperçu compact, chacun avec un lien vers sa
-  // page complète. Chargés en asynchrone (données Supabase) comme le reste
-  // du classement/des mises à jour ; le contenu synchrone du tableau de
-  // bord ci-dessus ne les attend pas.
+  // Nouveautés (#21/#23, rang 5) : aperçu compact avec un lien vers sa page
+  // complète. Chargé en asynchrone (données Supabase) ; le contenu
+  // synchrone du tableau de bord ci-dessus ne l'attend pas.
+  // Le widget Classement qui vivait ici est passé sur la page d'accueil
+  // (communaute.js) le 23/09/2026, demande de Paul : "le classement
+  // devrait etre sur la page d'accueil pas le tableau de bord".
   html += `
-    <div class="grid-2 accueil-widgets-row">
-      <div class="card">
-        <h3>Classement</h3>
-        <div id="accueilClassementWrap"><p style="font-size:13px; color:var(--muted);">Chargement…</p></div>
-      </div>
-      <div class="card">
-        <h3>Nouveautés</h3>
-        <div id="accueilNouveautesWrap"><p style="font-size:13px; color:var(--muted);">Chargement…</p></div>
-      </div>
+    <div class="card accueil-widgets-row">
+      <h3>Nouveautés</h3>
+      <div id="accueilNouveautesWrap"><p style="font-size:13px; color:var(--muted);">Chargement…</p></div>
     </div>`;
 
   // Le proverbe du jour vit desormais sur la page d'accueil.
@@ -1553,7 +1548,6 @@ function renderDashboard() {
   $('#view-dashboard').innerHTML = html;
   renderAllAdSlots();
   afficherVersionDeploiement();
-  if (typeof chargerClassementAccueil === 'function') chargerClassementAccueil();
   if (typeof chargerNouveautesAccueil === 'function') chargerNouveautesAccueil();
 
   $$('[data-onglet]').forEach(b => {
@@ -2143,6 +2137,12 @@ function renderKanjiQuizView(container) {
     if (typeof window.kvtPushScore === 'function') {
       const histEntry = getKanjiScoreEntry(quizSession.semesterId, quizSession.week);
       window.kvtPushScore(quizSession.semesterId, quizSession.week, histEntry.best.points, histEntry.best.maxPoints, histEntry.best.pct, 'kanji', histEntry.best.dureeMs, histEntry.history.length);
+    }    // Synchronise aussi l'instantane du graphique hexagonal (deplace vers
+    // le Profil public, demande de Paul le 23/09/2026) : ce mode vient de
+    // faire bouger au moins un des 6 axes, autant le repousser tout de
+    // suite plutot que d'attendre une visite sur son propre profil.
+    if (typeof window.kvtPushHexagoneStats === 'function' && typeof getHexagoneStats === 'function') {
+      window.kvtPushHexagoneStats(getHexagoneStats());
     }
     if (typeof kvtSnapshotHistorique === 'function') kvtSnapshotHistorique();
     const semLabel = getSemester(quizSession.semesterId).label;
@@ -2683,6 +2683,12 @@ function renderTraductionQuizView(container) {
     if (typeof window.kvtPushScore === 'function') {
       const histEntry = getTraductionScoreEntry(quizSession.semesterId, quizSession.week);
       window.kvtPushScore(quizSession.semesterId, quizSession.week, histEntry.best.points, histEntry.best.maxPoints, histEntry.best.pct, 'traduction', histEntry.best.dureeMs, histEntry.history.length);
+    }    // Synchronise aussi l'instantane du graphique hexagonal (deplace vers
+    // le Profil public, demande de Paul le 23/09/2026) : ce mode vient de
+    // faire bouger au moins un des 6 axes, autant le repousser tout de
+    // suite plutot que d'attendre une visite sur son propre profil.
+    if (typeof window.kvtPushHexagoneStats === 'function' && typeof getHexagoneStats === 'function') {
+      window.kvtPushHexagoneStats(getHexagoneStats());
     }
     if (typeof kvtSnapshotHistorique === 'function') kvtSnapshotHistorique();
     const semLabel = getSemester(quizSession.semesterId).label;
@@ -2890,6 +2896,12 @@ function renderDoubleQuizView(container) {
     if (typeof window.kvtPushScore === 'function') {
       const histEntry = getDoubleScoreEntry(quizSession.semesterId, quizSession.week);
       window.kvtPushScore(quizSession.semesterId, quizSession.week, histEntry.best.points, histEntry.best.maxPoints, histEntry.best.pct, 'double', histEntry.best.dureeMs, histEntry.history.length);
+    }    // Synchronise aussi l'instantane du graphique hexagonal (deplace vers
+    // le Profil public, demande de Paul le 23/09/2026) : ce mode vient de
+    // faire bouger au moins un des 6 axes, autant le repousser tout de
+    // suite plutot que d'attendre une visite sur son propre profil.
+    if (typeof window.kvtPushHexagoneStats === 'function' && typeof getHexagoneStats === 'function') {
+      window.kvtPushHexagoneStats(getHexagoneStats());
     }
     if (typeof kvtSnapshotHistorique === 'function') kvtSnapshotHistorique();
     const semLabel = getSemester(quizSession.semesterId).label;
@@ -3590,6 +3602,12 @@ function renderReview() {
     if (typeof window.kvtPushScore === 'function') {
       const bestEntry = DB.scores[key].best;
       window.kvtPushScore(quizSession.semesterId, quizSession.week, bestEntry.points, bestEntry.maxPoints, bestEntry.pct, 'vocab', bestEntry.dureeMs, DB.scores[key].history.length);
+    }    // Synchronise aussi l'instantane du graphique hexagonal (deplace vers
+    // le Profil public, demande de Paul le 23/09/2026) : ce mode vient de
+    // faire bouger au moins un des 6 axes, autant le repousser tout de
+    // suite plutot que d'attendre une visite sur son propre profil.
+    if (typeof window.kvtPushHexagoneStats === 'function' && typeof getHexagoneStats === 'function') {
+      window.kvtPushHexagoneStats(getHexagoneStats());
     }
     // Sauvegarde automatique horodatée (30/08/2026, voir account.js) : une
     // fin de session est un bon moment naturel pour ça (résultat qui compte
@@ -3932,7 +3950,6 @@ function renderStats() {
   `).join('');
 
   const composite = getScoreCompositePersonnel();
-  const hexaStats = getHexagoneStats();
 
   $('#view-stats').innerHTML = `
     <h2>Statistiques</h2>
@@ -3943,16 +3960,6 @@ function renderStats() {
       <div class="stat-box" title="Précision, vitesse, assiduité et difficulté du contenu, combinées sur 100 (voir #5 de la feuille de route).">
         <div class="num">${composite === null ? '—' : composite}</div><div class="label">Score composite</div>
       </div>
-    </div>
-    <div class="card">
-      <h3>Graphique de performance</h3>
-      <p style="font-size:12px; color:var(--muted); margin-top:-4px;">
-        Précision, vitesse, régularité, volume de mots vus, difficulté du contenu travaillé et progression récente,
-        sur les 4 modes synchronisés avec le classement (voir #4 de la feuille de route).
-      </p>
-      ${hexaStats.aucuneDonnee ? `
-        <p class="empty-state">Termine une première session pour voir apparaître ton graphique de performance.</p>
-      ` : `<div class="hexa-wrap">${renderHexagoneSvg(hexaStats)}</div>`}
     </div>
     ${renderAdvancedStatsCard()}
     <div class="card">

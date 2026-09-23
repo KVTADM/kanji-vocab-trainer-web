@@ -15,62 +15,64 @@ const SRC=fs.readFileSync('communaute.js','utf8');
 const cas=[];
 global.essai=(n,f)=>{try{f();cas.push(['OK',n]);}catch(e){cas.push(['ECHEC',n+' -> '+e.message]);}};
 eval(SRC+`
-essai("tout vide : l'entete et les avis d'exemple prennent le relais", ()=>{
-  commData={avis:[],decks:[],arrive:[],demandes:[],videos:[],nbDecks:null};
+// Page d'accueil resserree le 23/09/2026 (demande de Paul) : plus de gros
+// entete/chiffres, plus de « Derniers avis », « Derniers decks » ni
+// « Les plus demandes ». Le classement (deplace du tableau de bord) et
+// « Ce qui arrive » restent ; les videos aussi.
+
+essai("tout vide : la page reste utilisable, sans entete ni gros message", ()=>{
+  commData={arrive:[],videos:[]};
   renderCommunaute();
   const h=trouve('#view-communaute').innerHTML;
-  if(!h.includes('accueil-entete')) throw new Error('entete absente');
+  if(h.includes('accueil-entete')) throw new Error('le gros entete aurait du disparaitre');
+  if(h.includes('accueil-chiffre')) throw new Error('les chiffres en avant-page auraient du disparaitre');
+  if(h.includes('Derniers avis')) throw new Error('"Derniers avis" aurait du disparaitre');
+  if(h.includes('Derniers decks')) throw new Error('"Derniers decks" aurait du disparaitre');
+  if(h.includes('Les plus demand')) throw new Error('"Les plus demandes" aurait du disparaitre');
   if(!h.includes('proverb-card')) throw new Error('proverbe du jour absent');
   if(!h.includes('七転び八起き')) throw new Error('texte du proverbe absent');
-  if(!h.includes("Le kanji d'abord")) throw new Error('accroche absente');
-  // Sans base locale ni comptage, les trois chiffres doivent afficher un
-  // tiret : jamais une valeur inventee, jamais un zero qui ferait croire
-  // que le site est vide alors qu'on n'a simplement pas pu compter.
-  if((h.match(/accueil-chiffre__valeur">—/g)||[]).length!==3) {
-    throw new Error('un compteur sans donnee doit afficher un tiret');
-  }
-  if((h.match(/est-exemple/g)||[]).length!==2) throw new Error('il faut deux exemples');
-  if((h.match(/comm-exemple-marque/g)||[]).length!==2) throw new Error('les exemples ne sont pas marques comme tels');
-  // les quatre autres sections restent en etat vide
-  if((h.match(/comm-etat-vide/g)||[]).length!==5) throw new Error('etats vides = '+(h.match(/comm-etat-vide/g)||[]).length);
+  if(!h.includes('id="accueilClassementWrap"')) throw new Error('emplacement du widget classement absent');
+  if(!h.includes('Ce qui arrive')) throw new Error('"Ce qui arrive" absent');
+  // Les deux sections restantes en etat vide (arrive, videos) -- le
+  // classement gere son propre etat vide depuis leaderboard.js, pas ici.
+  if((h.match(/comm-etat-vide/g)||[]).length!==2) throw new Error('etats vides = '+(h.match(/comm-etat-vide/g)||[]).length);
 });
 
-essai("des que de vrais avis existent, les exemples disparaissent", ()=>{
-  commData={avis:[{note:5,avis:'Vrai avis.',pseudo:'Hana',user_id:'u1',decks:{titre:'JLPT N3'}}],
-            decks:[],arrive:[],demandes:[],videos:[]};
-  renderCommunaute();
-  const h=trouve('#view-communaute').innerHTML;
-  if(h.includes('est-exemple')) throw new Error('un exemple subsiste malgre un vrai avis');
-  if(!h.includes('Vrai avis.')) throw new Error('le vrai avis manque');
-});
-essai("avec des donnees : tout s'affiche", ()=>{
+essai("avec des donnees : ce qui arrive et les videos s'affichent", ()=>{
   commData={
-    avis:[{note:4,avis:'Bien.',pseudo:'Hana',user_id:'u1',decks:{titre:'JLPT N3'}}],
-    decks:[{id:'d1',titre:'JLPT N3',officiel:true,nb_kanji:367,note_moyenne:4.8,nb_notes:5,pseudo:'KVT'},
-           {id:'d2',titre:'Mien',officiel:false,nb_kanji:76,nb_notes:0,pseudo:'Polus',auteur_id:'u9'}],
     arrive:[{titre:'Adresse partageable',statut:'prevu'}],
-    demandes:[{id:'s1',titre:'Memos',score:12}],
     videos:[{youtube_id:'dQw4w9WgXcQ',titre:'Les cles',pseudo:'Ken',score:9}]};
   renderCommunaute();
   const h=trouve('#view-communaute').innerHTML;
   if((h.match(/comm-etat-vide/g)||[]).length!==0) {
-    const i=h.indexOf('comm-vide');
+    const i=h.indexOf('comm-etat-vide');
     throw new Error('etat vide restant : ...'+h.slice(Math.max(0,i-160),i+90).replace(/\s+/g,' '));
   }
-  if(!h.includes('data-comm-deck="d1"')) throw new Error('deck non cliquable');
+  if(!h.includes('Adresse partageable')) throw new Error('suggestion "a venir" absente');
   if(!h.includes('i.ytimg.com')) throw new Error('vignette absente');
-  if(!h.includes('pas encore noté')) throw new Error('deck sans note mal rendu');
 });
-essai("un pseudo contenant du HTML est echappe", ()=>{
-  commData={avis:[{note:5,avis:'x',pseudo:'<img src=x onerror=alert(1)>',user_id:'u1',decks:null}],
-            decks:[],arrive:[],demandes:[],videos:[]};
+
+essai("un pseudo de video contenant du HTML est echappe", ()=>{
+  commData={arrive:[],videos:[{youtube_id:'x',titre:'t','pseudo':'<img src=x onerror=alert(1)>',score:1}]};
   renderCommunaute();
   if(trouve('#view-communaute').innerHTML.includes('<img src=x')) throw new Error('injection possible');
 });
-essai("un avis sans deck rattache ne casse pas", ()=>{
-  commData={avis:[{note:3,avis:'y',pseudo:'A',user_id:'u1',decks:null}],decks:[],arrive:[],demandes:[],videos:[]};
+
+essai("une erreur de chargement partiel est affichee", ()=>{
+  commData={arrive:[],videos:[]};
+  commErreur='reseau coupe';
   renderCommunaute();
-  if(!trouve('#view-communaute').innerHTML.includes('sur un deck')) throw new Error('repli absent');
+  if(!trouve('#view-communaute').innerHTML.includes('reseau coupe')) throw new Error('erreur avalee');
+  commErreur=null;
+});
+
+essai("chargerClassementAccueil est appelee si disponible (widget classement)", ()=>{
+  let appele=false;
+  global.chargerClassementAccueil=()=>{appele=true;};
+  commData={arrive:[],videos:[]};
+  renderCommunaute();
+  if(!appele) throw new Error('le widget classement ne se charge pas depuis la page d\\'accueil');
+  delete global.chargerClassementAccueil;
 });
 `);
 let e=0; cas.forEach(([v,n])=>{if(v==='ECHEC')e++; console.log('  '+v.padEnd(7)+n);});

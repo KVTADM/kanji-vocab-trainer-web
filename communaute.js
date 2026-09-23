@@ -15,7 +15,7 @@
 // avait l'air d'être à part.
 // ============================================================
 
-let commData = null;      // { avis, decks, arrive, demandes, videos }
+let commData = null;      // { arrive, videos }
 let commErreur = null;
 let commEnCours = false;
 
@@ -23,39 +23,25 @@ async function chargerCommunaute() {
   if (!window.sb) { commErreur = "La connexion au serveur n'est pas disponible."; return; }
   commEnCours = true;
   commErreur = null;
-  const res = { avis: [], decks: [], arrive: [], demandes: [], videos: [], nbDecks: null };
+  const res = { arrive: [], videos: [] };
   try {
-    // Cinq requêtes indépendantes : si l'une échoue, les autres s'affichent
-    // quand même. Une section vide vaut mieux qu'une page blanche.
+    // Deux requêtes indépendantes : si l'une échoue, l'autre s'affiche quand
+    // même. Une section vide vaut mieux qu'une page blanche.
+    //
+    // « Derniers avis », « Derniers decks » et « Les plus demandés »
+    // vivaient ici (et le widget Classement sur le tableau de bord) --
+    // retirés/déplacé le 23/09/2026 à la demande de Paul, pour une page
+    // d'accueil plus sobre (voir l'historique git pour l'ancien contenu).
     const requetes = [
-      sb.from('deck_notes').select('note,avis,pseudo,user_id,updated_at,decks(titre,slug)')
-        .neq('avis', '').order('updated_at', { ascending: false }).limit(3)
-        .then(r => { res.avis = r.data || []; }),
-      sb.from('decks').select('id,titre,slug,pseudo,auteur_id,officiel,semester_id,nb_kanji,note_moyenne,nb_notes')
-        .eq('visible', true).order('created_at', { ascending: false }).limit(4)
-        .then(r => { res.decks = r.data || []; }),
       sb.from('suggestions').select('titre,statut').in('statut', ['prevu', 'a_letude', 'fait'])
         .order('score', { ascending: false }).limit(3)
         .then(r => { res.arrive = r.data || []; }),
-      sb.from('suggestions').select('id,titre,score').eq('statut', 'ouverte')
-        .order('score', { ascending: false }).limit(3)
-        .then(r => { res.demandes = r.data || []; }),
       sb.from('videos').select('youtube_id,titre,pseudo,score').eq('statut', 'publiee')
         .order('score', { ascending: false }).limit(3)
-        .then(r => { res.videos = r.data || []; }),
-      // Le nombre total de decks, et non la longueur de la liste ci-dessus :
-      // celle-ci s'arrete a quatre. Un compteur qui compte l'echantillon
-      // plutot que l'ensemble est un chiffre faux, pas une approximation.
-      sb.from('decks').select('id', { count: 'exact', head: true }).eq('visible', true)
-        .then(r => { res.nbDecks = (r && typeof r.count === 'number') ? r.count : null; })
+        .then(r => { res.videos = r.data || []; })
     ];
     await Promise.allSettled(requetes);
     commData = res;
-
-    if (window.kvtProfils) {
-      const ids = res.avis.map(a => a.user_id).concat(res.decks.filter(d => d.auteur_id).map(d => d.auteur_id));
-      await window.kvtProfils.chargerProfils(ids);
-    }
   } catch (err) {
     commData = res;
     commErreur = err && err.message ? err.message : String(err);
@@ -66,38 +52,6 @@ async function chargerCommunaute() {
 
 function commVide(message) {
   return `<p class="comm-etat-vide">${message}</p>`;
-}
-
-// Deux avis d'exemple, montrés uniquement quand il n'y en a aucun. Ils sont
-// marqués « exemple » et grisés : ce ne sont pas de faux avis signés de faux
-// pseudos, ce serait tromper le visiteur sur ce que vaut le site. Ils
-// disparaissent dès qu'un vrai avis existe.
-const AVIS_EXEMPLES = [
-  { note: 5, pseudo: 'Un jour, quelqu\'un', deck: 'Semestre 1 — semaine 1',
-    texte: 'Les premiers kanji passent tout seuls quand on voit les mots qui vont avec.' },
-  { note: 4, pseudo: 'Un jour, quelqu\'un d\'autre', deck: 'Semestre 1 — semaine 2',
-    texte: 'La correction qui compte les syllabes justes change tout : on voit ce qui manque au lieu d\'un « faux ».' }
-];
-
-function htmlAvisExemples() {
-  return `
-    <p class="comm-etat-vide">Personne n'a encore écrit d'avis. Voilà à quoi ça ressemblera :</p>
-    ${AVIS_EXEMPLES.map(a => `
-      <div class="comm-avis est-exemple">
-        <div class="comm-avis-tete">
-          <span class="comm-pseudo">${escapeHtml(a.pseudo)}</span>
-          ${commEtoiles(a.note)}
-          <span class="comm-exemple-marque">exemple</span>
-        </div>
-        <p class="comm-avis-texte">« ${escapeHtml(a.texte)} »</p>
-        <div class="comm-source">sur ${escapeHtml(a.deck)}</div>
-      </div>`).join('')}`;
-}
-
-function commEtoiles(n) {
-  const pleines = Math.round(Number(n) || 0);
-  return `<span class="deck-etoiles">${[1, 2, 3, 4, 5]
-    .map(i => `<span class="deck-etoile ${i <= pleines ? 'est-pleine' : ''}">★</span>`).join('')}</span>`;
 }
 
 function renderCommunaute() {
@@ -115,45 +69,12 @@ function renderCommunaute() {
 
   const d = commData;
 
-  const avis = d.avis.length ? d.avis.map(a => `
-    <div class="comm-avis">
-      <div class="comm-avis-tete">
-        ${window.kvtProfils ? window.kvtProfils.avatarHtml(a.user_id, a.pseudo, 28) : ''}
-        <span class="comm-pseudo">${escapeHtml(a.pseudo)}</span>
-        ${commEtoiles(a.note)}
-      </div>
-      <p class="comm-avis-texte">« ${escapeHtml(a.avis)} »</p>
-      <div class="comm-source">sur ${a.decks ? escapeHtml(a.decks.titre) : 'un deck'}</div>
-    </div>`).join('')
-    : htmlAvisExemples();
-
-  const decks = d.decks.length ? d.decks.map(x => `
-    <button class="comm-ligne" data-comm-deck="${x.id}">
-      <span class="comm-ligne-corps">
-        <span class="comm-ligne-titre">${escapeHtml(x.titre)}</span>
-        <span class="comm-ligne-detail">${x.nb_kanji} kanji · ${x.officiel ? 'officiel' : 'par ' + escapeHtml(x.pseudo)}</span>
-      </span>
-      <span class="comm-ligne-valeur">
-        ${x.nb_notes
-          ? `<strong>${Number(x.note_moyenne).toFixed(1)}</strong><span>${x.nb_notes} avis</span>`
-          : `<span>pas encore noté</span>`}
-      </span>
-    </button>`).join('')
-    : commVide("Aucun deck partagé pour l'instant.");
-
   const LIB = { prevu: ['Prévu', 'maj-statut--prevu'], a_letude: ["À l'étude", 'maj-statut--etude'], fait: ['Fait', 'maj-statut--fait'] };
   const arrive = d.arrive.length ? d.arrive.map(s => {
     const [lib, cls] = LIB[s.statut] || LIB.a_letude;
     return `<div class="comm-arrive"><span class="maj-statut ${cls}">${lib}</span><span>${escapeHtml(s.titre)}</span></div>`;
   }).join('')
     : commVide("Rien d'annoncé pour le moment.");
-
-  const demandes = d.demandes.length ? d.demandes.map(s => `
-    <div class="comm-demande">
-      <span class="comm-soutiens"><span>▲</span><strong>${s.score}</strong></span>
-      <span>${escapeHtml(s.titre)}</span>
-    </div>`).join('')
-    : commVide("Aucune demande en attente. Si quelque chose te manque, dis-le dans « Mises à jour ».");
 
   // Vignette YouTube seule, sans lecteur : aucun cookie tiers tant qu'on n'a
   // pas cliqué.
@@ -165,52 +86,18 @@ function renderCommunaute() {
     </a>`).join('')}</div>`
     : commVide("Aucune vidéo partagée pour l'instant.");
 
-  // ------------------------------------------------------------
-  // Mise en page. Trois etages, du plus large au plus dense :
-  //   1. une entete centree qui dit ce qu'est KVT et ce qu'il contient ;
-  //   2. deux colonnes pour ce qui bouge (avis, decks, a venir, demandes) ;
-  //   3. les videos en pleine largeur.
-  //
-  // La page tenait dans une colonne de 940 px collee au centre, avec quatre
-  // cartes empilees : sur un ecran large, deux tiers de la surface ne
-  // servaient a rien et il fallait defiler pour voir des choses qui
-  // tenaient cote a cote.
-  //
-  // Les chiffres viennent des donnees reellement chargees : le vocabulaire
-  // local pour le contenu, un comptage en base pour les decks. Aucun n'est
-  // ecrit en dur — c'est la faute qui a laisse « 4 802 membres » en
-  // production pendant deux jours.
-  // ------------------------------------------------------------
-  const nb = (n) => Number(n).toLocaleString('fr-FR').replace(/\u202f|\u00a0/g, ' ');
-  // `DB` est la base locale, remplie par app.js. Passer par `typeof` plutot
-  // que de la supposer presente : les controles evaluent ce fichier sans
-  // l'app autour, et un compteur ne doit jamais empecher la page de
-  // s'afficher.
-  const base = (typeof DB !== 'undefined' && DB) ? DB : null;
-  const nbKanji = (base && base.kanjiGroups) ? base.kanjiGroups.length : null;
-  const nbMots = (base && base.vocab) ? base.vocab.length : null;
-  const chiffre = (valeur, libelle) => `
-    <div class="accueil-chiffre">
-      <span class="accueil-chiffre__valeur">${valeur == null ? '—' : nb(valeur)}</span>
-      <span class="accueil-chiffre__libelle">${libelle}</span>
-    </div>`;
-
   const proverbe = (typeof getProverbOfDay === 'function') ? getProverbOfDay() : null;
 
+  // ------------------------------------------------------------
+  // Mise en page (23/09/2026, demande de Paul -- page plus sobre) : plus de
+  // grand entete ni de chiffres en avant-page, plus de « Derniers avis »,
+  // « Derniers decks » ni « Les plus demandés ». Le classement (déplacé
+  // depuis le tableau de bord -- "le classement devrait etre sur la page
+  // d'accueil pas le tableau de bord") prend place à côté de « Ce qui
+  // arrive » ; les vidéos restent en pleine largeur en bas.
+  // ------------------------------------------------------------
   el.innerHTML = `
-    <section class="accueil-entete kvt-fade">
-      <p class="accueil-surtitre">Le kanji d'abord, le mot ensuite</p>
-      <h2 class="accueil-titre">Un caractère revu aujourd'hui<br />rappelle les mots qui le contiennent.</h2>
-      <p class="accueil-pitch">
-        Réviser mot par mot, c'est apprendre des formes sans lien entre elles. KVT regroupe
-        le vocabulaire autour des kanji qui le composent, semaine après semaine.
-      </p>
-      <div class="accueil-chiffres">
-        ${chiffre(nbKanji, 'kanji dans ta base')}
-        ${chiffre(nbMots, 'mots de vocabulaire')}
-        ${chiffre(d.nbDecks, 'decks publiés')}
-      </div>
-    </section>
+    <h2>Page d'accueil</h2>
 
     ${commErreur ? `<div class="card"><p>Chargement partiel : ${escapeHtml(commErreur)}</p></div>` : ''}
 
@@ -223,21 +110,12 @@ function renderCommunaute() {
 
     <div class="accueil-grille kvt-stagger">
       <div class="card kvt-fade">
-        <h3 class="deck-section-titre">Derniers avis</h3>
-        ${avis}
-      </div>
-      <div class="card kvt-fade">
-        <h3 class="deck-section-titre">Derniers decks</h3>
-        ${decks}
-        <p class="accueil-lien-tout"><a href="/deck/">Voir tous les decks publiés</a></p>
+        <h3 class="deck-section-titre">Classement</h3>
+        <div id="accueilClassementWrap"><p style="font-size:13px; color:var(--muted);">Chargement…</p></div>
       </div>
       <div class="card kvt-fade">
         <h3 class="deck-section-titre">Ce qui arrive</h3>
         ${arrive}
-      </div>
-      <div class="card kvt-fade">
-        <h3 class="deck-section-titre">Les plus demandés</h3>
-        ${demandes}
       </div>
     </div>
 
@@ -246,9 +124,7 @@ function renderCommunaute() {
       ${videos}
     </div>`;
 
-  $$('[data-comm-deck]', el).forEach(b => {
-    b.onclick = () => { if (typeof ouvrirDeck === 'function') ouvrirDeck(b.dataset.commDeck); };
-  });
+  if (typeof chargerClassementAccueil === 'function') chargerClassementAccueil();
 }
 
 window.kvtCommunaute = {
