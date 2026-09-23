@@ -448,6 +448,45 @@ const JLPT_N4_SEED = {"kanjiGroups":[{"id":"kg-hu66go90952pa","semesterId":"jlpt
     return res.json();
   }
 
+  // Reparation des groupes de kanji potentiellement supprimes par erreur
+  // (23/09/2026) : le bouton "Supprimer ce kanji" de la page Vocabulaire (retire
+  // le meme jour) supprimait le groupe ET tout son vocabulaire d'un coup, sans
+  // AUCUNE confirmation -- un clic malencontreux suffisait. Paul l'a remarque
+  // sur S3 semaine 2 et l'a deja restaure lui-meme ; ce correctif verifie qu'
+  // aucun AUTRE groupe du cursus n'a disparu de la meme facon sans qu'on le
+  // remarque, et le restaure au besoin. Limite a s1-s4 (seuls semestres a la
+  // fois couverts par seed-data.json et SANS bloc *_SEED dedie ci-dessus) pour
+  // ne jamais reinjecter une version perimee de JLPT/L0 -- ceux-la sont deja
+  // reconcilies plus haut par semestre entier. Idempotent par id de groupe :
+  // ne touche jamais un groupe deja present, ne duplique jamais rien. Si
+  // /seed-data.json est injoignable (hors ligne...), on abandonne sans bloquer
+  // le chargement -- la reparation sera retentee au prochain lancement.
+  const SEMESTRES_REPARABLES = new Set(['s1', 's2', 's3', 's4']);
+  async function reparerGroupesManquants(data) {
+    if (!Array.isArray(data.kanjiGroups) || !Array.isArray(data.vocab)) return data;
+    try {
+      const seed = await fetchSeed();
+      const idsPresents = new Set(data.kanjiGroups.map(g => g.id));
+      const groupesManquants = (seed.kanjiGroups || [])
+        .filter(g => SEMESTRES_REPARABLES.has(g.semesterId) && !idsPresents.has(g.id));
+      if (groupesManquants.length === 0) return data;
+      const idsManquants = new Set(groupesManquants.map(g => g.id));
+      const vocabManquant = (seed.vocab || []).filter(v => idsManquants.has(v.kanjiGroupId));
+      data.kanjiGroups.push(...groupesManquants);
+      data.vocab.push(...vocabManquant);
+      // migrate() une seconde fois (idempotent) : un groupe restaure ramene le
+      // vocabulaire tel qu'il etait dans seed-data.json, avant les correctifs
+      // ponctuels (MOTS_PARENTHESES_A_NETTOYER, REGISTRE_A_PRECISER...) que
+      // migrate() applique deja a tout le monde plus haut -- sans ce second
+      // passage, un mot restaure garderait sa forme non corrigee.
+      data = migrate(data);
+    } catch (err) {
+      // Hors ligne ou /seed-data.json indisponible : rien a reparer pour
+      // l'instant, ce n'est pas une raison de bloquer le chargement.
+    }
+    return data;
+  }
+
   window.api = {
     async loadData() {
       const db = await openDB();
@@ -463,7 +502,8 @@ const JLPT_N4_SEED = {"kanjiGroups":[{"id":"kg-hu66go90952pa","semesterId":"jlpt
         await idbSet(db, KEY, data);
         return data;
       }
-      const migrated = migrate(data);
+      let migrated = migrate(data);
+      migrated = await reparerGroupesManquants(migrated);
       await idbSet(db, KEY, migrated);
       return migrated;
     },
