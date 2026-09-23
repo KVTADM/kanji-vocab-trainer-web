@@ -67,6 +67,7 @@ function renderLeaderboard() {
           <option value="pct" ${globalTri === 'pct' ? 'selected' : ''}>Meilleur % moyen</option>
           <option value="temps" ${globalTri === 'temps' ? 'selected' : ''}>Temps moyen (plus rapide)</option>
           <option value="essais" ${globalTri === 'essais' ? 'selected' : ''}>Nombre d'essais</option>
+          <option value="composite" ${globalTri === 'composite' ? 'selected' : ''}>Score composite (#5)</option>
         </select>
       </div>` : ''}
       <p class="lb-explain">${
@@ -75,7 +76,7 @@ function renderLeaderboard() {
         : leaderboardMode === 'apercu'
           ? 'Le meilleur score de chaque semaine, dans l\'ordre du programme. Le filtre est là si tu veux resserrer, pas pour commencer.'
         : leaderboardMode === 'global'
-          ? 'Tous les modes de quiz confondus (Vocabulaire, Kanji seul, Traduction, Double réponse) : le total de tes meilleurs points par semaine et par mode, ton % moyen, ton temps moyen par session et ton nombre d\'essais cumulé. Le Kana et la Pratique libre n\'ont pas de semaine fixe, ils ne comptent pas ici.'
+          ? 'Tous les modes de quiz confondus (Vocabulaire, Kanji seul, Traduction, Double réponse) : le total de tes meilleurs points par semaine et par mode, ton % moyen, ton temps moyen par session, ton nombre d\'essais cumulé, et un score composite sur 100 qui combine précision, vitesse, assiduité et difficulté du contenu. Le Kana et la Pratique libre n\'ont pas de semaine fixe, ils ne comptent pas ici.'
           : 'Meilleurs scores obtenus sur la semaine choisie.'}</p>
       <div id="lbTableWrap"><p style="color:var(--muted);">Chargement…</p></div>
       <p style="font-size:12px; color:var(--muted); margin-top:14px;">
@@ -415,7 +416,7 @@ async function chargerGlobal() {
   try {
     const { data, error } = await window.sb
       .from('scores')
-      .select('user_id, pseudo, points, pct, duree_ms, nb_essais')
+      .select('user_id, pseudo, points, pct, duree_ms, nb_essais, semester_id, mode')
       .limit(5000);
     if (error) throw error;
     globalLignes = data || [];
@@ -441,7 +442,8 @@ function computeGlobal(rows) {
   (rows || []).forEach((r) => {
     const u = parUser.get(r.user_id) || {
       user_id: r.user_id, pseudo: r.pseudo,
-      points: 0, sommePct: 0, nbPct: 0, sommeDuree: 0, nbDuree: 0, essais: 0
+      points: 0, sommePct: 0, nbPct: 0, sommeDuree: 0, nbDuree: 0, essais: 0,
+      sommeComposite: 0, nbComposite: 0
     };
     u.pseudo = r.pseudo; // le pseudo le plus récent fait foi (comme ailleurs)
     u.points += Number(r.points) || 0;
@@ -451,6 +453,15 @@ function computeGlobal(rows) {
     if (Number.isFinite(duree) && duree > 0) { u.sommeDuree += duree; u.nbDuree += 1; }
     const essais = Number(r.nb_essais);
     if (Number.isFinite(essais)) u.essais += essais;
+    // Score composite (#5) : calculé ligne par ligne (une ligne = un
+    // semestre/semaine/mode) puis moyenné, comme scoreComposite() est déjà
+    // pensé pour être utilisé côté stats personnelles (app.js).
+    if (Number.isFinite(pct)) {
+      u.sommeComposite += scoreComposite({
+        pct, dureeMs: duree, essais, semesterId: r.semester_id, mode: r.mode
+      });
+      u.nbComposite += 1;
+    }
     parUser.set(r.user_id, u);
   });
 
@@ -460,7 +471,8 @@ function computeGlobal(rows) {
     points: u.points,
     pctMoyen: u.nbPct ? u.sommePct / u.nbPct : null,
     dureeMoyenne: u.nbDuree ? u.sommeDuree / u.nbDuree : null,
-    essais: u.essais
+    essais: u.essais,
+    compositeMoyen: u.nbComposite ? u.sommeComposite / u.nbComposite : null
   }));
 }
 
@@ -479,6 +491,8 @@ function trierGlobal(rows, tri) {
     });
   } else if (tri === 'essais') {
     copie.sort((a, b) => b.essais - a.essais);
+  } else if (tri === 'composite') {
+    copie.sort((a, b) => (b.compositeMoyen ?? -1) - (a.compositeMoyen ?? -1));
   } else {
     copie.sort((a, b) => b.points - a.points);
   }
@@ -514,6 +528,7 @@ function renderGlobal() {
     if (globalTri === 'pct') return r.pctMoyen == null ? '—' : `${Math.round(r.pctMoyen)}%`;
     if (globalTri === 'temps') return r.dureeMoyenne == null ? '—' : formatDuree(r.dureeMoyenne);
     if (globalTri === 'essais') return `${r.essais} essai${r.essais > 1 ? 's' : ''}`;
+    if (globalTri === 'composite') return r.compositeMoyen == null ? '—' : `${Math.round(r.compositeMoyen)}/100`;
     return `${r.points} pts`;
   };
 
@@ -530,7 +545,7 @@ function renderGlobal() {
 
   const restHtml = rest.length === 0 ? '' : `
     <table class="lb-table">
-      <thead><tr><th>#</th><th>Pseudo</th><th>Points</th><th>% moyen</th><th>Temps moyen</th><th>Essais</th></tr></thead>
+      <thead><tr><th>#</th><th>Pseudo</th><th>Points</th><th>% moyen</th><th>Temps moyen</th><th>Essais</th><th>Score composite</th></tr></thead>
       <tbody>${rest.map((r, i) => `
         <tr class="${isMe(r) ? 'lb-row-me' : ''}">
           <td class="lb-rank">${i + 4}</td>
@@ -539,6 +554,7 @@ function renderGlobal() {
           <td>${r.pctMoyen == null ? '—' : Math.round(r.pctMoyen) + '%'}</td>
           <td>${r.dureeMoyenne == null ? '—' : formatDuree(r.dureeMoyenne)}</td>
           <td>${r.essais}</td>
+          <td>${r.compositeMoyen == null ? '—' : Math.round(r.compositeMoyen) + '/100'}</td>
         </tr>`).join('')}</tbody>
     </table>`;
 

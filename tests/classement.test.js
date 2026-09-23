@@ -35,6 +35,29 @@ global.formatDuree = (ms) => {
   const sec = totalSec % 60;
   return min === 0 ? `${sec} s` : `${min} min ${String(sec).padStart(2, '0')} s`;
 };
+// Copie fidele de app.js (voir scoreComposite / positionSemestre / KVT_*) --
+// leaderboard.js les appelle comme des globales fournies par app.js, qui
+// n'est pas charge dans ce test isole.
+const KVT_DUREE_REF_MS = 10 * 60 * 1000;
+const KVT_ESSAIS_REF = 5;
+const KVT_MODE_DIFFICULTE = { vocab: 0.4, traduction: 0.6, double: 0.8, kanji: 1.0 };
+global.positionSemestre = (semesterId) => {
+  const ordre = (DB.settings.semesters || []).map(s => s.id);
+  const i = ordre.indexOf(semesterId);
+  if (i === -1 || ordre.length < 2) return 0.5;
+  return i / (ordre.length - 1);
+};
+global.scoreComposite = ({ pct, dureeMs, essais, semesterId, mode }) => {
+  const precision = Math.max(0, Math.min(1, (Number(pct) || 0) / 100));
+  const vitesse = Number.isFinite(dureeMs) && dureeMs > 0
+    ? Math.max(0, Math.min(1, 1 - dureeMs / KVT_DUREE_REF_MS))
+    : 0.5;
+  const assiduite = Math.max(0, Math.min(1, (Number(essais) || 0) / KVT_ESSAIS_REF));
+  const difficulteMode = KVT_MODE_DIFFICULTE[mode] != null ? KVT_MODE_DIFFICULTE[mode] : 0.5;
+  const difficulte = 0.7 * global.positionSemestre(semesterId) + 0.3 * difficulteMode;
+  const score = 0.5 * precision + 0.2 * vitesse + 0.15 * assiduite + 0.15 * difficulte;
+  return Math.round(score * 100);
+};
 global.window = {
   accountUser: { id: 'moi', pseudo: 'Polus' },
   sb: null,

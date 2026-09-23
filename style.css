@@ -407,6 +407,11 @@ h3 {
   grid-template-columns: repeat(3, 1fr);
   gap: 14px;
 }
+.grid-4 {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+}
 
 .stat-box {
   background: var(--panel-alt);
@@ -1178,7 +1183,7 @@ code {
   .content {
     padding: 16px 14px calc(24px + env(safe-area-inset-bottom, 0px));
   }
-  .grid-2, .grid-3 { grid-template-columns: 1fr; }
+  .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
   .week-grid { grid-template-columns: repeat(3, 1fr); }
   .flashcard, .session-progress { width: 100%; max-width: 440px; }
   .flashcard .front-word { font-size: 44px; }

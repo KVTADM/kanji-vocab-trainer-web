@@ -269,6 +269,77 @@ function formatDuree(ms) {
   const sec = totalSec % 60;
   return min === 0 ? `${sec} s` : `${min} min ${String(sec).padStart(2, '0')} s`;
 }
+
+// ---------- Score composite (#5, rang 5) ----------
+// Un indice 0-100 qui combine precision, vitesse, assiduite et difficulte
+// du contenu, pour comparer des sessions tres differentes (une semaine
+// facile bien maitrisee vs. une semaine dure tentee plusieurs fois) sur une
+// seule echelle. Utilise a la fois par les stats personnelles ci-dessous et
+// par le classement global (leaderboard.js), donc defini ici -- app.js se
+// charge avant les deux.
+const KVT_DUREE_REF_MS = 10 * 60 * 1000; // 10 min : session de reference pour la vitesse
+const KVT_ESSAIS_REF = 5;                // 5 tentatives ou plus = assiduite maximale
+// Kanji seul est le plus exigeant (aucun indice de sens ni de lecture pour
+// s'aider) ; Double reponse et Traduction demandent plus qu'un simple choix ;
+// Vocabulaire (mode de base) sert de reference.
+const KVT_MODE_DIFFICULTE = { vocab: 0.4, traduction: 0.6, double: 0.8, kanji: 1.0 };
+
+// Position d'un semestre dans le programme, normalisee entre 0 (premier) et
+// 1 (dernier) -- sert de proxy de difficulte. Un semestre inconnu (deck
+// partage par exemple) reçoit une difficulte moyenne plutot que d'être
+// avantage ou penalise arbitrairement.
+function positionSemestre(semesterId) {
+  const ordre = (DB.settings.semesters || []).map(s => s.id);
+  const i = ordre.indexOf(semesterId);
+  if (i === -1 || ordre.length < 2) return 0.5;
+  return i / (ordre.length - 1);
+}
+
+// { pct, dureeMs, essais, semesterId, mode } -> score composite entre 0 et 100.
+function scoreComposite({ pct, dureeMs, essais, semesterId, mode }) {
+  const precision = Math.max(0, Math.min(1, (Number(pct) || 0) / 100));
+  const vitesse = Number.isFinite(dureeMs) && dureeMs > 0
+    ? Math.max(0, Math.min(1, 1 - dureeMs / KVT_DUREE_REF_MS))
+    : 0.5; // pas de duree enregistree (anciennes sessions) : ni avantage ni penalite
+  const assiduite = Math.max(0, Math.min(1, (Number(essais) || 0) / KVT_ESSAIS_REF));
+  const difficulteMode = KVT_MODE_DIFFICULTE[mode] != null ? KVT_MODE_DIFFICULTE[mode] : 0.5;
+  const difficulte = 0.7 * positionSemestre(semesterId) + 0.3 * difficulteMode;
+  const score = 0.5 * precision + 0.2 * vitesse + 0.15 * assiduite + 0.15 * difficulte;
+  return Math.round(score * 100);
+}
+
+// Score composite personnel : moyenne du score composite de chaque meilleur
+// resultat, sur les 4 modes synchronises avec le classement (vocab, kanji,
+// traduction, double -- voir leaderboard.js pour la meme exclusion de Kana
+// et Pratique, qui n'ont pas de couple semestre/semaine). Purement local,
+// aucun appel reseau : les donnees existent deja dans DB.
+function getScoreCompositePersonnel() {
+  const NAMESPACES = [
+    { champ: 'scores', mode: 'vocab' },
+    { champ: 'scoresKanji', mode: 'kanji' },
+    { champ: 'scoresTraduction', mode: 'traduction' },
+    { champ: 'scoresDouble', mode: 'double' }
+  ];
+  let somme = 0, nb = 0;
+  NAMESPACES.forEach(({ champ, mode }) => {
+    const namespace = DB[champ];
+    if (!namespace) return;
+    Object.entries(namespace).forEach(([key, entry]) => {
+      if (!entry || !entry.best) return;
+      const m = key.match(/^(.+)-w(\d+)$/);
+      const semesterId = m ? m[1] : null;
+      somme += scoreComposite({
+        pct: entry.best.pct,
+        dureeMs: entry.best.dureeMs,
+        essais: entry.history ? entry.history.length : 0,
+        semesterId,
+        mode
+      });
+      nb += 1;
+    });
+  });
+  return nb === 0 ? null : Math.round(somme / nb);
+}
 function getKanjiScoreEntry(semesterId, week) {
   return (DB.scoresKanji && DB.scoresKanji[weekKey(semesterId, week)]) || null;
 }
@@ -3713,12 +3784,17 @@ function renderStats() {
     </tr>
   `).join('');
 
+  const composite = getScoreCompositePersonnel();
+
   $('#view-stats').innerHTML = `
     <h2>Statistiques</h2>
-    <div class="grid-3">
+    <div class="grid-4">
       <div class="stat-box"><div class="num">${DB.vocab.length}</div><div class="label">Mots au total</div></div>
       <div class="stat-box"><div class="num">${totalAttempts}</div><div class="label">Sessions jouées</div></div>
       <div class="stat-box"><div class="num">${DB.kanjiGroups.length}</div><div class="label">Kanji importés</div></div>
+      <div class="stat-box" title="Précision, vitesse, assiduité et difficulté du contenu, combinées sur 100 (voir #5 de la feuille de route).">
+        <div class="num">${composite === null ? '—' : composite}</div><div class="label">Score composite</div>
+      </div>
     </div>
     ${renderAdvancedStatsCard()}
     <div class="card">
