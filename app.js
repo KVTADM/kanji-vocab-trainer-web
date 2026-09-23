@@ -1214,10 +1214,35 @@ function renderCurrentView() {
   else if (currentView === 'admin' && typeof renderAdmin === 'function') renderAdmin();
   else if (currentView === 'boutique' && typeof renderBoutique === 'function') renderBoutique();
   renderSidebarFooter();
+  renderTopbarProfil();
 }
 
 function renderSidebarFooter() {
   $('#weekBadge').innerHTML = `${DB.vocab.length} mot(s) au total<br/>Sauvegarde locale active`;
+}
+
+// Acces rapide a son propre profil depuis n'importe quelle page (23/09/2026,
+// demande de Paul : "un acces facile au compte profil utilisateur sur le nom
+// ou photo de profil pour voir le profil"). Reutilise auteurHtml(), deja le
+// bouton cliquable pose a cote de chaque deck/avis (voir profils.js) : meme
+// avatar, meme pseudo, meme clic delegue au document qui ouvre la page de
+// profil -- aucun nouveau mecanisme de clic a brancher ici.
+async function renderTopbarProfil() {
+  const zone = $('#topbarProfil');
+  if (!zone || !window.kvtProfils) return;
+  if (!window.accountUser) { zone.innerHTML = ''; return; }
+  const u = window.accountUser;
+  zone.innerHTML = window.kvtProfils.auteurHtml(u.id, u.pseudo, 26);
+  // Le cache des profils publics ne contient le sien que si on est deja
+  // passe par Compte ou par le profil de quelqu'un d'autre -- sans cet appel,
+  // l'avatar resterait bloque sur l'initiale generique tant qu'on n'a pas
+  // visite ces pages. chargerProfils() ne refait jamais une requete pour un
+  // id deja en cache (voir profils.js), donc cet appel est gratuit apres la
+  // toute premiere fois.
+  if (!window.kvtProfils.profilDe(u.id)) {
+    await window.kvtProfils.chargerProfils([u.id]);
+    if (window.accountUser === u) zone.innerHTML = window.kvtProfils.auteurHtml(u.id, u.pseudo, 26);
+  }
 }
 
 // ---------- Catégories du tableau de bord ----------

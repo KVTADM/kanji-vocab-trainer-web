@@ -71,6 +71,12 @@
         </nav>
         <div class="kvt-topbar__end">
           <span class="sidebar-footer" id="weekBadge"></span>
+          <!-- Acces rapide a son propre profil (23/09/2026, demande de Paul) :
+               rempli par renderTopbarProfil() dans app.js, avec le meme
+               bouton "auteur--lien" (avatar + pseudo, deja cliquable partout
+               ailleurs dans l'app -- voir profils.js) que celui d'un deck ou
+               d'un avis. Vide et invisible si personne n'est connecte. -->
+          <span id="topbarProfil"></span>
         </div>
       </div>
     </header>

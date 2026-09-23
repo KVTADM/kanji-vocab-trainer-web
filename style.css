@@ -2496,6 +2496,14 @@ code {
   .kvt-topbar .sidebar-footer { display: none; }
 }
 
+/* Acces rapide a son profil, dans la barre du haut (23/09/2026) : reutilise
+   .auteur/.auteur--lien tel quel (voir profils.js), juste une largeur bornee
+   pour qu'un pseudo tres long ne pousse jamais le reste de la barre. */
+#topbarProfil .auteur-pseudo { max-width: 120px; }
+@media (max-width: 700px) {
+  #topbarProfil .auteur-pseudo { display: none; }
+}
+
 /* Les pages editoriales partagent la meme barre. Leur ancien en-tete
    `.editorial-header` reste defini pour ne rien casser si une page l'utilise
    encore, mais les pages servies emploient desormais `.kvt-topbar`. */
