@@ -355,15 +355,26 @@ essai('gagnerXp double le gain pendant un boost actif, sans affecter gagnerPiece
 });
 
 essai('acheterObjet sur un boost ne l\'ajoute jamais à l\'inventaire et reste rachetable', () => {
-  DB = { gamification: { ...baseGamif(), pieces: 100 } };
+  const prixBoost = objetBoutique('boost-xp-20').prix; // 400 depuis le 23/09/2026 (demande de Paul)
+  DB = { gamification: { ...baseGamif(), pieces: prixBoost * 3 } };
   window.accountUser = null;
   const premier = acheterObjet('boost-xp-20');
   if (!premier.ok) throw new Error(JSON.stringify(premier));
   if (DB.gamification.inventaire.includes('boost-xp-20')) throw new Error('un boost ne doit jamais entrer dans l\'inventaire');
-  if (DB.gamification.pieces !== 70) throw new Error('pièces restantes=' + DB.gamification.pieces);
+  if (DB.gamification.pieces !== prixBoost * 2) throw new Error('pièces restantes=' + DB.gamification.pieces);
   const second = acheterObjet('boost-xp-20'); // rachat immédiat, ne doit pas être bloqué par "déjà possédé"
   if (!second.ok) throw new Error(JSON.stringify(second));
-  if (DB.gamification.pieces !== 40) throw new Error('pièces restantes après le 2e achat=' + DB.gamification.pieces);
+  if (DB.gamification.pieces !== prixBoost) throw new Error('pièces restantes après le 2e achat=' + DB.gamification.pieces);
+});
+
+essai('acheterObjet refuse un objet retiré de la vente, même avec assez de pièces et le niveau requis (bannières/collations, 23/09/2026)', () => {
+  DB = { gamification: { ...baseGamif(), pieces: 5000, xp: xpPourNiveau(10) } };
+  window.accountUser = null;
+  ['collation-cookie', 'banniere-or'].forEach((id) => {
+    const res = acheterObjet(id);
+    if (res.ok || res.motif !== 'plus-en-vente') throw new Error(id + ' -> ' + JSON.stringify(res));
+    if (DB.gamification.inventaire.includes(id)) throw new Error(id + ' ne devrait pas avoir ete ajoute a l\'inventaire');
+  });
 });
 
 // ---------- v6 : collation pendant les révisions ----------
@@ -453,14 +464,32 @@ essai('equiperBanniere accepte le retrait (id=null) sans tenter de synchroniser 
 
 // ---------- v6 : rendu boutique étendu (fumée) ----------
 
-essai('renderBoutique affiche les nouvelles sections (collations, thèmes, bannières, boosts)', () => {
+essai('renderBoutique affiche les sections encore en vente (thèmes, boosts)', () => {
   DB = { gamification: { ...baseGamif(), pieces: 5000, xp: xpPourNiveau(10) } };
   window.accountUser = null;
   renderBoutique();
   const html = $('#view-boutique').innerHTML;
-  ['Pendant les révisions', 'Thèmes du site', 'Bannières de profil', 'Boosts'].forEach(titre => {
+  ['Thèmes du site', 'Boosts'].forEach(titre => {
     if (!html.includes(titre)) throw new Error('section absente du rendu : ' + titre);
   });
+});
+
+essai('renderBoutique ne propose plus les collations ni les bannières a l\'achat (retirees le 23/09/2026)', () => {
+  DB = { gamification: { ...baseGamif(), pieces: 5000, xp: xpPourNiveau(10) } };
+  window.accountUser = null;
+  renderBoutique();
+  const html = $('#view-boutique').innerHTML;
+  if (html.includes('Pendant les révisions')) throw new Error('la section collations ne devrait plus apparaître');
+  if (html.includes('Bannières de profil')) throw new Error('la section bannières ne devrait plus apparaître');
+});
+
+essai('qui possède déjà une collation ou une bannière la garde affichée malgré le retrait de la vente', () => {
+  DB = { gamification: baseGamif() };
+  DB.gamification.collationActive = 'collation-cookie';
+  DB.gamification.inventaire = ['collation-cookie'];
+  const htmlCollation = collationHtml();
+  if (!htmlCollation.includes('Cookie') || !htmlCollation.includes('🍪')) throw new Error('collation deja possedee absente du rendu : ' + htmlCollation);
+  if (classeBanniere('banniere-or') !== 'profil-banniere--or') throw new Error('classe de banniere deja possedee perdue : ' + classeBanniere('banniere-or'));
 });
 
 essai('renderBoutique affiche "Débloqué" pour un thème déjà acheté au lieu d\'un bouton d\'achat', () => {

@@ -139,12 +139,6 @@ const GAMIF_BOUTIQUE = [
   { id: 'titre-immortel', type: 'titre', nom: 'Immortel·le', emoji: '💎', prix: 2000, pro: true, niveauRequis: 15 },
   { id: 'titre-empereur', type: 'titre', nom: 'Empereur du kanji', emoji: '👑', prix: 3500, pro: true, niveauRequis: 20 },
 
-  // --- Pendant les révisions : visibles seulement en session (25/08/2026) ---
-  { id: 'collation-cookie', type: 'collation', nom: 'Cookie', emoji: '🍪', prix: 40, pro: false, niveauRequis: 1 },
-  { id: 'collation-lait', type: 'collation', nom: 'Verre de lait', emoji: '🥛', prix: 40, pro: false, niveauRequis: 1 },
-  { id: 'collation-popcorn', type: 'collation', nom: 'Popcorn', emoji: '🍿', prix: 60, pro: false, niveauRequis: 2 },
-  { id: 'collation-soda', type: 'collation', nom: 'Soda', emoji: '🥤', prix: 60, pro: false, niveauRequis: 2 },
-
   // --- Thèmes du site : déblocage individuel avec des pièces (25/08/2026) ---
   { id: 'theme-sakura', type: 'theme', themeId: 'sakura', nom: 'Palette Sakura', emoji: '🌸', prix: 700, pro: false, niveauRequis: 6 },
   { id: 'theme-sumi', type: 'theme', themeId: 'sumi', nom: 'Palette Sumi', emoji: '🖋️', prix: 700, pro: false, niveauRequis: 6 },
@@ -152,15 +146,29 @@ const GAMIF_BOUTIQUE = [
   { id: 'theme-momiji', type: 'theme', themeId: 'momiji', nom: 'Palette Momiji', emoji: '🍁', prix: 700, pro: false, niveauRequis: 6 },
   { id: 'theme-take', type: 'theme', themeId: 'take', nom: 'Palette Take', emoji: '🎍', prix: 700, pro: false, niveauRequis: 6 },
 
-  // --- Bannières de profil : visibles par les autres (25/08/2026) ---
-  { id: 'banniere-aurore', type: 'banniere', classe: 'aurore', nom: 'Aurore', emoji: '🌅', prix: 300, pro: false, niveauRequis: 4 },
-  { id: 'banniere-nocturne', type: 'banniere', classe: 'nocturne', nom: 'Nuit étoilée', emoji: '🌌', prix: 300, pro: false, niveauRequis: 4 },
-  { id: 'banniere-jade', type: 'banniere', classe: 'jade', nom: 'Jade', emoji: '🍃', prix: 300, pro: false, niveauRequis: 4 },
-  { id: 'banniere-or', type: 'banniere', classe: 'or', nom: 'Or', emoji: '🪙', prix: 500, pro: false, niveauRequis: 6 },
-  { id: 'banniere-imperiale', type: 'banniere', classe: 'imperiale', nom: 'Impériale', emoji: '👑', prix: 700, pro: true, niveauRequis: 8 },
+  // --- Pendant les révisions (25/08/2026) : retirées de la vente le
+  // 23/09/2026 (demande de Paul) -- `retireDeLaVente` les sort de
+  // GAMIF_SECTIONS_BOUTIQUE et d'acheterObjet, mais elles restent ici pour
+  // que qui en possède déjà une garde son nom/emoji (collationHtml). ---
+  { id: 'collation-cookie', type: 'collation', nom: 'Cookie', emoji: '🍪', prix: 40, pro: false, niveauRequis: 1, retireDeLaVente: true },
+  { id: 'collation-lait', type: 'collation', nom: 'Verre de lait', emoji: '🥛', prix: 40, pro: false, niveauRequis: 1, retireDeLaVente: true },
+  { id: 'collation-popcorn', type: 'collation', nom: 'Popcorn', emoji: '🍿', prix: 60, pro: false, niveauRequis: 2, retireDeLaVente: true },
+  { id: 'collation-soda', type: 'collation', nom: 'Soda', emoji: '🥤', prix: 60, pro: false, niveauRequis: 2, retireDeLaVente: true },
+
+  // --- Bannières de profil (25/08/2026) : retirées de la vente le
+  // 23/09/2026 (demande de Paul), même principe -- classeBanniere() a
+  // besoin de retrouver l'entrée pour qui en a déjà une équipée. ---
+  { id: 'banniere-aurore', type: 'banniere', classe: 'aurore', nom: 'Aurore', emoji: '🌅', prix: 300, pro: false, niveauRequis: 4, retireDeLaVente: true },
+  { id: 'banniere-nocturne', type: 'banniere', classe: 'nocturne', nom: 'Nuit étoilée', emoji: '🌌', prix: 300, pro: false, niveauRequis: 4, retireDeLaVente: true },
+  { id: 'banniere-jade', type: 'banniere', classe: 'jade', nom: 'Jade', emoji: '🍃', prix: 300, pro: false, niveauRequis: 4, retireDeLaVente: true },
+  { id: 'banniere-or', type: 'banniere', classe: 'or', nom: 'Or', emoji: '🪙', prix: 500, pro: false, niveauRequis: 6, retireDeLaVente: true },
+  { id: 'banniere-imperiale', type: 'banniere', classe: 'imperiale', nom: 'Impériale', emoji: '👑', prix: 700, pro: true, niveauRequis: 8, retireDeLaVente: true },
 
   // --- Boosts : consommable, rachetable à volonté (25/08/2026) ---
-  { id: 'boost-xp-20', type: 'boost', nom: 'Boost XP (20 min, ×2)', emoji: '⚡', prix: 30, pro: false, niveauRequis: 1 }
+  // Prix relevé de 30 à 400 le 23/09/2026 (demande de Paul, "bien bien
+  // plus cher") : a 30 pieces, un boost se rachetait plusieurs fois par
+  // session (~2 pieces/mot) et n'avait plus rien d'un achat reflechi.
+  { id: 'boost-xp-20', type: 'boost', nom: 'Boost XP (20 min, ×2)', emoji: '⚡', prix: 400, pro: false, niveauRequis: 1 }
 ];
 
 function gamifEstPro() {
@@ -323,6 +331,7 @@ function acheterObjet(id) {
   const g = assurerGamification();
   const objet = objetBoutique(id);
   if (!objet) return { ok: false, motif: 'introuvable' };
+  if (objet.retireDeLaVente) return { ok: false, motif: 'plus-en-vente' };
   if (objet.type !== 'boost' && g.inventaire.includes(id)) return { ok: false, motif: 'deja-possede' };
   if (niveauDepuisXp(g.xp) < objet.niveauRequis) return { ok: false, motif: 'niveau-insuffisant' };
   if (objet.pro && !gamifEstPro()) return { ok: false, motif: 'reserve-pro' };
@@ -452,11 +461,13 @@ function collationHtml() {
 
 // ---------- Rendu : vue Boutique ----------
 
+// Bannieres et collations retirees de la vente le 23/09/2026 (demande de
+// Paul) : plus de section pour elles ici (voir GAMIF_BOUTIQUE plus haut --
+// `retireDeLaVente` -- pour pourquoi les entrees elles-memes restent dans
+// le catalogue).
 const GAMIF_SECTIONS_BOUTIQUE = [
   { type: 'titre', titre: 'Titres', aide: "Affichés à côté de ton niveau, sur le tableau de bord." },
-  { type: 'collation', titre: 'Pendant les révisions', aide: "Affichée uniquement pendant une session de Réviser — indépendante du titre." },
   { type: 'theme', titre: 'Thèmes du site', aide: "Débloque une palette normalement réservée au Pro, sans toucher à l'abonnement. Le choix du thème se fait ensuite dans Réglages." },
-  { type: 'banniere', titre: 'Bannières de profil', aide: "Visible par les autres sur ton profil public." },
   { type: 'boost', titre: 'Boosts', aide: "Consommable : s'active tout de suite pour 20 minutes. En racheter un pendant qu'il tourne encore prolonge la durée." }
 ];
 
