@@ -461,7 +461,7 @@ function renderHexagoneSvg(stats) {
   }).join('');
 
   return `
-    <svg viewBox="0 0 280 280" class="hexa-svg" role="img" aria-label="Graphique hexagonal de performance">
+    <svg viewBox="-50 -15 380 310" class="hexa-svg" role="img" aria-label="Graphique hexagonal de performance">
       ${grilles}
       ${axes}
       <polygon points="${donnees}" class="hexa-donnees" />
