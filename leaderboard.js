@@ -190,9 +190,9 @@ function renderApercu() {
             ${escapeHtml(libelleSemestre(s.semesterId))} · semaine ${s.week}
           </button>
           <div class="lb-case-premier">
-            ${window.kvtProfils ? window.kvtProfils.avatarHtml(premier.user_id, premier.pseudo, 34) : ''}
+            ${window.kvtProfils ? window.kvtProfils.auteurHtml(premier.user_id, premier.pseudo, 34) : `<span class="auteur"><span class="auteur-pseudo">${escapeHtml(premier.pseudo)}</span></span>`}
             <div class="lb-case-infos">
-              <div class="lb-case-pseudo">${escapeHtml(premier.pseudo)}${jeSuisPremier ? ' <span class="com-marque">toi</span>' : ''}</div>
+              ${jeSuisPremier ? '<span class="com-marque">toi</span>' : ''}
               <div class="lb-case-detail">${premier.points}/${premier.max_points} pts</div>
             </div>
             <div class="lb-case-pct">${Math.round(premier.pct)}%</div>
@@ -202,7 +202,7 @@ function renderApercu() {
               ${suivants.slice(0, 2).map((r, i) => `
                 <div class="lb-case-ligne ${r.user_id === moi ? 'lb-row-me' : ''}">
                   <span class="lb-case-rang">${i + 2}</span>
-                  <span class="lb-case-nom">${escapeHtml(r.pseudo)}</span>
+                  <span class="lb-case-nom">${window.kvtProfils ? window.kvtProfils.auteurHtml(r.user_id, r.pseudo, 16) : escapeHtml(r.pseudo)}</span>
                   <span class="lb-case-mini">${Math.round(r.pct)}%</span>
                 </div>`).join('')}
               ${s.lignes.length > 3 ? `<div class="lb-case-reste">et ${s.lignes.length - 3} autre${s.lignes.length - 3 > 1 ? 's' : ''}</div>` : ''}
@@ -327,6 +327,10 @@ async function loadLeaderboardRows(semesterId, week) {
     return;
   }
 
+  if (window.kvtProfils) {
+    await window.kvtProfils.chargerProfils(data.map(r => r.user_id));
+  }
+
   const isMe = (r) => window.accountUser && r.user_id === window.accountUser.id;
   const medals = ['🥇', '🥈', '🥉'];
   const top3 = data.slice(0, 3);
@@ -337,7 +341,7 @@ async function loadLeaderboardRows(semesterId, week) {
       ${top3.map((r, i) => `
         <div class="lb-podium-item lb-rank-${i + 1} ${isMe(r) ? 'lb-me' : ''}">
           <div class="lb-medal">${medals[i]}</div>
-          <div class="lb-podium-pseudo">${escapeHtml(r.pseudo)}</div>
+          <div class="lb-podium-pseudo">${window.kvtProfils ? window.kvtProfils.auteurHtml(r.user_id, r.pseudo, 22) : escapeHtml(r.pseudo)}</div>
           <div class="lb-podium-points">${r.points}<span>/${r.max_points}</span></div>
           <div class="lb-podium-pct">${r.pct}% de similarité</div>
         </div>`).join('')}
@@ -348,7 +352,7 @@ async function loadLeaderboardRows(semesterId, week) {
       <thead><tr><th>#</th><th>Pseudo</th><th>Points</th><th>Similarité</th></tr></thead>
       <tbody>${rest.map((r, i) => `
         <tr class="${isMe(r) ? 'lb-row-me' : ''}">
-          <td class="lb-rank">${i + 4}</td><td>${escapeHtml(r.pseudo)}</td><td><strong>${r.points}</strong>/${r.max_points}</td><td>${r.pct}%</td>
+          <td class="lb-rank">${i + 4}</td><td>${window.kvtProfils ? window.kvtProfils.auteurHtml(r.user_id, r.pseudo, 18) : escapeHtml(r.pseudo)}</td><td><strong>${r.points}</strong>/${r.max_points}</td><td>${r.pct}%</td>
         </tr>`).join('')}</tbody>
     </table>`;
 
@@ -380,6 +384,10 @@ async function loadProgressionRows() {
     return;
   }
 
+  if (window.kvtProfils) {
+    await window.kvtProfils.chargerProfils(rows.map(r => r.user_id));
+  }
+
   const isMe = (r) => window.accountUser && r.user_id === window.accountUser.id;
   const medals = ['🥇', '🥈', '🥉'];
   const top3 = rows.slice(0, 3);
@@ -391,7 +399,7 @@ async function loadProgressionRows() {
       ${top3.map((r, i) => `
         <div class="lb-podium-item lb-rank-${i + 1} ${isMe(r) ? 'lb-me' : ''}">
           <div class="lb-medal">${medals[i]}</div>
-          <div class="lb-podium-pseudo">${escapeHtml(r.pseudo)}</div>
+          <div class="lb-podium-pseudo">${window.kvtProfils ? window.kvtProfils.auteurHtml(r.user_id, r.pseudo, 22) : escapeHtml(r.pseudo)}</div>
           <div class="lb-podium-points">+${r.gain}<span> pts</span></div>
           <div class="lb-podium-pct">sur ${contenus(r.contenus)}</div>
         </div>`).join('')}
@@ -402,7 +410,7 @@ async function loadProgressionRows() {
       <thead><tr><th>#</th><th>Pseudo</th><th>Progression</th><th>Contenus</th></tr></thead>
       <tbody>${rest.map((r, i) => `
         <tr class="${isMe(r) ? 'lb-row-me' : ''}">
-          <td class="lb-rank">${i + 4}</td><td>${escapeHtml(r.pseudo)}</td><td><strong>+${r.gain}</strong> pts</td><td>${r.contenus}</td>
+          <td class="lb-rank">${i + 4}</td><td>${window.kvtProfils ? window.kvtProfils.auteurHtml(r.user_id, r.pseudo, 18) : escapeHtml(r.pseudo)}</td><td><strong>+${r.gain}</strong> pts</td><td>${r.contenus}</td>
         </tr>`).join('')}</tbody>
     </table>`;
 
@@ -541,7 +549,7 @@ function renderGlobal() {
       ${top3.map((r, i) => `
         <div class="lb-podium-item lb-rank-${i + 1} ${isMe(r) ? 'lb-me' : ''}">
           <div class="lb-medal">${medals[i]}</div>
-          <div class="lb-podium-pseudo">${escapeHtml(r.pseudo)}</div>
+          <div class="lb-podium-pseudo">${window.kvtProfils ? window.kvtProfils.auteurHtml(r.user_id, r.pseudo, 22) : escapeHtml(r.pseudo)}</div>
           <div class="lb-podium-points">${critere(r)}</div>
           <div class="lb-podium-pct">${r.points} pts cumulés</div>
         </div>`).join('')}
@@ -553,7 +561,7 @@ function renderGlobal() {
       <tbody>${rest.map((r, i) => `
         <tr class="${isMe(r) ? 'lb-row-me' : ''}">
           <td class="lb-rank">${i + 4}</td>
-          <td>${escapeHtml(r.pseudo)}</td>
+          <td>${window.kvtProfils ? window.kvtProfils.auteurHtml(r.user_id, r.pseudo, 18) : escapeHtml(r.pseudo)}</td>
           <td><strong>${r.points}</strong></td>
           <td>${r.pctMoyen == null ? '—' : Math.round(r.pctMoyen) + '%'}</td>
           <td>${r.dureeMoyenne == null ? '—' : formatDuree(r.dureeMoyenne)}</td>
@@ -627,7 +635,7 @@ function renderClassementAccueilWidget() {
       ${classes.slice(0, 3).map((r, i) => `
         <div class="accueil-classement-ligne ${r.user_id === moi ? 'lb-row-me' : ''}">
           <span>${medals[i]}</span>
-          <span class="accueil-classement-pseudo">${escapeHtml(r.pseudo)}</span>
+          <span class="accueil-classement-pseudo">${window.kvtProfils ? window.kvtProfils.auteurHtml(r.user_id, r.pseudo, 20) : escapeHtml(r.pseudo)}</span>
           <span class="accueil-classement-points">${r.points} pts</span>
         </div>`).join('')}
     </div>

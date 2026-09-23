@@ -62,7 +62,7 @@ global.scoreComposite = ({ pct, dureeMs, essais, semesterId, mode }) => {
 global.window = {
   accountUser: { id: 'moi', pseudo: 'Polus' },
   sb: null,
-  kvtProfils: { avatarHtml: () => '<span class="avatar-initiale">P</span>', chargerProfils: async () => {} }
+  kvtProfils: { avatarHtml: () => '<span class="avatar-initiale">P</span>', auteurHtml: (userId, pseudo) => '<span class="auteur">' + pseudo + '</span>', chargerProfils: async () => {} }
 };
 global.DB = {
   settings: { semesters: [
