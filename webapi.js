@@ -287,6 +287,22 @@ const JLPT_N4_SEED = {"kanjiGroups":[{"id":"kg-hu66go90952pa","semesterId":"jlpt
         if (fix && v.lecture === fix.old) v.lecture = fix.neuve;
       });
     }
+    // Lecture corrompue supplementaire, signalee par Paul le 23/09/2026
+    // (semestre 2, semaine 2) : meme categorie de bug que
+    // LECTURES_A_CORRIGER ci-dessus, meme principe de correction
+    // idempotente. "地球が回る" portait la lecture "ちゅうきゅう が
+    // まわる" au lieu de "ちきゅう が まわる" -- ce meme mot 地球 est
+    // correctement lu "ちきゅう" sur ses deux autres occurrences dans le
+    // cursus, confirmant que c'etait une coquille isolee sur cette entree.
+    const LECTURES_A_CORRIGER_2 = {
+      'v-mrhvk4v0yhk90': { old: 'ちゅうきゅう が まわる', neuve: 'ちきゅう が まわる' } // 地球が回る
+    };
+    if (Array.isArray(data.vocab)) {
+      data.vocab.forEach(v => {
+        const fix = LECTURES_A_CORRIGER_2[v.id];
+        if (fix && v.lecture === fix.old) v.lecture = fix.neuve;
+      });
+    }
     // Doublons de vocabulaire dans une meme semaine (signale par Paul le
     // 17/09/2026) : certains mots apparaissent deux fois dans la meme
     // semaine d'un meme semestre (souvent parce qu'un mot compose sert a
