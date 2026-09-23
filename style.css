@@ -970,9 +970,19 @@ code {
 }
 /* Mode Ecriture (tache #14) : le kanji revele est ce que l'eleve doit
    apprendre a tracer -- on l'agrandit nettement par rapport aux autres
-   modes (traduction/pratique) ou la reponse revelee est juste a relire. */
+   modes (traduction/pratique) ou la reponse revelee est juste a relire.
+   Passe de 40px a 64px le 23/09/2026 (demande de Paul) : le kanji doit
+   devenir l'element visuellement dominant de la carte une fois revele,
+   plus que la lecture en kana -- voir .front-word--ecriture-revele
+   juste en dessous, qui fait l'inverse sur la lecture. */
 .back-reading--grand {
-  font-size: 40px;
+  font-size: 64px;
+}
+/* La lecture en kana (la question) redevient secondaire une fois la
+   reponse revelee -- seul le kanji ci-dessus doit sauter aux yeux.
+   Double classe pour l'emporter sur ".flashcard .front-word" (64px). */
+.flashcard .front-word.front-word--ecriture-revele {
+  font-size: 22px;
 }
 .anti-confusion {
   margin-top: 10px; font-size: 13px; color: var(--muted);

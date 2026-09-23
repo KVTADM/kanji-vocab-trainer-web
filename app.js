@@ -2533,20 +2533,24 @@ function renderEcritureQuizView(container) {
         <div class="progress-bar"><div class="progress-fill" style="width:${progressPct}%"></div></div>
       </div>
       <div class="flashcard">
-        <div class="front-word">${escapeHtml(v.lecture)}</div>
+        <div class="front-word${quizSession.revealed ? ' front-word--ecriture-revele' : ''}">${escapeHtml(v.lecture)}</div>
         <div class="hint" style="margin-top:8px;">Ecris le kanji sur papier, puis revele pour verifier.</div>
         ${quizSession.revealed ? `
-          <div class="back-reading back-reading--grand">${escapeHtml(v.mot)}${registreBadge(v)}</div>
-          ${v.sens ? `<div class="back-meaning">${escapeHtml(v.sens)}</div>` : ''}
           ${(() => {
             // Indice anti-confusion (tache #14) : n'apparait que s'il existe
             // reellement un piege pour CE mot -- silencieux sinon, pas de
             // bruit visuel pour les mots sans homophone dans le programme.
+            // Place AVANT la reponse (demande de Paul, 23/09/2026) : l'idee
+            // est de repondre a la question avant de decouvrir le kanji
+            // juste en dessous, pas de le lire une fois la reponse deja vue.
             const confondables = motsConfondables(v);
             if (confondables.length === 0) return '';
             const liste = confondables.map(c => `${escapeHtml(c.mot)}${c.sens ? ' (' + escapeHtml(c.sens) + ')' : ''}`).join(', ');
             return `<div class="anti-confusion">⚠ Ne pas confondre avec : ${liste} — meme lecture, kanji different.</div>`;
           })()}
+          <div class="back-reading back-reading--grand">${escapeHtml(v.mot)}${registreBadge(v)}</div>
+          ${v.sens ? `<div class="back-meaning">${escapeHtml(v.sens)}</div>` : ''}
+          <button class="secondary small" id="btnVoirTraceEcriture" style="margin-top:10px;">Voir le tracé des traits</button>
         ` : ''}
       </div>
       ${!quizSession.revealed ? `
@@ -2556,6 +2560,7 @@ function renderEcritureQuizView(container) {
       `}
       <button class="secondary" id="btnQuitEcritureQuiz" style="margin-top:12px;">Quitter la session</button>
     </div>
+    ${htmlModalTraceKanji()}
   `;
 
   if (!quizSession.revealed) {
@@ -2577,6 +2582,19 @@ function renderEcritureQuizView(container) {
     quizSession = null;
     renderReview();
   });
+
+  const btnVoirTrace = $('#btnVoirTraceEcriture');
+  if (btnVoirTrace) {
+    btnVoirTrace.addEventListener('click', () => {
+      // v.mot peut contenir plusieurs kanji (mot compose) : htmlModalTraceKanji
+      // utilise deja caracteresKanjiDistincts() pour les isoler un par un,
+      // meme mecanisme que le bouton equivalent en Kanji seul (g.kanji, lui,
+      // n'en contient qu'un seul).
+      modalTraceKanji = v.mot;
+      renderReview();
+    });
+  }
+  wireModalTraceKanji(renderReview);
 }
 
 // ---------- Mode "Traduction" (francais -> japonais) ----------
