@@ -341,6 +341,21 @@ function getScoreCompositePersonnel() {
   return nb === 0 ? null : Math.round(somme / nb);
 }
 
+// Nombre total de sessions jouees, mode Vocabulaire (comme "Sessions
+// jouees" sur la page Statistiques) -- extrait pour etre reutilisable
+// depuis le resume compact du Profil (demande de Paul, 23/09/2026 :
+// statistiques aussi sur le profil perso, en resume).
+function getTotalSessionsJouees() {
+  let total = 0;
+  DB.settings.semesters.forEach(sem => {
+    for (let w = 1; w <= getMaxRelevantWeek(sem); w++) {
+      const entry = getScoreEntry(sem.id, w);
+      if (entry) total += entry.history.length;
+    }
+  });
+  return total;
+}
+
 // ---------- Graphique hexagonal de performance (#4, rang 5) ----------
 // 6 axes choisis avec Paul : précision, vitesse, régularité, volume,
 // difficulté, progression. Comme le score composite, tout est calculé

@@ -152,10 +152,27 @@ function renderProfilPublic() {
   } else {
     hexaStats = profil.hexagone_stats || null;
   }
+  // Résumé chiffré (demande de Paul, 23/09/2026 : "le statistique devrait
+  // etre sur la page de profil perso aussi et résumet pour prendre moin de
+  // place") -- uniquement sur SON PROPRE profil (contrairement au graphique
+  // hexagonal juste au-dessus, jamais synchronisé pour les autres), une
+  // seule ligne compacte plutôt que les tableaux détaillés de la page
+  // Statistiques. Réutilise la classe .profil-chiffres déjà utilisée par
+  // l'en-tête (decks/avis) pour rester visuellement cohérent et ne pas
+  // ajouter de CSS.
+  const chiffresPersoHtml = (!cestMoi || typeof getScoreCompositePersonnel !== 'function') ? '' : `
+    <div class="profil-chiffres" style="margin:0 0 4px;">
+      <span><strong>${(typeof DB !== 'undefined' && DB.vocab) ? DB.vocab.length : 0}</strong> mots au total</span>
+      <span><strong>${typeof getTotalSessionsJouees === 'function' ? getTotalSessionsJouees() : 0}</strong> sessions jouées</span>
+      <span><strong>${(typeof DB !== 'undefined' && DB.kanjiGroups) ? DB.kanjiGroups.length : 0}</strong> kanji importés</span>
+      <span><strong>${(() => { const c = getScoreCompositePersonnel(); return c === null ? '—' : c; })()}</strong> score composite</span>
+    </div>`;
+
   const hexaHtml = (typeof renderHexagoneSvg !== 'function') ? '' : `
     <div class="card profil-hexagone">
-      <h3>Graphique de performance</h3>
-      <p style="font-size:12px; color:var(--muted); margin-top:-4px;">
+      <h3>Statistiques</h3>
+      ${chiffresPersoHtml}
+      <p style="font-size:12px; color:var(--muted); margin-top:8px;">
         Précision, vitesse, régularité, volume de mots vus, difficulté du contenu travaillé et progression récente.
       </p>
       ${(!hexaStats || hexaStats.aucuneDonnee) ? profilVide(cestMoi
