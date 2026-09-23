@@ -202,3 +202,35 @@ essai('la colonne Score composite apparaît dans le tableau du classement global
   if (!html.includes('/100')) throw new Error('le score composite (sur 100) ne s\'affiche pas');
   globalTri = 'points';
 });
+
+// ---------- Widget "Classement" sur l'accueil (#21, rang 5) ----------
+
+essai('sans compte connecté, le widget accueil invite à se connecter', () => {
+  const ancien = window.accountUser;
+  window.accountUser = null;
+  renderClassementAccueilWidget();
+  const html = trouve('#accueilClassementWrap').innerHTML;
+  if (!html.includes('Connecte-toi')) throw new Error('invitation à se connecter absente');
+  window.accountUser = ancien;
+});
+
+essai('le widget accueil affiche le top 3 du classement global', () => {
+  accueilClassementLignes = LIGNES_GLOBAL; accueilClassementErreur = null;
+  renderClassementAccueilWidget();
+  const html = trouve('#accueilClassementWrap').innerHTML;
+  if (!html.includes('Hana')) throw new Error('Hana (en tête) devrait apparaître');
+  if (!html.includes('Voir le classement complet')) throw new Error('le lien vers la page complète manque');
+});
+
+essai('sans aucun score, le widget accueil invite à commencer', () => {
+  accueilClassementLignes = []; accueilClassementErreur = null;
+  renderClassementAccueilWidget();
+  if (!trouve('#accueilClassementWrap').innerHTML.includes('Personne n\'a encore de score')) throw new Error('invitation absente');
+});
+
+essai('une erreur de chargement est montrée dans le widget accueil', () => {
+  accueilClassementErreur = 'réseau coupé';
+  renderClassementAccueilWidget();
+  if (!trouve('#accueilClassementWrap').innerHTML.includes('indisponible')) throw new Error('erreur avalée');
+  accueilClassementErreur = null;
+});

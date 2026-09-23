@@ -33,6 +33,7 @@ global.escapeHtml = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, c => (
 global.dateCourte = () => '2 août 2026';
 global.showToast = () => {};
 global.confirm = () => true;
+global.switchView = () => {};
 global.currentView = 'maj';
 global.window = {
   accountUser: { id: 'moi', pseudo: 'Polus', isAdmin: false },

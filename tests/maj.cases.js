@@ -106,3 +106,30 @@ essai('un titre trop court est refusé avant l\'envoi', () => {
   envoyerSuggestion();
   if (!majForm.erreur || !majForm.erreur.includes('une phrase')) throw new Error('erreur = ' + majForm.erreur);
 });
+
+// ---------- Widget "Nouveautés" sur l'accueil (#21, rang 5) ----------
+
+essai('le widget accueil affiche les suggestions passées "fait"', () => {
+  accueilNouveautesListe = [
+    { id: 1, titre: 'Mode Double réponse', created_at: '2026-09-20T10:00:00Z' },
+    { id: 2, titre: 'Chrono par quiz', created_at: '2026-08-15T10:00:00Z' }
+  ];
+  accueilNouveautesErreur = null;
+  renderNouveautesAccueilWidget();
+  const html = trouve('#accueilNouveautesWrap').innerHTML;
+  if (!html.includes('Mode Double réponse')) throw new Error('la nouveauté la plus récente manque');
+  if (!html.includes('Voir toutes les mises à jour')) throw new Error('le lien vers la page complète manque');
+});
+
+essai('sans nouveauté, le widget accueil le dit sans rester vide', () => {
+  accueilNouveautesListe = []; accueilNouveautesErreur = null;
+  renderNouveautesAccueilWidget();
+  if (!trouve('#accueilNouveautesWrap').innerHTML.includes('Rien de nouveau')) throw new Error('message vide absent');
+});
+
+essai('une erreur de chargement est montrée dans le widget nouveautés', () => {
+  accueilNouveautesErreur = 'réseau coupé';
+  renderNouveautesAccueilWidget();
+  if (!trouve('#accueilNouveautesWrap').innerHTML.includes('indisponibles')) throw new Error('erreur avalée');
+  accueilNouveautesErreur = null;
+});

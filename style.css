@@ -1896,6 +1896,23 @@ code {
 }
 .lien-retour:hover { color: var(--accent); }
 
+/* ---- Accueil : widgets Classement + Nouveautés (#21, rang 5) ---- */
+.accueil-widgets-row { margin: 16px 0; }
+.accueil-classement-liste { display: flex; flex-direction: column; gap: 8px; }
+.accueil-classement-ligne {
+  display: flex; align-items: center; gap: 10px;
+  padding: 6px 8px; border-radius: 8px;
+}
+.accueil-classement-pseudo { flex: 1; font-size: 13.5px; }
+.accueil-classement-points { font-size: 13px; color: var(--muted); font-weight: 600; }
+.accueil-nouveautes-liste { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.accueil-nouveautes-liste li {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 10px;
+  font-size: 13.5px;
+}
+.accueil-nouveautes-titre { flex: 1; }
+.accueil-nouveautes-date { font-size: 12px; color: var(--muted); flex-shrink: 0; }
+
 /* .pub-form : la largeur qui rendait le formulaire etroit et dense. Le
    formulaire utilise desormais .pub-colonnes. Regle conservee au cas ou
    une autre vue l'emploierait encore. */

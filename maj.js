@@ -328,6 +328,67 @@ async function repondre(id) {
   }
 }
 
+// ---------- Widget "Nouveautés" sur l'accueil (#21, rang 5) ----------
+// Une "nouveauté" est une suggestion passée au statut "fait" : ça réutilise
+// la table `suggestions` déjà en place plutôt que de maintenir un flux de
+// changelog séparé à la main.
+let accueilNouveautesListe = null;
+let accueilNouveautesErreur = null;
+
+async function chargerNouveautesAccueil() {
+  const wrap = $('#accueilNouveautesWrap');
+  if (!wrap) return; // widget pas dans la page (vue déjà changée)
+
+  if (accueilNouveautesListe) { renderNouveautesAccueilWidget(); return; }
+  try {
+    if (!window.sb) throw new Error('Connexion indisponible');
+    const { data, error } = await window.sb
+      .from('suggestions')
+      .select('id, titre, created_at')
+      .eq('statut', 'fait')
+      .order('created_at', { ascending: false })
+      .limit(5);
+    if (error) throw error;
+    accueilNouveautesListe = data || [];
+    accueilNouveautesErreur = null;
+  } catch (err) {
+    accueilNouveautesListe = [];
+    accueilNouveautesErreur = err && err.message ? err.message : String(err);
+  }
+  renderNouveautesAccueilWidget();
+}
+
+function renderNouveautesAccueilWidget() {
+  const wrap = $('#accueilNouveautesWrap');
+  if (!wrap) return;
+
+  if (accueilNouveautesErreur) {
+    wrap.innerHTML = `<p style="font-size:13px; color:var(--pink);">Nouveautés indisponibles pour l'instant.</p>`;
+    return;
+  }
+  if (!accueilNouveautesListe) {
+    wrap.innerHTML = `<p style="font-size:13px; color:var(--muted);">Chargement…</p>`;
+    return;
+  }
+  if (!accueilNouveautesListe.length) {
+    wrap.innerHTML = `<p style="font-size:13px; color:var(--muted);">Rien de nouveau pour l'instant.</p>`;
+    return;
+  }
+
+  wrap.innerHTML = `
+    <ul class="accueil-nouveautes-liste">
+      ${accueilNouveautesListe.map((s) => `
+        <li>
+          <span class="accueil-nouveautes-titre">${escapeHtml(s.titre)}</span>
+          <span class="accueil-nouveautes-date">${new Date(s.created_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })}</span>
+        </li>`).join('')}
+    </ul>
+    <button class="lien-retour" id="btnVoirMaj" style="margin-top:6px;">Voir toutes les mises à jour →</button>`;
+
+  const btn = $('#btnVoirMaj');
+  if (btn) btn.addEventListener('click', () => switchView('maj'));
+}
+
 window.kvtMaj = {
   chargerMaj, majVisibles, compteurs, htmlSuggestion,
   reinitialiser() { majListe = null; mesSoutiens = new Set(); majErreur = null; }

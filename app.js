@@ -1325,6 +1325,23 @@ function renderDashboard() {
   // tableau de bord — la première chose vue à l'ouverture de l'app.
   if (typeof widgetGamification === 'function') html += widgetGamification();
 
+  // Classement + nouveautés (#21, rang 5, fusionné avec #23 -- même
+  // chantier selon Paul) : aperçu compact, chacun avec un lien vers sa
+  // page complète. Chargés en asynchrone (données Supabase) comme le reste
+  // du classement/des mises à jour ; le contenu synchrone du tableau de
+  // bord ci-dessus ne les attend pas.
+  html += `
+    <div class="grid-2 accueil-widgets-row">
+      <div class="card">
+        <h3>Classement</h3>
+        <div id="accueilClassementWrap"><p style="font-size:13px; color:var(--muted);">Chargement…</p></div>
+      </div>
+      <div class="card">
+        <h3>Nouveautés</h3>
+        <div id="accueilNouveautesWrap"><p style="font-size:13px; color:var(--muted);">Chargement…</p></div>
+      </div>
+    </div>`;
+
   // Le proverbe du jour vit desormais sur la page d'accueil.
 
   // La bannière de reprise privilégie une session interrompue en plein
@@ -1522,6 +1539,8 @@ function renderDashboard() {
   $('#view-dashboard').innerHTML = html;
   renderAllAdSlots();
   afficherVersionDeploiement();
+  if (typeof chargerClassementAccueil === 'function') chargerClassementAccueil();
+  if (typeof chargerNouveautesAccueil === 'function') chargerNouveautesAccueil();
 
   $$('[data-onglet]').forEach(b => {
     b.addEventListener('click', () => { dashboardMode = b.dataset.onglet; renderDashboard(); });

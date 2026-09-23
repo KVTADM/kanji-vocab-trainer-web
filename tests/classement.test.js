@@ -28,6 +28,7 @@ global.$$ = (sel, racine) => {
 };
 global.escapeHtml = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 global.showToast = () => {};
+global.switchView = () => {};
 global.formatDuree = (ms) => {
   if (!Number.isFinite(ms) || ms < 0) return null;
   const totalSec = Math.round(ms / 1000);

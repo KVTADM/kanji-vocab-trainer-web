@@ -560,3 +560,75 @@ function renderGlobal() {
 
   wrap.innerHTML = podiumHtml + restHtml;
 }
+
+// ---------- Widget "Classement" sur l'accueil (#21, rang 5) ----------
+// Reprend computeGlobal()/trierGlobal() du classement global ci-dessus --
+// même agrégation, juste un top 3 compact avec un lien vers la page
+// complète, plutôt qu'une deuxième logique de classement à maintenir.
+let accueilClassementLignes = null;
+let accueilClassementErreur = null;
+
+async function chargerClassementAccueil() {
+  const wrap = $('#accueilClassementWrap');
+  if (!wrap) return; // widget pas dans la page (vue déjà changée)
+
+  if (!window.accountUser) { renderClassementAccueilWidget(); return; }
+  if (accueilClassementLignes) { renderClassementAccueilWidget(); return; }
+  try {
+    if (!window.sb) throw new Error('Connexion indisponible');
+    const { data, error } = await window.sb
+      .from('scores')
+      .select('user_id, pseudo, points, pct, duree_ms, nb_essais, semester_id, mode')
+      .limit(5000);
+    if (error) throw error;
+    accueilClassementLignes = data || [];
+    accueilClassementErreur = null;
+    if (window.kvtProfils) {
+      await window.kvtProfils.chargerProfils(accueilClassementLignes.map(r => r.user_id));
+    }
+  } catch (err) {
+    accueilClassementLignes = [];
+    accueilClassementErreur = err && err.message ? err.message : String(err);
+  }
+  renderClassementAccueilWidget();
+}
+
+function renderClassementAccueilWidget() {
+  const wrap = $('#accueilClassementWrap');
+  if (!wrap) return;
+
+  if (!window.accountUser) {
+    wrap.innerHTML = `<p style="font-size:13px; color:var(--muted);">Connecte-toi (onglet Compte) pour voir le classement de la classe.</p>`;
+    return;
+  }
+  if (accueilClassementErreur) {
+    wrap.innerHTML = `<p style="font-size:13px; color:var(--pink);">Classement indisponible pour l'instant.</p>`;
+    return;
+  }
+  if (!accueilClassementLignes) {
+    wrap.innerHTML = `<p style="font-size:13px; color:var(--muted);">Chargement…</p>`;
+    return;
+  }
+
+  const classes = trierGlobal(computeGlobal(accueilClassementLignes).filter((u) => u.points > 0), 'points');
+  if (!classes.length) {
+    wrap.innerHTML = `<p style="font-size:13px; color:var(--muted);">Personne n'a encore de score. Termine une session : tu seras le premier.</p>`;
+    return;
+  }
+
+  const moi = window.accountUser.id;
+  const medals = ['🥇', '🥈', '🥉'];
+  wrap.innerHTML = `
+    <div class="accueil-classement-liste">
+      ${classes.slice(0, 3).map((r, i) => `
+        <div class="accueil-classement-ligne ${r.user_id === moi ? 'lb-row-me' : ''}">
+          <span>${medals[i]}</span>
+          <span class="accueil-classement-pseudo">${escapeHtml(r.pseudo)}</span>
+          <span class="accueil-classement-points">${r.points} pts</span>
+        </div>`).join('')}
+    </div>
+    <button class="lien-retour" id="btnVoirClassement" style="margin-top:10px;">Voir le classement complet →</button>`;
+
+  const btn = $('#btnVoirClassement');
+  if (btn) btn.addEventListener('click', () => switchView('leaderboard'));
+}
