@@ -2315,23 +2315,8 @@ code {
   border: 1px dashed var(--border); border-radius: var(--radius); padding: 14px;
 }
 
-.comm-source { font-size: 12px; color: var(--muted); }
-
 .comm-arrive { display: flex; align-items: flex-start; gap: 10px; padding: 8px 0; font-size: 14px; line-height: 1.5; }
 .comm-arrive .maj-statut { flex: none; min-width: 68px; text-align: center; }
-
-.comm-videos { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
-.comm-video { display: block; text-decoration: none; color: inherit; }
-.comm-video img {
-  width: 100%; aspect-ratio: 16/9; object-fit: cover; display: block;
-  border: 1px solid var(--border); border-radius: var(--radius);
-}
-.comm-video-titre { display: block; font-size: 13.5px; line-height: 1.5; margin: 8px 0 2px; }
-.comm-video:hover .comm-video-titre { color: var(--accent-bright); }
-
-@media (max-width: 900px) {
-  .comm-videos { grid-template-columns: 1fr; }
-}
 
 /* ---- Bannière de la page d'accueil ---- */
 

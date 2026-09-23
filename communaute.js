@@ -15,7 +15,7 @@
 // avait l'air d'être à part.
 // ============================================================
 
-let commData = null;      // { arrive, videos }
+let commData = null;      // { arrive }
 let commErreur = null;
 let commEnCours = false;
 
@@ -23,24 +23,16 @@ async function chargerCommunaute() {
   if (!window.sb) { commErreur = "La connexion au serveur n'est pas disponible."; return; }
   commEnCours = true;
   commErreur = null;
-  const res = { arrive: [], videos: [] };
+  const res = { arrive: [] };
   try {
-    // Deux requêtes indépendantes : si l'une échoue, l'autre s'affiche quand
-    // même. Une section vide vaut mieux qu'une page blanche.
-    //
-    // « Derniers avis », « Derniers decks » et « Les plus demandés »
-    // vivaient ici (et le widget Classement sur le tableau de bord) --
-    // retirés/déplacé le 23/09/2026 à la demande de Paul, pour une page
-    // d'accueil plus sobre (voir l'historique git pour l'ancien contenu).
-    const requetes = [
-      sb.from('suggestions').select('titre,statut').in('statut', ['prevu', 'a_letude', 'fait'])
-        .order('score', { ascending: false }).limit(3)
-        .then(r => { res.arrive = r.data || []; }),
-      sb.from('videos').select('youtube_id,titre,pseudo,score').eq('statut', 'publiee')
-        .order('score', { ascending: false }).limit(3)
-        .then(r => { res.videos = r.data || []; })
-    ];
-    await Promise.allSettled(requetes);
+    // « Derniers avis », « Derniers decks », « Les plus demandés » (widget
+    // Classement déplacé sur le tableau de bord) puis « Vidéos partagées »
+    // vivaient ici -- retirés le 23/09/2026 à la demande de Paul, pour une
+    // page d'accueil plus sobre (voir l'historique git pour l'ancien
+    // contenu).
+    await sb.from('suggestions').select('titre,statut').in('statut', ['prevu', 'a_letude', 'fait'])
+      .order('score', { ascending: false }).limit(3)
+      .then(r => { res.arrive = r.data || []; });
     commData = res;
   } catch (err) {
     commData = res;
@@ -76,25 +68,15 @@ function renderCommunaute() {
   }).join('')
     : commVide("Rien d'annoncé pour le moment.");
 
-  // Vignette YouTube seule, sans lecteur : aucun cookie tiers tant qu'on n'a
-  // pas cliqué.
-  const videos = d.videos.length ? `<div class="comm-videos">${d.videos.map(v => `
-    <a class="comm-video" href="https://www.youtube.com/watch?v=${escapeHtml(v.youtube_id)}" target="_blank" rel="noopener">
-      <img src="https://i.ytimg.com/vi/${escapeHtml(v.youtube_id)}/mqdefault.jpg" alt="" loading="lazy" width="320" height="180" />
-      <span class="comm-video-titre">${escapeHtml(v.titre)}</span>
-      <span class="comm-source">partagé par ${escapeHtml(v.pseudo)} · ▲ ${v.score}</span>
-    </a>`).join('')}</div>`
-    : commVide("Aucune vidéo partagée pour l'instant.");
-
   const proverbe = (typeof getProverbOfDay === 'function') ? getProverbOfDay() : null;
 
   // ------------------------------------------------------------
   // Mise en page (23/09/2026, demande de Paul -- page plus sobre) : plus de
   // grand entete ni de chiffres en avant-page, plus de « Derniers avis »,
-  // « Derniers decks » ni « Les plus demandés ». Le classement (déplacé
-  // depuis le tableau de bord -- "le classement devrait etre sur la page
-  // d'accueil pas le tableau de bord") prend place à côté de « Ce qui
-  // arrive » ; les vidéos restent en pleine largeur en bas.
+  // « Derniers decks », « Les plus demandés » ni « Vidéos partagées ». Le
+  // classement (déplacé depuis le tableau de bord -- "le classement
+  // devrait etre sur la page d'accueil pas le tableau de bord") occupe la
+  // place à côté de « Ce qui arrive ».
   // ------------------------------------------------------------
   el.innerHTML = `
     <h2>Page d'accueil</h2>
@@ -117,11 +99,6 @@ function renderCommunaute() {
         <h3 class="deck-section-titre">Ce qui arrive</h3>
         ${arrive}
       </div>
-    </div>
-
-    <div class="card kvt-fade">
-      <h3 class="deck-section-titre">Vidéos partagées</h3>
-      ${videos}
     </div>`;
 
   if (typeof chargerClassementAccueil === 'function') chargerClassementAccueil();
