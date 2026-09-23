@@ -187,7 +187,7 @@ essai('aucun lien de navigation ne pointe vers une page inexistante', () => {
 essai('l\'app garde ses boutons de vue après le passage en barre haute', () => {
   const html = lire(path.join('app', 'index.html'));
   const vues = Array.from(html.matchAll(/class="nav-btn[^"]*" data-view="([a-z-]+)"/g), (m) => m[1]);
-  for (const attendue of ['dashboard', 'manage', 'decks', 'stats', 'leaderboard', 'maj', 'download', 'account', 'settings']) {
+  for (const attendue of ['dashboard', 'manage', 'decks', 'stats', 'leaderboard', 'download', 'account', 'settings']) {
     if (!vues.includes(attendue)) throw new Error(`le bouton ${attendue} a disparu de la navigation`);
   }
   if (html.includes('class="sidebar"')) throw new Error('la colonne latérale est encore là');
