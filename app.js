@@ -926,7 +926,17 @@ const ROMAJI_VERS_HIRAGANA = {
 const SOKUON_CONSONNES = new Set(['k','g','s','z','t','d','h','b','p','m','y','r','w','f','j','c']);
 
 function romajiVersHiragana(brut) {
-  const s = String(brut || '').toLowerCase();
+  // Cette fonction retraite l'integralite du champ a chaque frappe (voir
+  // activerSaisieKanaDirecte plus bas) : un "n" isole, converti tout de
+  // suite en "ん"/"ン" (cf. commentaire ci-dessus), doit pouvoir redevenir
+  // un "n" latin en attente si de nouvelles lettres sont tapees juste
+  // apres, pour former sa syllabe (na/ni/nu/ne/no, nya/nyu/nyo) au lieu de
+  // rester isole devant une syllabe separee. Sans ca, taper "n" puis "a"
+  // affichait a tort "んあ" au lieu de "な" (signale par Paul le
+  // 23/09/2026, clavier FR) : le "ん"/"ン" deja affiche n'etait pas
+  // reconnu comme un "n" latin par la boucle de conversion ci-dessous, qui
+  // ne connait que des lettres latines.
+  const s = String(brut || '').toLowerCase().replace(/[んン](?=[a-z-])/g, 'n');
   let out = '';
   let i = 0;
   while (i < s.length) {

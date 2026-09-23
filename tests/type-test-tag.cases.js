@@ -129,6 +129,20 @@ essai('romajiVersHiragana : "n" devant une voyelle ou "y" reste rattache a la sy
   if (romajiVersHiragana('konya') !== 'こにゃ') throw new Error(romajiVersHiragana('konya'));
 });
 
+essai('romajiVersHiragana : un "ん"/"ン" deja affiche redevient "n" si une lettre suit (bug clavier FR, "na" -> んあ)', () => {
+  // Reproduit l'etat du champ tel qu'il existe reellement pendant la
+  // frappe (activerSaisieKanaDirecte retraite input.value, pas une chaine
+  // romaji vierge) : apres avoir tape "n" seul, le champ affiche deja
+  // "ん"/"ン" avant que la lettre suivante n'arrive.
+  if (romajiVersHiragana('んa') !== 'な') throw new Error(romajiVersHiragana('んa'));
+  if (romajiVersHiragana('ンa') !== 'な') throw new Error(romajiVersHiragana('ンa'));
+  if (romajiVersHiragana('こんi') !== 'こに') throw new Error(romajiVersHiragana('こんi'));
+  if (romajiVersHiragana('んya') !== 'にゃ') throw new Error(romajiVersHiragana('んya'));
+  // Toujours ん devant une consonne ou en fin de saisie : pas de regression.
+  if (romajiVersHiragana('んs') !== 'んs') throw new Error(romajiVersHiragana('んs'));
+  if (romajiVersHiragana('ん') !== 'ん') throw new Error(romajiVersHiragana('ん'));
+});
+
 essai('romajiVersHiragana : romaji incomplet en fin de saisie reste tel quel (en attente de la voyelle)', () => {
   if (romajiVersHiragana('k') !== 'k') throw new Error(romajiVersHiragana('k'));
   if (romajiVersHiragana('ky') !== 'ky') throw new Error(romajiVersHiragana('ky'));
