@@ -102,6 +102,10 @@ function badgesDe(profil, decks, avis) {
     const lib = window.kvtProfils.libelleNiveau(profil.niveau);
     if (lib && lib !== 'Non précisé') liste.push([lib, 'niveau déclaré']);
   }
+  if (profil && profil.titre_actif && typeof objetBoutique === 'function') {
+    const t = objetBoutique(profil.titre_actif);
+    if (t) liste.push([`${t.emoji} ${t.nom}`, 'Titre affiché (boutique)']);
+  }
   return liste;
 }
 
@@ -238,11 +242,6 @@ function renderProfilPublic() {
         ${window.kvtProfils ? window.kvtProfils.avatarHtml(profil.id, profil.pseudo, 72) : ''}
         <div class="profil-entete__ident">
           <h2 class="profil-entete__pseudo">${escapeHtml(profil.pseudo || 'quelqu’un')}</h2>
-          ${(() => {
-            if (!profil.titre_actif || typeof objetBoutique !== 'function') return '';
-            const t = objetBoutique(profil.titre_actif);
-            return t ? `<span class="gamif-titre">${t.emoji} ${escapeHtml(t.nom)}</span>` : '';
-          })()}
           <div class="profil-badges">
             ${badges.map(([lib, titre]) => `<span class="profil-badge" title="${escapeHtml(titre)}">${escapeHtml(lib)}</span>`).join('')}
           </div>
