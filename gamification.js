@@ -67,6 +67,19 @@ const GAMIF_BONUS_SESSION = 15;
 const GAMIF_BOOST_XP_DUREE_MS = 20 * 60 * 1000;
 const GAMIF_BOOST_XP_MULTIPLICATEUR = 2;
 
+// Bonus de série quotidienne (#18, rang 5) : XP + pièces attribués une
+// seule fois par jour, exactement quand mettreAJourStreak() fait avancer
+// la série (son garde-fou "déjà compté aujourd'hui" empêche tout doublon
+// si plusieurs mots/quiz sont terminés le même jour). Croissance linéaire
+// plafonnée à 30 jours : ça encourage à continuer sans transformer une
+// série de plusieurs mois en pluie d'XP disproportionnée. Profite du même
+// boost Pro que les autres gains ; profite aussi du boost XP temporaire
+// acheté en boutique (uniquement côté XP, comme pour gagnerXp) puisque
+// c'est un multiplicateur générique sur l'XP, pas spécifique aux mots.
+const GAMIF_STREAK_XP_PAR_JOUR = 5;
+const GAMIF_STREAK_PIECES_PAR_JOUR = 1;
+const GAMIF_STREAK_PLAFOND_JOURS = 30;
+
 // Difficulté selon le semestre (25/08/2026, demande de Paul : « plus c'est
 // loin, plus ça donne »). Ordre canonique du programme — même ordre que
 // CANONICAL_SEMESTERS dans webapi.js (à garder synchronisé si un nouveau
@@ -252,6 +265,19 @@ function gamifJourPrecedent(jourIso) {
   return d.toISOString().slice(0, 10);
 }
 
+// Attribue le bonus du jour -- appelée uniquement depuis mettreAJourStreak(),
+// jamais directement, pour ne jamais risquer un double gain le même jour.
+function bonusStreak(g) {
+  const jours = Math.min(g.streak.compte, GAMIF_STREAK_PLAFOND_JOURS);
+  const boostXp = boostXpActif() ? GAMIF_BOOST_XP_MULTIPLICATEUR : 1;
+  const boostPro = gamifEstPro() ? GAMIF_BOOST_PRO : 1;
+  const gainXp = Math.round(jours * GAMIF_STREAK_XP_PAR_JOUR * boostXp * boostPro);
+  const gainPieces = Math.round(jours * GAMIF_STREAK_PIECES_PAR_JOUR * boostPro);
+  g.xp += gainXp;
+  g.pieces += gainPieces;
+  return { xp: gainXp, pieces: gainPieces };
+}
+
 function mettreAJourStreak() {
   const g = assurerGamification();
   const aujourdhui = gamifDateDuJour();
@@ -263,6 +289,7 @@ function mettreAJourStreak() {
   }
   g.streak.dernierJour = aujourdhui;
   if (g.streak.compte > g.streak.record) g.streak.record = g.streak.compte;
+  bonusStreak(g);
   return g.streak;
 }
 

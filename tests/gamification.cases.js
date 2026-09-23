@@ -166,6 +166,66 @@ essai('un jour sauté remet la série à 1 sans perdre le record', () => {
   if (s.record !== 10) throw new Error('le record ne doit pas être perdu : ' + s.record);
 });
 
+essai('le premier passage du jour donne un bonus XP + pièces (#18, rang 5)', () => {
+  DB = { gamification: baseGamif() };
+  window.accountUser = null;
+  mettreAJourStreak(); // compte = 1
+  if (DB.gamification.xp !== 5) throw new Error('xp=' + DB.gamification.xp + ' (attendu 1 jour × 5)');
+  if (DB.gamification.pieces !== 1) throw new Error('pieces=' + DB.gamification.pieces + ' (attendu 1 jour × 1)');
+});
+
+essai('un deuxième mot le même jour ne redonne pas le bonus', () => {
+  DB = { gamification: baseGamif() };
+  window.accountUser = null;
+  mettreAJourStreak();
+  const xpApresPremier = DB.gamification.xp;
+  const piecesApresPremier = DB.gamification.pieces;
+  mettreAJourStreak(); // même jour
+  if (DB.gamification.xp !== xpApresPremier) throw new Error('xp a bougé alors que la série ne devait pas avancer');
+  if (DB.gamification.pieces !== piecesApresPremier) throw new Error('pieces a bougé alors que la série ne devait pas avancer');
+});
+
+essai('le bonus de série grandit avec le nombre de jours, plafonné à 30', () => {
+  const hier = gamifJourPrecedent(gamifDateDuJour());
+  DB = { gamification: { ...baseGamif(), streak: { compte: 9, record: 9, dernierJour: hier } } };
+  window.accountUser = null;
+  mettreAJourStreak(); // compte passe à 10
+  if (DB.gamification.xp !== 50) throw new Error('xp=' + DB.gamification.xp + ' (attendu 10 jours × 5)');
+
+  const avantHier = gamifJourPrecedent(gamifDateDuJour());
+  DB = { gamification: { ...baseGamif(), streak: { compte: 40, record: 40, dernierJour: avantHier } } };
+  mettreAJourStreak(); // un jour sauté : compte repart à 1, pas de plafond à tester ici
+  DB = { gamification: { ...baseGamif(), streak: { compte: 99, record: 99, dernierJour: hier } } };
+  mettreAJourStreak(); // compte passe à 100, bien au-delà du plafond de 30
+  if (DB.gamification.xp !== 150) throw new Error('xp=' + DB.gamification.xp + ' (attendu plafond 30 jours × 5)');
+});
+
+essai('le bonus de série profite du boost Pro (XP et pièces) et du boost XP boutique (XP seulement)', () => {
+  const hier = gamifJourPrecedent(gamifDateDuJour());
+  DB = { gamification: { ...baseGamif(), streak: { compte: 0, record: 0, dernierJour: hier } } };
+  // Comme dernierJour = hier et compte = 0, mettreAJourStreak() traite ça comme
+  // la continuation d'une série (compte passe à 1) -- un seul jour, calcul simple.
+  window.accountUser = { isPro: true };
+  mettreAJourStreak();
+  if (DB.gamification.xp !== Math.round(1 * GAMIF_STREAK_XP_PAR_JOUR * GAMIF_BOOST_PRO)) {
+    throw new Error('xp Pro=' + DB.gamification.xp);
+  }
+  if (DB.gamification.pieces !== Math.round(1 * GAMIF_STREAK_PIECES_PAR_JOUR * GAMIF_BOOST_PRO)) {
+    throw new Error('pieces Pro=' + DB.gamification.pieces);
+  }
+  window.accountUser = null;
+
+  const hier2 = gamifJourPrecedent(gamifDateDuJour());
+  DB = { gamification: { ...baseGamif(), streak: { compte: 0, record: 0, dernierJour: hier2 }, boostXpJusqua: Date.now() + 60000 } };
+  mettreAJourStreak();
+  if (DB.gamification.xp !== Math.round(1 * GAMIF_STREAK_XP_PAR_JOUR * GAMIF_BOOST_XP_MULTIPLICATEUR)) {
+    throw new Error('xp avec boost boutique=' + DB.gamification.xp);
+  }
+  if (DB.gamification.pieces !== GAMIF_STREAK_PIECES_PAR_JOUR) {
+    throw new Error('le boost XP boutique ne doit pas toucher les pièces : ' + DB.gamification.pieces);
+  }
+});
+
 // ---------- Boutique ----------
 
 essai('acheterObjet refuse si pas assez de pièces', () => {
