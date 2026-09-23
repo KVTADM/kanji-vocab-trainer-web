@@ -279,14 +279,48 @@ essai('acheterObjet refuse un identifiant inconnu', () => {
   if (res.ok || res.motif !== 'introuvable') throw new Error(JSON.stringify(res));
 });
 
-essai('equiperTitre refuse un objet non possédé, accepte un objet possédé, accepte le retrait', () => {
-  DB = { gamification: { ...baseGamif(), inventaire: ['titre-motive'] } };
-  const refuse = equiperTitre('titre-serieux');
+essai('equiperTitre refuse un objet non possédé', async () => {
+  DB = { gamification: { ...baseGamif(), inventaire: [] } };
+  window.accountUser = null;
+  const refuse = await equiperTitre('titre-serieux');
   if (refuse.ok) throw new Error('un titre non possédé a pu être équipé');
   if (DB.gamification.titreActif !== null) throw new Error('titreActif a bougé malgré le refus');
-  const accepte = equiperTitre('titre-motive');
+});
+
+essai('equiperTitre s\'équipe seulement en local sans compte connecté (rien à synchroniser)', async () => {
+  DB = { gamification: { ...baseGamif(), inventaire: ['titre-motive'] } };
+  window.accountUser = null;
+  const accepte = await equiperTitre('titre-motive');
   if (!accepte.ok || DB.gamification.titreActif !== 'titre-motive') throw new Error(JSON.stringify(DB.gamification));
-  const retrait = equiperTitre(null);
+});
+
+essai('equiperTitre synchronise vers Supabase quand un compte est connecté', async () => {
+  DB = { gamification: { ...baseGamif(), inventaire: ['titre-motive'] } };
+  window.accountUser = { id: 'u1' };
+  let recu = null;
+  window.kvtProfils = { enregistrerProfil: async (champs) => { recu = champs; return { ok: true }; } };
+  const res = await equiperTitre('titre-motive');
+  if (!res.ok) throw new Error(JSON.stringify(res));
+  if (!recu || recu.titre_actif !== 'titre-motive') throw new Error('enregistrerProfil n\'a pas reçu le bon champ : ' + JSON.stringify(recu));
+  window.accountUser = null;
+  window.kvtProfils = { enregistrerProfil: async () => ({ ok: true }) };
+});
+
+essai('equiperTitre annule le changement si la synchronisation Supabase échoue', async () => {
+  DB = { gamification: { ...baseGamif(), inventaire: ['titre-motive'], titreActif: null } };
+  window.accountUser = { id: 'u1' };
+  window.kvtProfils = { enregistrerProfil: async () => ({ ok: false, erreur: 'réseau' }) };
+  const res = await equiperTitre('titre-motive');
+  if (res.ok || res.motif !== 'sync-echouee') throw new Error(JSON.stringify(res));
+  if (DB.gamification.titreActif !== null) throw new Error('titreActif aurait dû revenir à sa valeur précédente');
+  window.accountUser = null;
+  window.kvtProfils = { enregistrerProfil: async () => ({ ok: true }) };
+});
+
+essai('equiperTitre accepte le retrait (id=null) sans tenter de synchroniser sans compte', async () => {
+  DB = { gamification: { ...baseGamif(), titreActif: 'titre-motive' } };
+  window.accountUser = null;
+  const retrait = await equiperTitre(null);
   if (!retrait.ok || DB.gamification.titreActif !== null) throw new Error('le retrait du titre a échoué');
 });
 

@@ -349,10 +349,25 @@ function acheterObjet(id) {
   return { ok: true };
 }
 
-function equiperTitre(id) {
+// Comme la bannière (voir equiperBanniere ci-dessous) : un titre est visible
+// par les autres sur le profil public (demande de Paul, 23/09/2026 : "le
+// titre doit etre affiche sur le profile aussi"), il faut donc le
+// synchroniser vers Supabase (`profiles.titre_actif`), pas seulement le
+// garder dans DB.gamification. Mise à jour optimiste, annulée si
+// l'enregistrement distant échoue. Sans compte connecté, on équipe
+// seulement en local -- rien à synchroniser.
+async function equiperTitre(id) {
   const g = assurerGamification();
   if (id !== null && !g.inventaire.includes(id)) return { ok: false };
+  const ancien = g.titreActif;
   g.titreActif = id;
+  if (window.accountUser && window.kvtProfils && typeof window.kvtProfils.enregistrerProfil === 'function') {
+    const res = await window.kvtProfils.enregistrerProfil({ titre_actif: id });
+    if (!res.ok) {
+      g.titreActif = ancien;
+      return { ok: false, motif: 'sync-echouee' };
+    }
+  }
   return { ok: true };
 }
 
@@ -547,7 +562,7 @@ function renderBoutique() {
     };
   });
   $$('[data-equiper]', container).forEach(b => {
-    b.onclick = () => { equiperTitre(b.dataset.equiper); persist(); renderBoutique(); };
+    b.onclick = async () => { await equiperTitre(b.dataset.equiper); persist(); renderBoutique(); };
   });
   $$('[data-equiper-collation]', container).forEach(b => {
     b.onclick = () => { equiperCollation(b.dataset.equiperCollation); persist(); renderBoutique(); };
@@ -562,7 +577,7 @@ function renderBoutique() {
     };
   });
   const btnRetirerTitre = $('[data-retirer-titre]', container);
-  if (btnRetirerTitre) btnRetirerTitre.onclick = () => { equiperTitre(null); persist(); renderBoutique(); };
+  if (btnRetirerTitre) btnRetirerTitre.onclick = async () => { await equiperTitre(null); persist(); renderBoutique(); };
   const btnRetirerCollation = $('[data-retirer-collation]', container);
   if (btnRetirerCollation) btnRetirerCollation.onclick = () => { equiperCollation(null); persist(); renderBoutique(); };
   const btnRetirerBanniere = $('[data-retirer-banniere]', container);

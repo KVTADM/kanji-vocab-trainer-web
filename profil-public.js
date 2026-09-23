@@ -30,7 +30,7 @@ async function chargerProfilPublic(userId) {
   const res = { profil: null, decks: [], avis: [], amis: null };
   try {
     const requetes = [
-      window.sb.from('profiles').select('id,pseudo,avatar_url,niveau,bio,created_at,banniere_active,hexagone_stats')
+      window.sb.from('profiles').select('id,pseudo,avatar_url,niveau,bio,created_at,banniere_active,hexagone_stats,titre_actif')
         .eq('id', userId).maybeSingle()
         .then(r => { res.profil = r.data || null; }),
 
@@ -238,6 +238,11 @@ function renderProfilPublic() {
         ${window.kvtProfils ? window.kvtProfils.avatarHtml(profil.id, profil.pseudo, 72) : ''}
         <div class="profil-entete__ident">
           <h2 class="profil-entete__pseudo">${escapeHtml(profil.pseudo || 'quelqu’un')}</h2>
+          ${(() => {
+            if (!profil.titre_actif || typeof objetBoutique !== 'function') return '';
+            const t = objetBoutique(profil.titre_actif);
+            return t ? `<span class="gamif-titre">${t.emoji} ${escapeHtml(t.nom)}</span>` : '';
+          })()}
           <div class="profil-badges">
             ${badges.map(([lib, titre]) => `<span class="profil-badge" title="${escapeHtml(titre)}">${escapeHtml(lib)}</span>`).join('')}
           </div>
