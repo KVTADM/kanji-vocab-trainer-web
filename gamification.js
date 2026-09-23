@@ -139,12 +139,16 @@ const GAMIF_BOUTIQUE = [
   { id: 'titre-immortel', type: 'titre', nom: 'Immortel·le', emoji: '💎', prix: 2000, pro: true, niveauRequis: 15 },
   { id: 'titre-empereur', type: 'titre', nom: 'Empereur du kanji', emoji: '👑', prix: 3500, pro: true, niveauRequis: 20 },
 
-  // --- Thèmes du site : déblocage individuel avec des pièces (25/08/2026) ---
-  { id: 'theme-sakura', type: 'theme', themeId: 'sakura', nom: 'Palette Sakura', emoji: '🌸', prix: 700, pro: false, niveauRequis: 6 },
-  { id: 'theme-sumi', type: 'theme', themeId: 'sumi', nom: 'Palette Sumi', emoji: '🖋️', prix: 700, pro: false, niveauRequis: 6 },
-  { id: 'theme-ai', type: 'theme', themeId: 'ai', nom: 'Palette Ai', emoji: '🌊', prix: 700, pro: false, niveauRequis: 6 },
-  { id: 'theme-momiji', type: 'theme', themeId: 'momiji', nom: 'Palette Momiji', emoji: '🍁', prix: 700, pro: false, niveauRequis: 6 },
-  { id: 'theme-take', type: 'theme', themeId: 'take', nom: 'Palette Take', emoji: '🎍', prix: 700, pro: false, niveauRequis: 6 },
+  // --- Thèmes du site : déblocage individuel avec des pièces (25/08/2026).
+  // Prix relevé de 700 à 3000 le 23/09/2026 (demande de Paul, "bien plus
+  // cher aussi") -- désormais le seul moyen d'y accéder, Pro y compris
+  // (voir app.js, Réglages : le raccourci isPro a été retiré, "et pas a
+  // les avoir par defaut"). ---
+  { id: 'theme-sakura', type: 'theme', themeId: 'sakura', nom: 'Palette Sakura', emoji: '🌸', prix: 3000, pro: false, niveauRequis: 6 },
+  { id: 'theme-sumi', type: 'theme', themeId: 'sumi', nom: 'Palette Sumi', emoji: '🖋️', prix: 3000, pro: false, niveauRequis: 6 },
+  { id: 'theme-ai', type: 'theme', themeId: 'ai', nom: 'Palette Ai', emoji: '🌊', prix: 3000, pro: false, niveauRequis: 6 },
+  { id: 'theme-momiji', type: 'theme', themeId: 'momiji', nom: 'Palette Momiji', emoji: '🍁', prix: 3000, pro: false, niveauRequis: 6 },
+  { id: 'theme-take', type: 'theme', themeId: 'take', nom: 'Palette Take', emoji: '🎍', prix: 3000, pro: false, niveauRequis: 6 },
 
   // --- Pendant les révisions (25/08/2026) : retirées de la vente le
   // 23/09/2026 (demande de Paul) -- `retireDeLaVente` les sort de

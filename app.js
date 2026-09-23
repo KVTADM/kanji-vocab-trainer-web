@@ -4080,7 +4080,12 @@ function renderSettings() {
               ['momiji', 'Momiji — érables d\'automne'],
               ['take', 'Take — bambou']
             ].map(([id, nom]) => {
-              const debloque = isPro || (typeof themeDebloqueParPieces === 'function' && themeDebloqueParPieces(id));
+              // Le raccourci Pro (debloque = isPro || ...) a ete retire le
+              // 23/09/2026 (demande de Paul : "pas a les avoir par defaut") --
+              // les 5 palettes decoratives ne s'obtiennent plus qu'en pieces
+              // dans la Boutique, abonnement Pro ou non. Sombre et Clair
+              // restent gratuits pour tout le monde, inchange.
+              const debloque = typeof themeDebloqueParPieces === 'function' && themeDebloqueParPieces(id);
               return `
               <option value="${id}" ${s.theme === id ? 'selected' : ''} ${debloque ? '' : 'disabled'}>${nom}${debloque ? '' : ' 🔒'}</option>
             `;
@@ -4088,15 +4093,12 @@ function renderSettings() {
           </select>
         </label>
       </div>
-      ${isPro ? '' : `
-        <p style="font-size:13px; color:var(--muted); line-height:1.6;">
-          Sombre et Clair sont gratuits — le mode clair est une question de
-          confort visuel, pas un supplément. Les cinq palettes décoratives
-          sont réservées au Pro, qui soutient le projet — ou débloquables
-          une à une dans la Boutique avec des pièces d'or gagnées en
-          révisant.
-        </p>
-      `}
+      <p style="font-size:13px; color:var(--muted); line-height:1.6;">
+        Sombre et Clair sont gratuits — le mode clair est une question de
+        confort visuel, pas un supplément. Les cinq palettes décoratives se
+        débloquent une à une dans la Boutique avec des pièces d'or gagnées
+        en révisant, Pro ou pas : l'abonnement ne les inclut pas.
+      </p>
     </div>
     <div class="card">
       <h3>Export pour Anki</h3>
