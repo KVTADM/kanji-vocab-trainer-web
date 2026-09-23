@@ -1784,7 +1784,6 @@ function renderVocab() {
             <span class="kj">${escapeHtml(g.kanji)}</span>
             <strong>${escapeHtml(g.titre || '')}</strong>
             <button class="secondary small btn-voir-trace-groupe" data-kanji="${escapeHtml(g.kanji)}">Voir le tracé</button>
-            <button class="secondary small btn-del-group" data-group="${g.id}">Supprimer ce kanji</button>
           </div>
           ${learnInfo}
           <table>
@@ -1851,15 +1850,6 @@ function renderVocab() {
     renderVocab();
   });
 
-  $$('.btn-del-group').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      const gid = btn.dataset.group;
-      DB.kanjiGroups = DB.kanjiGroups.filter(g => g.id !== gid);
-      DB.vocab = DB.vocab.filter(v => v.kanjiGroupId !== gid);
-      await persist();
-      renderVocab();
-    });
-  });
   $$('.btn-voir-trace-groupe').forEach(btn => {
     btn.addEventListener('click', () => {
       modalTraceKanji = btn.dataset.kanji;
