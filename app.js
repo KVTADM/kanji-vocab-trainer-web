@@ -340,6 +340,120 @@ function getScoreCompositePersonnel() {
   });
   return nb === 0 ? null : Math.round(somme / nb);
 }
+
+// ---------- Graphique hexagonal de performance (#4, rang 5) ----------
+// 6 axes choisis avec Paul : précision, vitesse, régularité, volume,
+// difficulté, progression. Comme le score composite, tout est calculé
+// localement à partir de DB -- aucun appel réseau, marche hors ligne.
+const KVT_STREAK_REF = 30; // 30 jours d'affilée = régularité maximale sur l'axe
+
+// Rassemble l'historique des 4 modes synchronisés avec le classement, trié
+// chronologiquement -- sert à mesurer la tendance récente (axe progression).
+function getAllSessionsTousModes() {
+  const NAMESPACES = ['scores', 'scoresKanji', 'scoresTraduction', 'scoresDouble'];
+  const all = [];
+  NAMESPACES.forEach((champ) => {
+    const namespace = DB[champ];
+    if (!namespace) return;
+    Object.values(namespace).forEach((entry) => {
+      (entry.history || []).forEach((h) => all.push(h));
+    });
+  });
+  all.sort((a, b) => a.date.localeCompare(b.date));
+  return all;
+}
+
+// Calcule les 6 axes, chacun normalisé entre 0 et 1 (1 = meilleur).
+function getHexagoneStats() {
+  const NAMESPACES = ['scores', 'scoresKanji', 'scoresTraduction', 'scoresDouble'];
+  let sommePct = 0, nbPct = 0;
+  let sommeDuree = 0, nbDuree = 0;
+  let sommePosition = 0, nbPosition = 0;
+
+  NAMESPACES.forEach((champ) => {
+    const namespace = DB[champ];
+    if (!namespace) return;
+    Object.entries(namespace).forEach(([key, entry]) => {
+      if (!entry || !entry.best) return;
+      sommePct += entry.best.pct; nbPct += 1;
+      if (Number.isFinite(entry.best.dureeMs) && entry.best.dureeMs > 0) {
+        sommeDuree += entry.best.dureeMs; nbDuree += 1;
+      }
+      const m = key.match(/^(.+)-w(\d+)$/);
+      if (m) { sommePosition += positionSemestre(m[1]); nbPosition += 1; }
+    });
+  });
+
+  const precision = nbPct ? (sommePct / nbPct) / 100 : 0;
+  const vitesse = nbDuree ? Math.max(0, Math.min(1, 1 - (sommeDuree / nbDuree) / KVT_DUREE_REF_MS)) : 0;
+  const streakCompte = (DB.gamification && DB.gamification.streak && DB.gamification.streak.compte) || 0;
+  const regularite = Math.max(0, Math.min(1, streakCompte / KVT_STREAK_REF));
+  const motsVus = DB.wordStats ? Object.keys(DB.wordStats).length : 0;
+  const volume = (DB.vocab && DB.vocab.length) ? Math.max(0, Math.min(1, motsVus / DB.vocab.length)) : 0;
+  const difficulte = nbPosition ? sommePosition / nbPosition : 0;
+
+  const sessions = getAllSessionsTousModes();
+  // Tendance récente : moitié la plus ancienne vs. moitié la plus récente de
+  // l'historique. Pas assez de sessions pour comparer : valeur neutre au
+    // centre du graphique, ni signal positif ni négatif.
+  let progression = 0.5;
+  if (sessions.length >= 4) {
+    const moitie = Math.floor(sessions.length / 2);
+    const moyenne = (liste) => liste.reduce((s, h) => s + h.pct, 0) / liste.length;
+    const tendance = moyenne(sessions.slice(-moitie)) - moyenne(sessions.slice(0, moitie)); // en points de %
+    progression = Math.max(0, Math.min(1, (tendance + 20) / 40)); // -20..+20 pts -> 0..1
+  }
+
+  return {
+    precision, vitesse, regularite, volume, difficulte, progression,
+    aucuneDonnee: nbPct === 0
+  };
+}
+
+// Rend le graphique en SVG pur, à la main (aucune librairie de graphiques
+// dans ce projet -- même choix que pour l'animation des traits KanjiVG).
+function renderHexagoneSvg(stats) {
+  const AXES = [
+    { key: 'precision', label: 'Précision' },
+    { key: 'vitesse', label: 'Vitesse' },
+    { key: 'regularite', label: 'Régularité' },
+    { key: 'volume', label: 'Volume' },
+    { key: 'difficulte', label: 'Difficulté' },
+    { key: 'progression', label: 'Progression' }
+  ];
+  const CENTRE = 140, RAYON = 104, N = AXES.length;
+  const angle = (i) => -Math.PI / 2 + i * (2 * Math.PI / N);
+  const point = (i, v) => ({
+    x: CENTRE + Math.cos(angle(i)) * RAYON * v,
+    y: CENTRE + Math.sin(angle(i)) * RAYON * v
+  });
+  const polygone = (v) => AXES.map((_, i) => { const p = point(i, v); return `${p.x.toFixed(1)},${p.y.toFixed(1)}`; }).join(' ');
+
+  const grilles = [0.25, 0.5, 0.75, 1].map((v) => `<polygon points="${polygone(v)}" class="hexa-grille" />`).join('');
+  const axes = AXES.map((_, i) => {
+    const p = point(i, 1);
+    return `<line x1="${CENTRE}" y1="${CENTRE}" x2="${p.x.toFixed(1)}" y2="${p.y.toFixed(1)}" class="hexa-axe" />`;
+  }).join('');
+  const donnees = AXES.map((a, i) => {
+    const v = Math.max(0, Math.min(1, stats[a.key] || 0));
+    const p = point(i, v);
+    return `${p.x.toFixed(1)},${p.y.toFixed(1)}`;
+  }).join(' ');
+  const labels = AXES.map((a, i) => {
+    const p = point(i, 1.24);
+    const ancrage = Math.abs(p.x - CENTRE) < 4 ? 'middle' : (p.x > CENTRE ? 'start' : 'end');
+    return `<text x="${p.x.toFixed(1)}" y="${p.y.toFixed(1)}" text-anchor="${ancrage}" class="hexa-label">${escapeHtml(a.label)}</text>`;
+  }).join('');
+
+  return `
+    <svg viewBox="0 0 280 280" class="hexa-svg" role="img" aria-label="Graphique hexagonal de performance">
+      ${grilles}
+      ${axes}
+      <polygon points="${donnees}" class="hexa-donnees" />
+      ${labels}
+    </svg>`;
+}
+
 function getKanjiScoreEntry(semesterId, week) {
   return (DB.scoresKanji && DB.scoresKanji[weekKey(semesterId, week)]) || null;
 }
@@ -3785,6 +3899,7 @@ function renderStats() {
   `).join('');
 
   const composite = getScoreCompositePersonnel();
+  const hexaStats = getHexagoneStats();
 
   $('#view-stats').innerHTML = `
     <h2>Statistiques</h2>
@@ -3795,6 +3910,16 @@ function renderStats() {
       <div class="stat-box" title="Précision, vitesse, assiduité et difficulté du contenu, combinées sur 100 (voir #5 de la feuille de route).">
         <div class="num">${composite === null ? '—' : composite}</div><div class="label">Score composite</div>
       </div>
+    </div>
+    <div class="card">
+      <h3>Graphique de performance</h3>
+      <p style="font-size:12px; color:var(--muted); margin-top:-4px;">
+        Précision, vitesse, régularité, volume de mots vus, difficulté du contenu travaillé et progression récente,
+        sur les 4 modes synchronisés avec le classement (voir #4 de la feuille de route).
+      </p>
+      ${hexaStats.aucuneDonnee ? `
+        <p class="empty-state">Termine une première session pour voir apparaître ton graphique de performance.</p>
+      ` : `<div class="hexa-wrap">${renderHexagoneSvg(hexaStats)}</div>`}
     </div>
     ${renderAdvancedStatsCard()}
     <div class="card">

@@ -1042,6 +1042,20 @@ code {
 .quiz-feedback.mid  { background: rgba(192, 120, 48, 0.18); border-color: var(--warn-bright); color: var(--warn-bright); }
 .quiz-feedback.bad  { background: rgba(192, 64, 96, 0.18); border-color: var(--bad-bright); color: var(--bad-bright); }
 
+/* ---------- Statistiques : graphique hexagonal de performance ---------- */
+.hexa-wrap { display: flex; justify-content: center; margin-top: 6px; }
+.hexa-svg { width: 100%; max-width: 320px; height: auto; }
+.hexa-grille { fill: none; stroke: var(--border); stroke-width: 1; }
+.hexa-axe { stroke: var(--border); stroke-width: 1; }
+.hexa-donnees {
+  fill: var(--accent-bright);
+  fill-opacity: 0.28;
+  stroke: var(--accent-bright);
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+.hexa-label { fill: var(--muted); font-size: 11px; }
+
 /* ---------- Statistiques : historique visuel des erreurs ---------- */
 .error-history-list { display: flex; flex-direction: column; gap: 14px; margin-top: 10px; }
 .error-history-row {
