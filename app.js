@@ -1919,6 +1919,13 @@ function renderKanjiQuizView(container) {
     recordKanjiSessionResult(quizSession.semesterId, quizSession.week, points, maxPoints, pct, dureeMs);
     clearKanjiInProgress(quizSession.semesterId, quizSession.week);
     persist();
+    // Classement de classe, mode 'kanji' (rang 5, #16) : meme principe que
+    // le mode Vocabulaire de base -- toujours le record, jamais chaque
+    // tentative.
+    if (typeof window.kvtPushScore === 'function') {
+      const histEntry = getKanjiScoreEntry(quizSession.semesterId, quizSession.week);
+      window.kvtPushScore(quizSession.semesterId, quizSession.week, histEntry.best.points, histEntry.best.maxPoints, histEntry.best.pct, 'kanji', histEntry.best.dureeMs, histEntry.history.length);
+    }
     if (typeof kvtSnapshotHistorique === 'function') kvtSnapshotHistorique();
     const semLabel = getSemester(quizSession.semesterId).label;
     const etat = pct >= 100 ? 'perfect' : (pct >= 70 ? 'good' : 'low');
@@ -2454,6 +2461,11 @@ function renderTraductionQuizView(container) {
     recordTraductionSessionResult(quizSession.semesterId, quizSession.week, points, maxPoints, pct, dureeMs);
     clearTraductionInProgress(quizSession.semesterId, quizSession.week);
     persist();
+    // Classement de classe, mode 'traduction' (rang 5, #16).
+    if (typeof window.kvtPushScore === 'function') {
+      const histEntry = getTraductionScoreEntry(quizSession.semesterId, quizSession.week);
+      window.kvtPushScore(quizSession.semesterId, quizSession.week, histEntry.best.points, histEntry.best.maxPoints, histEntry.best.pct, 'traduction', histEntry.best.dureeMs, histEntry.history.length);
+    }
     if (typeof kvtSnapshotHistorique === 'function') kvtSnapshotHistorique();
     const semLabel = getSemester(quizSession.semesterId).label;
     const etat = pct >= 100 ? 'perfect' : (pct >= 70 ? 'good' : 'low');
@@ -2656,6 +2668,11 @@ function renderDoubleQuizView(container) {
     recordDoubleSessionResult(quizSession.semesterId, quizSession.week, points, maxPoints, pct, dureeMs);
     clearDoubleInProgress(quizSession.semesterId, quizSession.week);
     persist();
+    // Classement de classe, mode 'double' (rang 5, #16).
+    if (typeof window.kvtPushScore === 'function') {
+      const histEntry = getDoubleScoreEntry(quizSession.semesterId, quizSession.week);
+      window.kvtPushScore(quizSession.semesterId, quizSession.week, histEntry.best.points, histEntry.best.maxPoints, histEntry.best.pct, 'double', histEntry.best.dureeMs, histEntry.history.length);
+    }
     if (typeof kvtSnapshotHistorique === 'function') kvtSnapshotHistorique();
     const semLabel = getSemester(quizSession.semesterId).label;
     const etat = pct >= 100 ? 'perfect' : (pct >= 70 ? 'good' : 'low');
@@ -3350,10 +3367,11 @@ function renderReview() {
     persist();
     // Pousse le meilleur score de cette semaine vers le classement de classe
     // (si un compte est connecté) — le leaderboard reflète toujours le
-    // record personnel, pas chaque tentative individuelle.
+    // record personnel, pas chaque tentative individuelle. mode 'vocab' +
+    // duree/essais (rang 5, #16) : voir account.js kvtPushScore().
     if (typeof window.kvtPushScore === 'function') {
       const bestEntry = DB.scores[key].best;
-      window.kvtPushScore(quizSession.semesterId, quizSession.week, bestEntry.points, bestEntry.maxPoints, bestEntry.pct);
+      window.kvtPushScore(quizSession.semesterId, quizSession.week, bestEntry.points, bestEntry.maxPoints, bestEntry.pct, 'vocab', bestEntry.dureeMs, DB.scores[key].history.length);
     }
     // Sauvegarde automatique horodatée (30/08/2026, voir account.js) : une
     // fin de session est un bon moment naturel pour ça (résultat qui compte

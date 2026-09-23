@@ -230,10 +230,17 @@ window.kvtCompterHistorique = async function () {
 
 // --- Classement de classe : pousse le meilleur score personnel d'une
 // semaine donnée dans la table scores (jamais le nom réel, uniquement le
-// pseudo choisi à l'inscription). upsert sur (user_id, semester_id, week)
-// pour ne garder qu'une ligne par utilisateur et par semaine — toujours le
-// record, jamais chaque tentative individuelle.
-window.kvtPushScore = async function (semesterId, week, points, maxPoints, pct) {
+// pseudo choisi à l'inscription). upsert sur (user_id, semester_id, week,
+// mode) pour ne garder qu'une ligne par utilisateur, semaine ET mode --
+// toujours le record, jamais chaque tentative individuelle.
+//
+// mode/dureeMs/nbEssais (rang 5, #16) : le classement ne portait jusque-la
+// que sur le mode Vocabulaire de base (mode implicite, colonne ajoutee avec
+// une valeur par defaut 'vocab' pour ne pas casser les lignes existantes).
+// dureeMs/nbEssais sont optionnels (undefined -> colonnes NULL) : certains
+// appelants (repoussee en masse depuis une sauvegarde importee, voir
+// kvtPushAllScores) n'ont pas forcement cette info sous la main.
+window.kvtPushScore = async function (semesterId, week, points, maxPoints, pct, mode, dureeMs, nbEssais) {
   if (!window.accountUser || !window.accountUser.pseudo) return;
   await window.sb.from('scores').upsert({
     user_id: window.accountUser.id,
@@ -242,34 +249,51 @@ window.kvtPushScore = async function (semesterId, week, points, maxPoints, pct) 
     week,
     points,
     max_points: maxPoints,
-    pct
-  }, { onConflict: 'user_id,semester_id,week' });
+    pct,
+    mode: mode || 'vocab',
+    duree_ms: Number.isFinite(dureeMs) ? dureeMs : null,
+    nb_essais: Number.isFinite(nbEssais) ? nbEssais : null
+  }, { onConflict: 'user_id,semester_id,week,mode' });
 };
 
-// Pousse les meilleurs scores locaux (par semaine, voir DB.scores) vers le
-// classement de la classe, sans jamais écraser un meilleur score déjà en
-// ligne pour la même semaine. Sert notamment quand une sauvegarde faite
-// hors ligne (app Mac, version amis — sans compte ni classement) est
-// importée ici : ses records peuvent enfin apparaître sur le classement.
+// Pousse les meilleurs scores locaux vers le classement de la classe, sans
+// jamais écraser un meilleur score déjà en ligne pour la même semaine ET le
+// même mode. Sert notamment quand une sauvegarde faite hors ligne (app Mac,
+// version amis — sans compte ni classement) est importée ici : ses records
+// peuvent enfin apparaître sur le classement.
+//
+// Rang 5 (#16) : repousse maintenant les 4 namespaces de scores scopes par
+// semestre/semaine (DB.scores, DB.scoresKanji, DB.scoresTraduction,
+// DB.scoresDouble) -- Kana et Pratique restent hors classement partage
+// (voir migration Supabase scores_multi_mode_duree_essais : pas de grille
+// semestre/semaine pour ces deux-la).
 window.kvtPushAllScores = async function (data) {
-  if (!window.accountUser || !window.accountUser.pseudo || !data || !data.scores) return;
-  const entries = Object.entries(data.scores).filter(([, v]) => v && v.best);
-  if (entries.length === 0) return;
-
+  if (!window.accountUser || !window.accountUser.pseudo || !data) return;
+  const NAMESPACES = [
+    { champ: 'scores', mode: 'vocab' },
+    { champ: 'scoresKanji', mode: 'kanji' },
+    { champ: 'scoresTraduction', mode: 'traduction' },
+    { champ: 'scoresDouble', mode: 'double' }
+  ];
   const { data: existing } = await window.sb
     .from('scores')
-    .select('semester_id, week, points')
+    .select('semester_id, week, mode, points')
     .eq('user_id', window.accountUser.id);
-  const existingMap = new Map((existing || []).map(r => [`${r.semester_id}-w${r.week}`, r.points]));
+  const existingMap = new Map((existing || []).map(r => [`${r.mode}|${r.semester_id}-w${r.week}`, r.points]));
 
-  for (const [key, entry] of entries) {
-    const m = key.match(/^(.+)-w(\d+)$/);
-    if (!m) continue;
-    const semesterId = m[1];
-    const week = parseInt(m[2], 10);
-    const currentPoints = existingMap.get(key);
-    if (currentPoints !== undefined && currentPoints >= entry.best.points) continue;
-    await window.kvtPushScore(semesterId, week, entry.best.points, entry.best.maxPoints, entry.best.pct);
+  for (const { champ, mode } of NAMESPACES) {
+    const scoresNamespace = data[champ];
+    if (!scoresNamespace) continue;
+    const entries = Object.entries(scoresNamespace).filter(([, v]) => v && v.best);
+    for (const [key, entry] of entries) {
+      const m = key.match(/^(.+)-w(\d+)$/);
+      if (!m) continue;
+      const semesterId = m[1];
+      const week = parseInt(m[2], 10);
+      const currentPoints = existingMap.get(`${mode}|${key}`);
+      if (currentPoints !== undefined && currentPoints >= entry.best.points) continue;
+      await window.kvtPushScore(semesterId, week, entry.best.points, entry.best.maxPoints, entry.best.pct, mode, entry.best.dureeMs, undefined);
+    }
   }
 };
 

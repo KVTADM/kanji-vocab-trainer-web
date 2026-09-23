@@ -28,6 +28,13 @@ global.$$ = (sel, racine) => {
 };
 global.escapeHtml = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 global.showToast = () => {};
+global.formatDuree = (ms) => {
+  if (!Number.isFinite(ms) || ms < 0) return null;
+  const totalSec = Math.round(ms / 1000);
+  const min = Math.floor(totalSec / 60);
+  const sec = totalSec % 60;
+  return min === 0 ? `${sec} s` : `${min} min ${String(sec).padStart(2, '0')} s`;
+};
 global.window = {
   accountUser: { id: 'moi', pseudo: 'Polus' },
   sb: null,

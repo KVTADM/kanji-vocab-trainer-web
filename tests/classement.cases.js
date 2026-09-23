@@ -96,3 +96,74 @@ essai('une erreur de chargement est montrée', () => {
   if (!trouve('#lbTableWrap').innerHTML.includes('réseau coupé')) throw new Error('erreur avalée');
   apercuErreur = null;
 });
+
+// ---------- Classement global (rang 5, #16) ----------
+
+const LIGNES_GLOBAL = [
+  // Moi : deux modes, une ligne sans duree_ms (ancienne colonne absente).
+  { user_id: 'moi', pseudo: 'Polus', points: 90, pct: 90, duree_ms: 60000, nb_essais: 3 },
+  { user_id: 'moi', pseudo: 'Polus', points: 70, pct: 70, duree_ms: null, nb_essais: 2 },
+  // Hana : plus de points cumulés, mais un % moyen plus bas et plus lente.
+  { user_id: 'u2', pseudo: 'Hana', points: 100, pct: 60, duree_ms: 120000, nb_essais: 1 },
+  { user_id: 'u2', pseudo: 'Hana', points: 100, pct: 80, duree_ms: 100000, nb_essais: 4 },
+  // Ken : un seul mode, aucun score.
+  { user_id: 'u3', pseudo: 'Ken', points: 0, pct: 0, duree_ms: null, nb_essais: 0 }
+];
+
+essai('le classement global additionne les points sur tous les modes', () => {
+  const agrege = computeGlobal(LIGNES_GLOBAL);
+  const moi = agrege.find(u => u.user_id === 'moi');
+  const hana = agrege.find(u => u.user_id === 'u2');
+  if (moi.points !== 160) throw new Error('points cumulés de Polus = ' + moi.points);
+  if (hana.points !== 200) throw new Error('points cumulés de Hana = ' + hana.points);
+});
+
+essai('le % moyen et le temps moyen ignorent les lignes sans donnée', () => {
+  const agrege = computeGlobal(LIGNES_GLOBAL);
+  const moi = agrege.find(u => u.user_id === 'moi');
+  if (moi.pctMoyen !== 80) throw new Error('% moyen de Polus = ' + moi.pctMoyen);
+  if (moi.dureeMoyenne !== 60000) throw new Error('temps moyen de Polus aurait dû ignorer la ligne sans durée : ' + moi.dureeMoyenne);
+});
+
+essai('les essais se cumulent sur tous les modes', () => {
+  const agrege = computeGlobal(LIGNES_GLOBAL);
+  const hana = agrege.find(u => u.user_id === 'u2');
+  if (hana.essais !== 5) throw new Error('essais cumulés de Hana = ' + hana.essais);
+});
+
+essai('trier par points cumulés met Hana devant malgré son % plus bas', () => {
+  const ordre = trierGlobal(computeGlobal(LIGNES_GLOBAL), 'points').map(u => u.pseudo).join(',');
+  if (ordre !== 'Hana,Polus,Ken') throw new Error('ordre = ' + ordre);
+});
+
+essai('trier par % moyen met Polus devant malgré moins de points', () => {
+  const ordre = trierGlobal(computeGlobal(LIGNES_GLOBAL), 'pct').map(u => u.pseudo).join(',');
+  if (ordre[0] !== 'P') throw new Error('Polus devrait être en tête : ' + ordre);
+});
+
+essai('trier par temps met les plus rapides devant, sans donnée en dernier', () => {
+  const ordre = trierGlobal(computeGlobal(LIGNES_GLOBAL), 'temps').map(u => u.pseudo);
+  if (ordre[0] !== 'Polus') throw new Error('Polus (60s) devrait être le plus rapide : ' + ordre.join(','));
+  if (ordre[ordre.length - 1] !== 'Ken') throw new Error('Ken (aucun temps) devrait être en dernier : ' + ordre.join(','));
+});
+
+essai('l\'onglet global affiche le podium avec le critère choisi', () => {
+  globalLignes = LIGNES_GLOBAL; globalErreur = null; globalTri = 'points';
+  renderGlobal();
+  const html = trouve('#lbTableWrap').innerHTML;
+  if (!html.includes('Hana')) throw new Error('Hana devrait apparaître au podium');
+  if (!html.includes('200 pts')) throw new Error('le critère affiché (points) manque');
+});
+
+essai('sans aucun score, l\'onglet global invite à commencer', () => {
+  globalLignes = []; globalErreur = null;
+  renderGlobal();
+  if (!trouve('#lbTableWrap').innerHTML.includes('Aucun score enregistré')) throw new Error('invitation absente');
+});
+
+essai('une erreur de chargement est montrée sur l\'onglet global', () => {
+  globalErreur = 'réseau coupé';
+  renderGlobal();
+  if (!trouve('#lbTableWrap').innerHTML.includes('réseau coupé')) throw new Error('erreur avalée');
+  globalErreur = null;
+});
