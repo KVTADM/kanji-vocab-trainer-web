@@ -38,3 +38,15 @@ essai('scoreAnswer renvoie des points cohérents avec le barème', () => {
   const r = scoreAnswer('もん', 'もん / かど');
   if (r.points !== 10) throw new Error('attendu 10 points, obtenu ' + JSON.stringify(r));
 });
+
+essai('les espaces decoratifs entre mots ne penalisent pas une reponse juste (signale par Paul, 23/09/2026)', () => {
+  const r1 = scoreAnswer('ねむりのもりのびじょ', 'ねむり の もり の びじょ');
+  if (r1.pct !== 1) throw new Error('attendu 100%, obtenu ' + JSON.stringify(r1));
+  const r2 = scoreAnswer('たいおんをはかる', 'たいおん を はかる');
+  if (r2.pct !== 1) throw new Error('attendu 100%, obtenu ' + JSON.stringify(r2));
+});
+
+essai('une vraie faute reste penalisee meme avec des espaces decoratifs des deux cotes', () => {
+  const r = scoreAnswer('ねむりのもりのびじよ', 'ねむり の もり の びじょ'); // びじよ au lieu de びじょ
+  if (r.pct >= 1) throw new Error('une faute reelle ne devrait pas donner 100% : ' + JSON.stringify(r));
+});

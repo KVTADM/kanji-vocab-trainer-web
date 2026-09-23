@@ -801,9 +801,23 @@ function toHiragana(str) {
   return (str || '').replace(/[ァ-ヶ]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0x60));
 }
 
+// Certaines lectures a plusieurs mots stockent des espaces decoratifs pour
+// separer visuellement les mots a l'affichage (ex. "ねむり の もり の
+// びじょ", "たいおん を はかる" -- voir le rendu de la carte de quiz).
+// Personne ne tape ces espaces en repondant (ni la consigne, ni la saisie
+// kana sans IME, ne les demandent) : sans cette normalisation, chaque
+// espace de la bonne reponse comptait comme un caractere en trop dans la
+// distance de Levenshtein, plombant a tort une reponse par ailleurs
+// parfaite (signale par Paul le 23/09/2026 : "ねむりのもりのびじょ" note
+// seulement 71% au lieu de 100%). On retire les espaces des DEUX cotes,
+// jamais un seul, pour rester symetrique.
+function sansEspaces(str) {
+  return (str || '').replace(/\s+/g, '');
+}
+
 function similarity(input, correct) {
-  const a = toHiragana((input || '').trim());
-  const b = toHiragana((correct || '').trim());
+  const a = toHiragana(sansEspaces((input || '').trim()));
+  const b = toHiragana(sansEspaces((correct || '').trim()));
   if (a.length === 0 && b.length === 0) return 1;
   if (b.length === 0) return a.length === 0 ? 1 : 0;
   const dist = levenshtein(a, b);
