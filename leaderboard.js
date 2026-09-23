@@ -5,7 +5,11 @@
 // depuis app.js à la fin de chaque session de révision.
 // ============================================================
 let leaderboardWeek = null; // { semesterId, week }
-let leaderboardMode = 'apercu'; // 'apercu' | 'absolu' | 'progression' | 'global'
+// Le classement global est le premier onglet et l'onglet par defaut depuis
+// le 23/09/2026 (demande de Paul : "le classement global devrait
+// apparaitre en premier") -- c'est la vue tous-modes-confondus, plus
+// lisible d'emblee que le detail semaine par semaine.
+let leaderboardMode = 'global'; // 'global' | 'apercu' | 'absolu' | 'progression'
 let apercuLignes = null;    // scores bruts pour la vue d'ensemble
 let apercuErreur = null;
 let apercuSemestre = 'tous';// filtre facultatif, jamais un préalable
@@ -42,10 +46,10 @@ function renderLeaderboard() {
     <h2>Classement</h2>
     <div class="card">
       <div class="lb-tabs">
+        <button class="lb-tab ${leaderboardMode === 'global' ? 'is-active' : ''}" data-mode="global">Classement global</button>
         <button class="lb-tab ${leaderboardMode === 'apercu' ? 'is-active' : ''}" data-mode="apercu">Vue d'ensemble</button>
         <button class="lb-tab ${leaderboardMode === 'absolu' ? 'is-active' : ''}" data-mode="absolu">Une semaine en détail</button>
         <button class="lb-tab ${leaderboardMode === 'progression' ? 'is-active' : ''}" data-mode="progression">Plus grosse progression</button>
-        <button class="lb-tab ${leaderboardMode === 'global' ? 'is-active' : ''}" data-mode="global">Classement global</button>
       </div>
       ${leaderboardMode === 'absolu' ? `
       <div class="form-row">
