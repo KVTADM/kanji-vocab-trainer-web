@@ -202,6 +202,35 @@ function renderCreation() {
       </div>
     </div>
 
+    <div class="card">
+      <h3>Importer des mots en masse</h3>
+      <p style="font-size:13px; color:var(--muted); line-height:1.6;">
+        Une ligne par mot, colonnes séparées par point-virgule (ou tabulation si tu colles depuis Excel/Numbers) :<br/>
+        <code>Semestre;Semaine;Kanji;Titre;Mot;Lecture;Sens</code><br/>
+        Exemple : <code>S3;1;水;eau;水曜日;すいようび;mercredi</code>
+      </p>
+      <textarea id="importText" rows="8" style="width:100%; font-family:monospace; font-size:13px; padding:10px; border:1px solid var(--border); border-radius:8px;" placeholder="S3;1;水;eau;水;みず;eau&#10;S3;1;水;eau;水曜日;すいようび;mercredi"></textarea>
+      <div class="form-row" style="margin-top:10px;">
+        <button class="secondary" id="btnParseImport">Analyser</button>
+        <button class="primary" id="btnCommitImport" disabled>Importer</button>
+      </div>
+      <div id="importPreviewBox"></div>
+    </div>
+
+    <div class="card">
+      <h3>Importer des fiches en masse (optionnel)</h3>
+      <p style="font-size:13px; color:var(--muted); line-height:1.6;">
+        Une ligne par kanji (pas par mot), colonnes séparées par point-virgule (ou tabulation).<br/>
+        <code>Semestre;Semaine;Kanji;Onyomi;Kunyomi;Bushu;Phrase;Traduction;Memo;Attention</code>
+      </p>
+      <textarea id="learnImportText" rows="8" style="width:100%; font-family:monospace; font-size:13px; padding:10px; border:1px solid var(--border); border-radius:8px;" placeholder="S3;1;水;スイ;みず;みず;水を飲む。;Boire de l'eau.;Dessin d'une rivière;"></textarea>
+      <div class="form-row" style="margin-top:10px;">
+        <button class="secondary" id="btnParseLearnImport">Analyser</button>
+        <button class="primary" id="btnCommitLearnImport" disabled>Importer</button>
+      </div>
+      <div id="learnImportPreviewBox"></div>
+    </div>
+
     ${creaMessage ? `<div class="card crea-message crea-message--${creaMessage.type}">${escapeHtml(creaMessage.texte)}</div>` : ''}
 
     ${!banque.length ? `<div class="card"><p>Ta banque est vide : importe un deck ou ajoute du vocabulaire avant de créer.</p></div>` : `
@@ -294,6 +323,38 @@ function renderCreation() {
     </div>`}`;
 
   // ---- Branchements ----
+  // Import en masse (deplace depuis Vocabulaire le 23/09/2026, demande de
+  // Paul : "pas une page a part plutot mis avec creation") -- la logique
+  // d'analyse/import (parseImportText, commitImport, etc.) reste dans
+  // app.js, partagee comme DB/persist/showToast.
+  $('#btnParseImport').addEventListener('click', () => {
+    importPreview = parseImportText($('#importText').value);
+    renderImportPreview();
+  });
+
+  $('#btnCommitImport').addEventListener('click', async () => {
+    if (!importPreview || importPreview.rows.length === 0) return;
+    const { addedGroups, addedVocab } = commitImport(importPreview.rows);
+    await persist();
+    showToast(`${addedVocab} mot(s) importé(s) (${addedGroups} nouveau(x) kanji)`);
+    importPreview = null;
+    renderCreation();
+  });
+
+  $('#btnParseLearnImport').addEventListener('click', () => {
+    learnImportPreview = parseLearnImportText($('#learnImportText').value);
+    renderLearnImportPreview();
+  });
+
+  $('#btnCommitLearnImport').addEventListener('click', async () => {
+    if (!learnImportPreview || learnImportPreview.rows.length === 0) return;
+    const { updated, created } = commitLearnImport(learnImportPreview.rows);
+    await persist();
+    showToast(`${updated} fiche(s) mise(s) à jour${created ? ` (${created} nouveau(x) kanji créé(s))` : ''}`);
+    learnImportPreview = null;
+    renderCreation();
+  });
+
   $$('[data-crea-source]', el).forEach(b => {
     b.onclick = () => { lireChamps(); creaSource = b.dataset.creaSource; creaMessage = null; renderCreation(); };
   });
