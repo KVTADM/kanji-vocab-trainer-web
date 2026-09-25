@@ -97,6 +97,18 @@ function faitUneSnapshotHistorique(dernierSnapshotIso, maintenantMs, intervalleM
 // l'utilisateur n'aurait aucun moyen de définir son mot de passe.
 let kvtPasswordRecovery = false;
 
+// Message a afficher une seule fois sur l'onglet Compte, pose par app.js
+// (voir traiterErreurAuthDansUrl()) quand le lien recu par mail (reinit. de
+// mot de passe ou confirmation) est invalide/expire/deja utilise -- Supabase
+// redirige alors vers l'app avec "#error=...&error_code=...&error_description=..."
+// dans l'URL au lieu d'ouvrir une session, et sans ca rien n'etait affiche :
+// l'utilisateur atterrissait sur l'app sans le moindre indice que son lien
+// avait un probleme (signale par un cas reel le 25/09/2026 : le lien
+// fonctionnait a la 1ere frappe mais "invalid or expired" en cas de reclic,
+// ex. un lien ouvert deux fois ou pre-visite par un scanner de securite de
+// la messagerie).
+let kvtAuthErrorMessage = null;
+
 // Statut admin (22/09/2026) : plus d'UUID en dur ici -- dérivé de
 // session.user.app_metadata.is_admin, un champ que seul le service role
 // peut écrire (jamais modifiable par le compte lui-même via updateUser()).
@@ -495,6 +507,16 @@ function renderAccount() {
           jamais ton vrai nom) sur le classement de la classe.
         </p>
       </div>`;
+    // Message pose par traiterErreurAuthDansUrl() (app.js). Pas efface ici :
+    // onAuthStateChange (plus bas dans ce fichier) re-rend aussi cet onglet
+    // des que Supabase a fini de verifier la session au chargement de la
+    // page, et cette 2e passe peut arriver APRES celle-ci -- effacer le
+    // message tout de suite lui ferait courir le risque de disparaitre avant
+    // meme d'avoir ete vu. Il est efface par switchView() (app.js) des qu'on
+    // quitte l'onglet Compte.
+    if (kvtAuthErrorMessage) {
+      $('#acctError').textContent = kvtAuthErrorMessage;
+    }
 
     $('#btnLogin').addEventListener('click', async () => {
       const email = $('#acctEmail').value.trim();

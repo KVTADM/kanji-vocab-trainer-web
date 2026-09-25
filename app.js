@@ -1231,6 +1231,13 @@ function switchView(view) {
   // résolu, connexion...) : rejouer l'animation à ces moments-là donnerait un
   // clignotement sans raison.
   const changementReel = currentView !== view;
+  // Message d'erreur de lien (voir traiterErreurAuthDansUrl() et account.js) :
+  // il reste affiché tant qu'on reste sur l'onglet Compte (y compris re-rendus
+  // successifs le temps que Supabase verifie la session), mais n'a plus de
+  // raison de resurgir si on revient sur Compte plus tard dans la même page.
+  if (changementReel && currentView === 'account' && typeof kvtAuthErrorMessage !== 'undefined') {
+    kvtAuthErrorMessage = null;
+  }
   currentView = view;
   $$('.nav-btn[data-view]').forEach(b => b.classList.toggle('active', b.dataset.view === view));
   $$('.view').forEach(v => { v.classList.remove('active', 'view-enter'); });
@@ -4349,6 +4356,35 @@ function applyTheme() {
 // ============================================================
 // Démarrage
 // ============================================================
+// Un lien reçu par mail (réinitialisation de mot de passe, confirmation
+// d'inscription...) déjà utilisé, expiré, ou invalide ne déclenche PAS
+// PASSWORD_RECOVERY : Supabase redirige quand même vers l'app (redirectTo),
+// mais avec "#error=...&error_code=...&error_description=..." dans l'URL au
+// lieu d'ouvrir une session. Sans traitement, ça n'affichait RIEN :
+// l'utilisateur atterrissait sur l'app sans le moindre indice que son lien
+// avait un problème (signalé par un cas réel le 25/09/2026 : lien fonctionnel
+// au 1er clic mais "invalid or expired" en cas de reclic, ex. lien ouvert
+// deux fois ou pré-visité par un scanner de sécurité de la messagerie).
+// Cette fonction détecte ce cas, prépare le message pour l'onglet Compte
+// (voir kvtAuthErrorMessage dans account.js) et nettoie l'URL pour qu'un
+// simple rechargement de page ne le réaffiche pas indéfiniment.
+function traiterErreurAuthDansUrl() {
+  const brut = location.hash.replace(/^#/, '');
+  if (!/(^|&)error=/.test(brut)) return false;
+  const params = new URLSearchParams(brut);
+  const code = params.get('error_code') || '';
+  const description = params.get('error_description') || '';
+  if (code === 'otp_expired') {
+    kvtAuthErrorMessage = "Ce lien a expiré ou a déjà été utilisé. Redemande un nouveau lien depuis « Mot de passe oublié ? ».";
+  } else {
+    kvtAuthErrorMessage = description || "Ce lien n'est plus valide. Redemande un nouveau lien depuis « Mot de passe oublié ? ».";
+  }
+  // Efface le hash pour qu'un rechargement de page (ou un retour arrière du
+  // navigateur) ne retombe pas sur cette même erreur en boucle.
+  history.replaceState(null, '', location.pathname + location.search);
+  return true;
+}
+
 async function init() {
   DB = await window.api.loadData();
   applyTheme();
@@ -4368,8 +4404,12 @@ async function init() {
   // ancre inconnue.
   const vuesConnues = new Set($$('.nav-btn[data-view]').map(b => b.dataset.view));
   vuesConnues.add('communaute');
+  // Un lien de mail invalide/expiré prend le pas sur le routage normal par
+  // ancre : "#error=..." ne correspond a aucune vue connue de toute facon,
+  // mais autant etre explicite plutot que de compter sur ce hasard.
+  const erreurAuth = traiterErreurAuthDansUrl();
   const ancre = decodeURIComponent(location.hash.replace(/^#/, ''));
-  switchView(vuesConnues.has(ancre) ? ancre : 'communaute');
+  switchView(erreurAuth ? 'account' : (vuesConnues.has(ancre) ? ancre : 'communaute'));
 
   // Signal de mesure : quelqu'un a ouvert l'application, pas seulement
   // affiche une page. C'est le premier palier qui distingue un visiteur
