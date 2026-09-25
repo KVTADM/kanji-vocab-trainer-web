@@ -965,6 +965,20 @@ function romajiVersHiragana(brut) {
     // (na/ni/nu/ne/no, nya/nyu/nyo).
     if (c === 'n') {
       const suivant = s[i + 1];
+      // "nn" tout seul en fin de saisie (rien tape apres) = UN SEUL ん, pas
+      // deux : c'est la meme convention que le clavier japonais standard
+      // (Mac, Google, Windows) pour taper un ん isole (demande de Paul le
+      // 25/09/2026, "copie ce systeme qui fonctionne deja"). Sans ce cas
+      // particulier, les deux "n" etaient chacun convertis independamment
+      // (voir plus bas) et donnaient a tort "んん". S'il y a encore quelque
+      // chose apres (ex. "nna", "nni"...), ce cas ne s'applique pas : le
+      // second "n" doit rester libre de former sa propre syllabe, voir le
+      // commentaire juste en dessous.
+      if (suivant === 'n' && s[i + 2] === undefined) {
+        out += 'ん';
+        i += 2;
+        continue;
+      }
       // "nn" ne represente JAMAIS deux ん de suite (inexistant en japonais) :
       // c'est la convention standard pour ecrire ん explicitement devant une
       // syllabe qui commencerait sinon par n+voyelle (ex. "konnichiwa" =

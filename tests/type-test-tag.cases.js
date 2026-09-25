@@ -123,6 +123,22 @@ essai('romajiVersHiragana : "n" isole devient ん (fin de mot, devant consonne, 
   if (romajiVersHiragana('annai') !== 'あんない') throw new Error(romajiVersHiragana('annai'));
 });
 
+essai('romajiVersHiragana : "nn" tout seul (rien tape apres) donne un seul ん, pas deux', () => {
+  // Signale par Paul le 25/09/2026 : sur un clavier japonais standard
+  // (Mac, Google, Windows), taper "nn" pour ecrire un ん isole donne un
+  // seul ん -- ici ca donnait a tort "んん" (chaque "n" convert isolement).
+  if (romajiVersHiragana('nn') !== 'ん') throw new Error(romajiVersHiragana('nn'));
+  // "nnn" : la premiere paire fait un ん, le troisieme "n" (isole, en fin
+  // de saisie) en fait un second -- coherent avec le cas ci-dessus.
+  if (romajiVersHiragana('nnn') !== 'んん') throw new Error(romajiVersHiragana('nnn'));
+  // S'il y a encore quelque chose apres "nn", rien ne change : le second
+  // "n" reste libre de former sa propre syllabe (pas de regression sur
+  // konnichiwa/zannen/annai, deja couverts plus haut).
+  if (romajiVersHiragana('nna') !== 'んな') throw new Error(romajiVersHiragana('nna'));
+  if (romajiVersHiragana('nni') !== 'んに') throw new Error(romajiVersHiragana('nni'));
+  if (romajiVersHiragana('zannen') !== 'ざんねん') throw new Error(romajiVersHiragana('zannen'));
+});
+
 essai('romajiVersHiragana : "n" devant une voyelle ou "y" reste rattache a la syllabe (na/ni/nu/ne/no, nya...)', () => {
   if (romajiVersHiragana('sakana') !== 'さかな') throw new Error(romajiVersHiragana('sakana'));
   if (romajiVersHiragana('inu') !== 'いぬ') throw new Error(romajiVersHiragana('inu'));
