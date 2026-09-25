@@ -531,7 +531,7 @@ function clearKanjiInProgress(semesterId, week) {
 // partiel par similarité avec le bloc entier, pour rester cohérent avec la
 // notation du quiz vocabulaire.
 function nettoieLectureBrute(s) {
-  return (s || '').replace(/[.\-（）\s]/g, '');
+  return (s || '').replace(/[.\-（）\s\u200B]/g, '');
 }
 function scoreLectureKanji(input, blocLectures) {
   const blocNet = nettoieLectureBrute(blocLectures);
@@ -827,7 +827,10 @@ function toHiragana(str) {
 // seulement 71% au lieu de 100%). On retire les espaces des DEUX cotes,
 // jamais un seul, pour rester symetrique.
 function sansEspaces(str) {
-  return (str || '').replace(/\s+/g, '');
+  // \u200B (VERROU_N, voir romajiVersHiragana) n'est pas un espace au sens
+  // de \s en JS -- a retirer explicitement, sinon une reponse par ailleurs
+  // parfaite tapee via le systeme "double n" perd des points a tort.
+  return (str || '').replace(/[\s\u200B]+/g, '');
 }
 
 function similarity(input, correct) {
@@ -924,6 +927,17 @@ const ROMAJI_VERS_HIRAGANA = {
   '-': 'ー',
 };
 const SOKUON_CONSONNES = new Set(['k','g','s','z','t','d','h','b','p','m','y','r','w','f','j','c']);
+// Marqueur invisible (espace de largeur nulle) pose juste apres un ん/ン
+// confirme par un "nn" (systeme "double n", decision de Paul le
+// 25/09/2026) : sert a le "verrouiller" pour que la frappe suivante ne le
+// fusionne jamais avec une syllabe (na/ni/nu/ne/no). Sans lui, des que le
+// second "n" est tape, le "ん" affiche apres le premier "n" est reconverti
+// en "n" latin (regle ci-dessous) et redevient indiscernable d'un "n"
+// isole tout juste tape -- ce qui annule le "double n" a la frappe
+// suivante (ex. "kanni" tape lettre par lettre redonnait a tort "かに").
+// Jamais visible a l'ecran (largeur nulle), et retire avant la notation
+// (voir nettoieLectureBrute/sansEspaces plus bas).
+const VERROU_N = '\u200B';
 
 function romajiVersHiragana(brut) {
   // Cette fonction retraite l'integralite du champ a chaque frappe (voir
@@ -974,7 +988,7 @@ function romajiVersHiragana(brut) {
     if (c === 'n') {
       const suivant = s[i + 1];
       if (suivant === 'n') {
-        out += 'ん';
+        out += 'ん' + VERROU_N;
         i += 2;
         continue;
       }
