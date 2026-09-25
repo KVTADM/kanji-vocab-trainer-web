@@ -143,6 +143,25 @@ essai('romajiVersHiragana : un "ん"/"ン" deja affiche redevient "n" si une let
   if (romajiVersHiragana('ん') !== 'ん') throw new Error(romajiVersHiragana('ん'));
 });
 
+essai('romajiVersHiragana : apostrophe apres un "n" -> force んX au lieu de niX/naX... (ex. "n\'i" -> んい)', () => {
+  // Signale par Paul le 25/09/2026 : le mot "ふんいき" (funiki, atmosphere)
+  // tape "funiki" affichait a tort "ふにき" -- aucune facon de distinguer
+  // "んい" de "に" sans un moyen explicite de couper la syllabe. Convention
+  // standard des claviers japonais : une apostrophe juste apres le n deja
+  // affiche force la coupure, sans rien afficher elle-meme.
+  if (romajiVersHiragana("n'") !== 'ん') throw new Error(romajiVersHiragana("n'"));
+  if (romajiVersHiragana("n'i") !== 'んい') throw new Error(romajiVersHiragana("n'i"));
+  if (romajiVersHiragana("n'a") !== 'んあ') throw new Error(romajiVersHiragana("n'a"));
+  if (romajiVersHiragana("fun'iki") !== 'ふんいき') throw new Error(romajiVersHiragana("fun'iki"));
+  // Reproduit l'etat reel du champ (n deja affiche en ん avant l'apostrophe).
+  if (romajiVersHiragana("ふん'") !== 'ふん') throw new Error(romajiVersHiragana("ふん'"));
+  if (romajiVersHiragana("ふん'i") !== 'ふんい') throw new Error(romajiVersHiragana("ふん'i"));
+  // Sans apostrophe, "ni" reste bien "に" (pas de regression, coeur de la
+  // demande de Paul : les deux doivent pouvoir s'ecrire).
+  if (romajiVersHiragana('funiki') !== 'ふにき') throw new Error(romajiVersHiragana('funiki'));
+  if (romajiVersHiragana('ni') !== 'に') throw new Error(romajiVersHiragana('ni'));
+});
+
 essai('romajiVersHiragana : romaji incomplet en fin de saisie reste tel quel (en attente de la voyelle)', () => {
   if (romajiVersHiragana('k') !== 'k') throw new Error(romajiVersHiragana('k'));
   if (romajiVersHiragana('ky') !== 'ky') throw new Error(romajiVersHiragana('ky'));

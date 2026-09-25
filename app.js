@@ -941,6 +941,16 @@ function romajiVersHiragana(brut) {
   let i = 0;
   while (i < s.length) {
     const c = s[i];
+    // Apostrophe juste apres un ん/ン deja ecrit : force la coupure devant la
+    // syllabe suivante, comme sur un clavier japonais standard (ex. "n'i" ->
+    // んい). Sans ca, aucune facon de distinguer "んい" de "に" -- signale par
+    // Paul le 25/09/2026 (mot "ふんいき" tape "funiki" affichait a tort
+    // "ふにき"). Ne produit rien : le ん est deja dans `out`, l'apostrophe est
+    // juste avalee, et la voyelle qui suit redemarre sa propre syllabe.
+    if (c === "'" && (out.slice(-1) === 'ん' || out.slice(-1) === 'ン')) {
+      i += 1;
+      continue;
+    }
     // Consonne doublee (hors "n") -> petit tsu (ex. "kekkon" -> "けっこん")
     if (c === s[i + 1] && SOKUON_CONSONNES.has(c)) {
       out += 'っ';
