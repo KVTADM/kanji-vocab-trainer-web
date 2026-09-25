@@ -90,7 +90,7 @@ essai('recordSessionResult sans duree precisee (anciens appels) ne plante pas', 
 // ---- Saisie kana sans IME (romajiVersHiragana / hiraganaVersKatakana), tache #22 ----
 
 essai('romajiVersHiragana : voyelles et syllabes simples', () => {
-  if (romajiVersHiragana('konnichiha') !== 'こんにちは') throw new Error(romajiVersHiragana('konnichiha'));
+  if (romajiVersHiragana('konnnichiha') !== 'こんにちは') throw new Error(romajiVersHiragana('konnnichiha'));
   if (romajiVersHiragana('arigatou') !== 'ありがとう') throw new Error(romajiVersHiragana('arigatou'));
   if (romajiVersHiragana('tabemasu') !== 'たべます') throw new Error(romajiVersHiragana('tabemasu'));
 });
@@ -120,23 +120,31 @@ essai('romajiVersHiragana : consonne doublee -> petit tsu (soku-on)', () => {
 essai('romajiVersHiragana : "n" isole devient ん (fin de mot, devant consonne, "nn")', () => {
   if (romajiVersHiragana('hon') !== 'ほん') throw new Error(romajiVersHiragana('hon'));
   if (romajiVersHiragana('kantan') !== 'かんたん') throw new Error(romajiVersHiragana('kantan'));
-  if (romajiVersHiragana('annai') !== 'あんない') throw new Error(romajiVersHiragana('annai'));
+  if (romajiVersHiragana('annnai') !== 'あんない') throw new Error(romajiVersHiragana('annnai'));
 });
 
-essai('romajiVersHiragana : "nn" tout seul (rien tape apres) donne un seul ん, pas deux', () => {
-  // Signale par Paul le 25/09/2026 : sur un clavier japonais standard
-  // (Mac, Google, Windows), taper "nn" pour ecrire un ん isole donne un
-  // seul ん -- ici ca donnait a tort "んん" (chaque "n" convert isolement).
+essai('romajiVersHiragana : systeme "double n" -- "nn" donne TOUJOURS un seul ん, meme suivi d\'une voyelle', () => {
+  // Decision finale de Paul le 25/09/2026 ("on prend l'option du double n,
+  // point final") : sur le clavier japonais qu'il utilise deja, "nn" donne
+  // toujours un ん isole, quoi qu'il y ait derriere -- il n'y a plus
+  // d'absorption "intelligente" de la voyelle suivante par le second "n".
   if (romajiVersHiragana('nn') !== 'ん') throw new Error(romajiVersHiragana('nn'));
   // "nnn" : la premiere paire fait un ん, le troisieme "n" (isole, en fin
-  // de saisie) en fait un second -- coherent avec le cas ci-dessus.
+  // de saisie) en fait un second.
   if (romajiVersHiragana('nnn') !== 'んん') throw new Error(romajiVersHiragana('nnn'));
-  // S'il y a encore quelque chose apres "nn", rien ne change : le second
-  // "n" reste libre de former sa propre syllabe (pas de regression sur
-  // konnichiwa/zannen/annai, deja couverts plus haut).
-  if (romajiVersHiragana('nna') !== 'んな') throw new Error(romajiVersHiragana('nna'));
-  if (romajiVersHiragana('nni') !== 'んに') throw new Error(romajiVersHiragana('nni'));
-  if (romajiVersHiragana('zannen') !== 'ざんねん') throw new Error(romajiVersHiragana('zannen'));
+  // "nnnn" : deux paires "nn" -> deux ん (exemple donne par Paul lui-meme).
+  if (romajiVersHiragana('nnnn') !== 'んん') throw new Error(romajiVersHiragana('nnnn'));
+  // Le second "n" ne forme plus jamais de syllabe avec la voyelle suivante :
+  // "nna"/"nni" donnent bien んあ/んい (et non plus んな/んに) -- exactement
+  // ce que demandait Paul (ex. "kanni" -> かんい, plus かんに).
+  if (romajiVersHiragana('nna') !== 'んあ') throw new Error(romajiVersHiragana('nna'));
+  if (romajiVersHiragana('nni') !== 'んい') throw new Error(romajiVersHiragana('nni'));
+  if (romajiVersHiragana('kanni') !== 'かんい') throw new Error(romajiVersHiragana('kanni'));
+  // Consequence acceptee : les mots qui s'ecrivaient avec 2 "n" pour la
+  // syllabe absorbee ont desormais besoin d'un 3e "n" pour ce resultat-la ;
+  // avec seulement 2 "n", la voyelle reste bien separee (comme demande).
+  if (romajiVersHiragana('zannen') !== 'ざんえん') throw new Error(romajiVersHiragana('zannen'));
+  if (romajiVersHiragana('zannnen') !== 'ざんねん') throw new Error(romajiVersHiragana('zannnen'));
 });
 
 essai('romajiVersHiragana : "n" devant une voyelle ou "y" reste rattache a la syllabe (na/ni/nu/ne/no, nya...)', () => {
@@ -172,6 +180,8 @@ essai('romajiVersHiragana : apostrophe apres un "n" -> force んX au lieu de niX
   // Reproduit l'etat reel du champ (n deja affiche en ん avant l'apostrophe).
   if (romajiVersHiragana("ふん'") !== 'ふん') throw new Error(romajiVersHiragana("ふん'"));
   if (romajiVersHiragana("ふん'i") !== 'ふんい') throw new Error(romajiVersHiragana("ふん'i"));
+  // Le systeme "double n" marche aussi pour ce mot, sans apostrophe.
+  if (romajiVersHiragana('funniki') !== 'ふんいき') throw new Error(romajiVersHiragana('funniki'));
   // Sans apostrophe, "ni" reste bien "に" (pas de regression, coeur de la
   // demande de Paul : les deux doivent pouvoir s'ecrire).
   if (romajiVersHiragana('funiki') !== 'ふにき') throw new Error(romajiVersHiragana('funiki'));

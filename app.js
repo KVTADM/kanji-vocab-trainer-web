@@ -957,36 +957,34 @@ function romajiVersHiragana(brut) {
       i += 1;
       continue;
     }
-    // "n" isole : "nn" -> ん ; suivi d'une consonne ou en fin de saisie -> ん
-    // (converti tout de suite, pas laisse en attente : vu que toute la
-    // chaine est retraitee a chaque frappe, un "n" isole redevient な/に/...
-    // de lui-meme si une voyelle est tapee juste apres). Suivi d'une voyelle
-    // ou d'un "y" : laisse la correspondance normale ci-dessous s'en charger
-    // (na/ni/nu/ne/no, nya/nyu/nyo).
+    // "n" isole : systeme "double n" (demande explicite de Paul le
+    // 25/09/2026, "point final") -- calque le clavier japonais qu'il utilise
+    // deja sur Mac : "nn" (deux "n" a la suite) donne TOUJOURS un seul ん,
+    // quoi qu'il y ait derriere (voyelle, consonne, encore un "n", ou rien
+    // du tout). Contrairement a l'ancien systeme "intelligent", le second
+    // "n" n'est plus jamais laisse libre d'absorber la voyelle suivante :
+    // "nni" donne desormais んい (pas んに), "nna" donne んあ (pas んな). Les
+    // deux "n" sont consommes ensemble, et ce qui suit redemarre sa propre
+    // syllabe a zero. Consequence acceptee : les mots qui s'ecrivaient avec
+    // 2 "n" pour la syllabe absorbee (ex. "annai" -> あんない, "zannen" ->
+    // ざんねん, "konnichiwa" -> こんにちは) demandent maintenant un 3e "n"
+    // ("annnai", "zannnen", "konnnichiwa") pour retrouver le meme resultat :
+    // les 2 premiers "n" donnent le ん isole, le 3e redemarre la syllabe
+    // suivante (na/ni/nu/ne/no) normalement.
     if (c === 'n') {
       const suivant = s[i + 1];
-      // "nn" tout seul en fin de saisie (rien tape apres) = UN SEUL ん, pas
-      // deux : c'est la meme convention que le clavier japonais standard
-      // (Mac, Google, Windows) pour taper un ん isole (demande de Paul le
-      // 25/09/2026, "copie ce systeme qui fonctionne deja"). Sans ce cas
-      // particulier, les deux "n" etaient chacun convertis independamment
-      // (voir plus bas) et donnaient a tort "んん". S'il y a encore quelque
-      // chose apres (ex. "nna", "nni"...), ce cas ne s'applique pas : le
-      // second "n" doit rester libre de former sa propre syllabe, voir le
-      // commentaire juste en dessous.
-      if (suivant === 'n' && s[i + 2] === undefined) {
+      if (suivant === 'n') {
         out += 'ん';
         i += 2;
         continue;
       }
-      // "nn" ne represente JAMAIS deux ん de suite (inexistant en japonais) :
-      // c'est la convention standard pour ecrire ん explicitement devant une
-      // syllabe qui commencerait sinon par n+voyelle (ex. "konnichiwa" =
-      // こ+ん+に+ち+は, pas こ+ん+ん+い+ち+は). Le premier "n" devient ん et on
-      // n'avance que d'UN caractere : le second "n" est retraite au tour
-      // suivant, libre de former sa propre syllabe (na/ni/nu/ne/no) si une
-      // voyelle le suit, ou son propre ん sinon.
-      if (suivant === undefined || suivant === 'n' || !'aiueoy'.includes(suivant)) {
+      // "n" isole (pas suivi d'un second "n") : devant une consonne ou en
+      // fin de saisie -> ん tout de suite (converti sans attendre : vu que
+      // toute la chaine est retraitee a chaque frappe, un "n" isole
+      // redevient な/に/... de lui-meme si une voyelle est tapee juste
+      // apres). Devant une voyelle ou un "y" : laisse la correspondance
+      // normale ci-dessous s'en charger (na/ni/nu/ne/no, nya/nyu/nyo).
+      if (suivant === undefined || !'aiueoy'.includes(suivant)) {
         out += 'ん';
         i += 1;
         continue;
