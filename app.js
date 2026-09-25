@@ -992,17 +992,31 @@ function romajiVersHiragana(brut) {
         i += 2;
         continue;
       }
-      // "n" isole (pas suivi d'un second "n") : devant une consonne ou en
-      // fin de saisie -> ん tout de suite (converti sans attendre : vu que
-      // toute la chaine est retraitee a chaque frappe, un "n" isole
-      // redevient な/に/... de lui-meme si une voyelle est tapee juste
-      // apres). Devant une voyelle ou un "y" : laisse la correspondance
-      // normale ci-dessous s'en charger (na/ni/nu/ne/no, nya/nyu/nyo).
-      if (suivant === undefined || !'aiueoy'.includes(suivant)) {
+      // "n" isole devant une consonne (pas suivi d'un second "n" ni d'une
+      // voyelle/y) : aucune ambiguite possible (n+consonne ne peut jamais
+      // former na/ni/nu/ne/no) -> ん tout de suite.
+      if (suivant !== undefined && !'aiueoy'.includes(suivant)) {
         out += 'ん';
         i += 1;
         continue;
       }
+      // "n" isole en fin de saisie POUR L'INSTANT (suivant === undefined) :
+      // PAS de conversion immediate en ん, contrairement a avant. Demande de
+      // Paul le 25/09/2026 ("bloque la vue du ん si nn n'est pas fini,
+      // sinon on ne sait pas lequel est deja bien ecrit") : ce "n" est
+      // encore ambigu, il pourrait devenir na/ni/nu/ne/no (une voyelle
+      // arrive juste apres) ou se confirmer en ん (un second "n" arrive) --
+      // un ん affiche a l'ecran doit TOUJOURS etre un ん deja confirme,
+      // jamais une supposition provisoire. Reste donc affiche "n" latin, un
+      // peu comme un romaji incomplet (cf. plus bas), jusqu'a ce que la
+      // frappe suivante tranche. Consequence : les mots qui se terminent
+      // par un ん isole (ex. "hon") n'affichent plus ce ん final tant que
+      // la reponse n'est pas validee -- voir finaliserKana() plus bas, qui
+      // s'en charge au moment de la validation (obligatoire : rien d'autre
+      // ne va plus jamais confirmer ce "n" si la frappe s'arrete la).
+      // (Rien a faire ici : on laisse tomber jusqu'au bloc de recherche
+      // ci-dessous, qui ne le reconnaitra pas et le gardera tel quel --
+      // meme mecanisme que "k" isole en attente de sa voyelle.)
     }
     // Plus long groupe romaji connu (3, puis 2, puis 1 caractere)
     let trouve = false;
@@ -1054,6 +1068,20 @@ function activerSaisieKanaDirecte(input, katakana) {
     // kana (ex. "ka" 2 caracteres -> "か" 1 seul).
     input.setSelectionRange(converti.length, converti.length);
   });
+}
+
+// A appeler sur la valeur d'un champ en saisie kana au moment de VALIDER la
+// reponse (jamais pendant la frappe elle-meme) : un "n" latin isole encore
+// en attente en toute fin de chaine (ex. "hon" affiche "ほn" tant qu'on
+// tape encore, voir romajiVersHiragana) n'est plus jamais confirme en ん
+// tout seul -- rien ne le declenche si la frappe s'arrete la. Sans cet
+// appel, un mot qui se termine par un ん isole (ex. 本 "hon") ne pourrait
+// plus jamais etre note juste. katakana=true pour le champ onyomi (meme
+// convention que activerSaisieKanaDirecte).
+function finaliserKana(val, katakana) {
+  const v = val || '';
+  if (v.endsWith('n')) return v.slice(0, -1) + (katakana ? 'ン' : 'ん');
+  return v;
 }
 
 // ---------- Import en masse ----------
@@ -2229,7 +2257,7 @@ function renderKanjiQuizView(container) {
     input.focus();
     activerSaisieKanaDirecte(input, item.type === 'onyomi');
     const submit = () => {
-      const val = input.value;
+      const val = finaliserKana(input.value, item.type === 'onyomi');
       quizSession.warning = null;
       const result = scoreLectureKanji(val, blocLectures);
       quizSession.submitted = true;
@@ -3011,7 +3039,7 @@ function renderDoubleQuizView(container) {
     inputLecture.focus();
     activerSaisieKanaDirecte(inputLecture, false);
     const submit = () => {
-      const valLecture = inputLecture.value;
+      const valLecture = finaliserKana(inputLecture.value, false);
       const valSens = inputSens.value;
       quizSession.warning = null;
       const result = scoreDoubleAnswer(valLecture, valSens, v);
@@ -3238,7 +3266,7 @@ function renderPratiqueQuizView(container) {
     input.focus();
     activerSaisieKanaDirecte(input, false);
     const submit = () => {
-      const val = input.value;
+      const val = finaliserKana(input.value, false);
       if (containsKanji(val)) {
         quizSession.warning = 'Ta reponse contient du kanji -- la lecture doit etre en hiragana/katakana uniquement. Retape-la.';
         renderReview();
@@ -3790,7 +3818,7 @@ function renderReview() {
       eyeBtn.addEventListener('touchend', hideGhost);
     }
     const submit = async () => {
-      const val = input.value;
+      const val = finaliserKana(input.value, false);
       if (containsKanji(val)) {
         // Le clavier japonais a converti la saisie en kanji au lieu de la
         // laisser en kana (touche Espace/Tab pressée par réflexe, ou

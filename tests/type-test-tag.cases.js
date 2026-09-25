@@ -134,21 +134,46 @@ essai('romajiVersHiragana : shi/chi/tsu et leurs variantes si/ti/tu', () => {
 essai('romajiVersHiragana : syllabes palatalisees (kya/sha/cha/nya/rya...)', () => {
   if (rvh('kyou') !== 'きょう') throw new Error(rvh('kyou'));
   if (rvh('shukudai') !== 'しゅくだい') throw new Error(rvh('shukudai'));
-  if (rvh('byouin') !== 'びょういん') throw new Error(rvh('byouin'));
+  if (rvh('byouin') !== 'びょういn') throw new Error(rvh('byouin')); // 'n' final en attente -> voir finaliserKana()
   if (rvh('ryokou') !== 'りょこう') throw new Error(rvh('ryokou'));
 });
 
 essai('romajiVersHiragana : consonne doublee -> petit tsu (soku-on)', () => {
-  if (rvh('kekkon') !== 'けっこん') throw new Error(rvh('kekkon'));
+  if (rvh('kekkon') !== 'けっこn') throw new Error(rvh('kekkon')); // 'n' final en attente -> voir finaliserKana()
   if (rvh('kitte') !== 'きって') throw new Error(rvh('kitte'));
   if (rvh('kocchi') !== 'こっち') throw new Error(rvh('kocchi'));
   if (rvh('zasshi') !== 'ざっし') throw new Error(rvh('zasshi'));
 });
 
-essai('romajiVersHiragana : "n" isole devient ん (fin de mot, devant consonne, "nn")', () => {
-  if (rvh('hon') !== 'ほん') throw new Error(rvh('hon'));
-  if (rvh('kantan') !== 'かんたん') throw new Error(rvh('kantan'));
+essai('romajiVersHiragana : "n" isole devant une consonne devient ん tout de suite (pas d\'ambiguite)', () => {
+  if (rvh('kantan') !== 'かんたn') throw new Error(rvh('kantan')); // le 1er n (devant "t") -> ん ; le dernier (fin de saisie) reste en attente
   if (rvh('annnai') !== 'あんない') throw new Error(rvh('annnai'));
+});
+
+essai('romajiVersHiragana : "n" isole en fin de saisie POUR L\'INSTANT reste affiche "n" latin, pas converti en ん', () => {
+  // Demande de Paul le 25/09/2026 : "bloque la vue du ん si nn n\'est pas
+  // fini, sinon on ne sait pas lequel est deja bien ecrit" -- si on
+  // convertissait tout de suite, impossible de distinguer a l\'ecran un ん
+  // deja confirme (via "nn") d\'un simple "n" isole qui pourrait encore
+  // devenir na/ni/nu/ne/no ou se confirmer en ん selon la suite. Le "n" en
+  // fin de saisie reste donc tel quel, exactement comme un romaji
+  // incomplet (ex. "k" en attente de sa voyelle) -- converti en ん
+  // seulement a la validation de la reponse, voir finaliserKana().
+  if (rvh('hon') !== 'ほn') throw new Error(rvh('hon'));
+  if (rvh('n') !== 'n') throw new Error(rvh('n'));
+  // Des qu\'une voyelle ou un second "n" arrive, ce n\'est plus ambigu :
+  // comportement inchange (na/ni/nu/ne/no, ou ん confirme par "nn").
+  if (rvh('na') !== 'な') throw new Error(rvh('na'));
+  if (rvh('nn') !== 'ん') throw new Error(rvh('nn'));
+});
+
+essai('finaliserKana : convertit un "n" latin isole encore en attente en ん (ou ン), au moment de valider', () => {
+  if (finaliserKana('ほn') !== 'ほん') throw new Error(finaliserKana('ほn'));
+  if (finaliserKana('ほn', true) !== 'ほン') throw new Error(finaliserKana('ほn', true));
+  // Rien a finaliser : ne touche pas a une reponse deja complete.
+  if (finaliserKana('かんい') !== 'かんい') throw new Error(finaliserKana('かんい'));
+  if (finaliserKana('') !== '') throw new Error(JSON.stringify(finaliserKana('')));
+  if (finaliserKana(null) !== '') throw new Error(JSON.stringify(finaliserKana(null)));
 });
 
 essai('romajiVersHiragana : systeme "double n" -- "nn" donne TOUJOURS un seul ん, meme suivi d\'une voyelle', () => {
@@ -159,7 +184,7 @@ essai('romajiVersHiragana : systeme "double n" -- "nn" donne TOUJOURS un seul �
   if (rvh('nn') !== 'ん') throw new Error(rvh('nn'));
   // "nnn" : la premiere paire fait un ん, le troisieme "n" (isole, en fin
   // de saisie) en fait un second.
-  if (rvh('nnn') !== 'んん') throw new Error(rvh('nnn'));
+  if (rvh('nnn') !== 'んn') throw new Error(rvh('nnn')); // la 1ere paire -> ん confirme ; le 3e n (isole, en attente) reste 'n'
   // "nnnn" : deux paires "nn" -> deux ん (exemple donne par Paul lui-meme).
   if (rvh('nnnn') !== 'んん') throw new Error(rvh('nnnn'));
   // Le second "n" ne forme plus jamais de syllabe avec la voyelle suivante :
@@ -171,8 +196,8 @@ essai('romajiVersHiragana : systeme "double n" -- "nn" donne TOUJOURS un seul �
   // Consequence acceptee : les mots qui s'ecrivaient avec 2 "n" pour la
   // syllabe absorbee ont desormais besoin d'un 3e "n" pour ce resultat-la ;
   // avec seulement 2 "n", la voyelle reste bien separee (comme demande).
-  if (rvh('zannen') !== 'ざんえん') throw new Error(rvh('zannen'));
-  if (rvh('zannnen') !== 'ざんねん') throw new Error(rvh('zannnen'));
+  if (rvh('zannen') !== 'ざんえn') throw new Error(rvh('zannen')); // dernier n en attente (fin de saisie)
+  if (rvh('zannnen') !== 'ざんねn') throw new Error(rvh('zannnen')); // idem
 });
 
 essai('romajiVersHiragana : systeme "double n" tape touche par touche (pas colle en un bloc)', () => {
@@ -189,18 +214,18 @@ essai('romajiVersHiragana : systeme "double n" tape touche par touche (pas colle
   if (tapeReel('kanni') !== 'かんい') throw new Error(tapeReel('kanni'));
   if (tapeReel('ni') !== 'に') throw new Error(tapeReel('ni'));
   if (tapeReel('nn') !== 'ん') throw new Error(tapeReel('nn'));
-  if (tapeReel('nnn') !== 'んん') throw new Error(tapeReel('nnn'));
+  if (tapeReel('nnn') !== 'んn') throw new Error(tapeReel('nnn'));
   if (tapeReel('nnnn') !== 'んん') throw new Error(tapeReel('nnnn'));
   if (tapeReel('nna') !== 'んあ') throw new Error(tapeReel('nna'));
   if (tapeReel('nni') !== 'んい') throw new Error(tapeReel('nni'));
-  if (tapeReel('zannen') !== 'ざんえん') throw new Error(tapeReel('zannen'));
-  if (tapeReel('zannnen') !== 'ざんねん') throw new Error(tapeReel('zannnen'));
+  if (tapeReel('zannen') !== 'ざんえn') throw new Error(tapeReel('zannen'));
+  if (tapeReel('zannnen') !== 'ざんねn') throw new Error(tapeReel('zannnen'));
   if (tapeReel('annnai') !== 'あんない') throw new Error(tapeReel('annnai'));
   if (tapeReel('konnnichiha') !== 'こんにちは') throw new Error(tapeReel('konnnichiha'));
   if (tapeReel('funniki') !== 'ふんいき') throw new Error(tapeReel('funniki'));
   // Pas de regression sur les mots sans double "n".
-  if (tapeReel('hon') !== 'ほん') throw new Error(tapeReel('hon'));
-  if (tapeReel('kantan') !== 'かんたん') throw new Error(tapeReel('kantan'));
+  if (tapeReel('hon') !== 'ほn') throw new Error(tapeReel('hon'));
+  if (tapeReel('kantan') !== 'かんたn') throw new Error(tapeReel('kantan'));
   if (tapeReel('kanpai') !== 'かんぱい') throw new Error(tapeReel('kanpai'));
   if (tapeReel('sakana') !== 'さかな') throw new Error(tapeReel('sakana'));
   if (tapeReel('na') !== 'な') throw new Error(tapeReel('na'));
