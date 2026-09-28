@@ -1578,16 +1578,14 @@ function renderDashboard() {
 
   if (dashboardMode === 'special') {
     // Onglet "Special" (17/09/2026, complete le 22/09/2026 avec Double
-    // reponse) : regroupe les modes recents (Ecriture, Traduction, Double
-    // reponse, Vocabulaire pratique) au meme niveau de visibilite que
-    // Cursus/JLPT, plutot que de les enterrer dans le menu deroulant de
-    // l'ecran Reviser comme Kanji seul/Kana -- demande explicite de Paul.
-    // Pas de semestres ici : chaque carte mene directement a l'ecran de
-    // choix du mode concerne (Reviser), avec le bon mode deja preselectionne.
+    // reponse, reduit le 28/09/2026) : ne garde que Vocabulaire pratique.
+    // Ecriture/Traduction/Double sont retires d'ici -- demande de Paul --
+    // car accessibles directement depuis la modale de semaine du tableau
+    // de bord (choix de mode Vocabulaire/Ecriture/Traduction/Double, voir
+    // plus bas dans ce fichier), ce qui evite de les dupliquer a 2 endroits.
+    // Pas de semestre ici : la carte mene directement a l'ecran de choix du
+    // mode concerne (Reviser), avec le bon mode deja preselectionne.
     const specialModes = [
-      { id: 'ecriture', titre: 'Écriture', desc: 'La lecture (kana) s’affiche, tu écris le kanji toi-même sur papier, puis tu révèles la réponse pour t’auto-corriger. Pas de notation automatique.' },
-      { id: 'traduction', titre: 'Traduction', desc: 'Le sens en français s’affiche, tu réponds en kanji ou en kana. Notation automatique comme en mode Vocabulaire.' },
-      { id: 'double', titre: 'Double réponse', desc: 'Le mot s’affiche en kanji, tu tapes la lecture ET le sens sur le même écran. Les deux doivent être justes pour marquer des points.' },
       { id: 'pratique', titre: 'Vocabulaire pratique', desc: 'Compteurs, couleurs et expressions de temps/heure -- du vocabulaire utile en dehors du programme.' }
     ];
     html += `<div class="special-modes-grid">`;
@@ -1700,6 +1698,7 @@ function renderDashboard() {
             <label><input type="radio" name="modalMode" value="vocab" checked> Vocabulaire</label>
             <label><input type="radio" name="modalMode" value="ecriture"> Écriture</label>
             <label><input type="radio" name="modalMode" value="traduction"> Traduction</label>
+            <label><input type="radio" name="modalMode" value="double"> Double réponse</label>
           </div>
           <div class="filtre-mots">
             <label><input type="checkbox" id="chkModalMotsGroupe" ${filtreGroupeCocheModal ? 'checked' : ''}> Mots à kanji groupés</label>
@@ -1898,6 +1897,8 @@ function renderDashboard() {
         startEcritureQuiz(semesterId, week, reviewVerbeFilter);
       } else if (modeChoisi === 'traduction') {
         startTraductionQuiz(semesterId, week, true, reviewVerbeFilter);
+      } else if (modeChoisi === 'double') {
+        startDoubleQuiz(semesterId, week, true, reviewVerbeFilter);
       } else {
         startQuiz(semesterId, week, true, reviewVerbeFilter);
       }

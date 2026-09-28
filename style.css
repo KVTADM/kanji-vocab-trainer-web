@@ -864,14 +864,18 @@ code {
 }
 .week-restart-btn:hover, .review-week-restart-btn:hover { border-color: var(--pink); color: var(--pink); }
 
-/* Onglet "Special" (17/09/2026) : 3 cartes d'entree vers Ecriture,
-   Traduction et Vocabulaire pratique -- aussi visibles que Cursus/JLPT. */
+/* Onglet "Special" (17/09/2026, reduit au 28/09/2026 a la seule carte
+   Vocabulaire pratique -- Ecriture/Traduction/Double sont passes dans le
+   choix de mode de la modale de semaine du tableau de bord). Le
+   grid-template avec 1 seule carte etirerait celle-ci sur toute la largeur
+   (auto-fit + 1fr) : max-width sur la carte evite que Special n'affiche
+   un pave disproportionne le jour ou il n'y a plus qu'une seule entree. */
 .special-modes-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 14px;
 }
-.special-mode-card { margin-bottom: 0; }
+.special-mode-card { margin-bottom: 0; max-width: 340px; }
 
 /* Type de test fait/en cours (09/09/2026) : quel filtre "Mots" a servi,
    affiché en petit à côté du score ou de la barre de progression. */
