@@ -915,8 +915,35 @@ code {
 }
 /* Version incrustee (mode Ecriture, 28/09/2026) : meme rendu que dans la
    modale, juste un peu d'espace au-dessus vu qu'elle suit directement le
-   kanji dans la carte plutot que d'ouvrir un cadre a part. */
+   kanji dans la carte plutot que d'ouvrir un cadre a part. Taille reduite
+   par rapport a la modale (220px) : la carte Ecriture ne fait que 440px de
+   large, et un mot a deux kanji (ex. 二人) ne tenait plus a cote de l'autre
+   a 220px -- il retombait a la ligne, ce qui donnait l'effet "trop grand,
+   s'etend a la verticale" signale par Paul le 28/09/2026. Epaisseurs et
+   numeros reduits dans la meme proportion. */
 .trace-blocs--inline { margin-top: 14px; }
+.trace-blocs--inline .svg-trace-kanji { width: 150px; height: 150px; }
+.trace-blocs--inline .trait-squelette { stroke-width: 3; }
+.trace-blocs--inline .trait-kanji { stroke-width: 3.5; }
+.trace-blocs--inline .numero-trait { font-size: 6px; }
+
+/* Zone du mode Ecriture (28/09/2026) : la carte question/reponse et la
+   case de dessin cote a cote, horizontalement -- pas empilees l'une sous
+   l'autre. flex-wrap repasse en colonne sur ecran etroit (mobile) plutot
+   que de deborder, meme principe que .trace-blocs. */
+.ecriture-zone {
+  display: flex; flex-wrap: wrap; gap: 18px; justify-content: center; align-items: flex-start;
+}
+.ecriture-dessin {
+  width: 220px;
+  background: var(--panel-alt); border: 1px solid var(--border); border-radius: 12px;
+  padding: 12px; display: flex; flex-direction: column; align-items: center; gap: 8px;
+}
+.ecriture-dessin-titre { font-size: 13px; color: var(--muted); font-weight: 600; }
+.canvas-ecriture {
+  width: 200px; height: 200px; background: #fff; border-radius: 8px; border: 1px solid var(--border);
+  touch-action: none; cursor: crosshair;
+}
 .trace-attribution a { color: var(--muted); }
 .modal-reprise {
   background: var(--panel-alt);

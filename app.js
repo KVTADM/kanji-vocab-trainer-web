@@ -2228,6 +2228,68 @@ function wireModalTraceKanji(rerender) {
   });
 }
 
+// Case de dessin du mode Ecriture (debut du point 2 du backlog envoye par
+// Paul le 28/09/2026 : "possibilite d'ecrire le kanji dans une case...  a
+// la souris, au doigt sur telephone, au stylet sur iPad"). Pointer Events
+// couvre les trois entrees avec une seule API, pas besoin de brancher
+// mouse/touch separement.
+function activerDessinCanvas(canvas, session) {
+  const ctx = canvas.getContext('2d');
+  ctx.lineWidth = 4;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.strokeStyle = '#1a1a1a';
+  let enTrain = false;
+  let dernierX = 0;
+  let dernierY = 0;
+
+  function position(e) {
+    const rect = canvas.getBoundingClientRect();
+    const echelleX = canvas.width / rect.width;
+    const echelleY = canvas.height / rect.height;
+    return { x: (e.clientX - rect.left) * echelleX, y: (e.clientY - rect.top) * echelleY };
+  }
+  function debuter(e) {
+    e.preventDefault();
+    // setPointerCapture : le pointerup arrive sur CE canvas meme si le
+    // geste se termine hors de ses limites (facile en tracant vite pres du
+    // bord) -- sinon le trait resterait "colle" en mode dessin.
+    canvas.setPointerCapture(e.pointerId);
+    enTrain = true;
+    const p = position(e);
+    dernierX = p.x; dernierY = p.y;
+    // Point simple des le contact (avant tout glisse) : sinon un tap sans
+    // glisser ne laisserait aucune trace, contrairement a un vrai crayon.
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, ctx.lineWidth / 2, 0, Math.PI * 2);
+    ctx.fillStyle = ctx.strokeStyle;
+    ctx.fill();
+  }
+  function tracer(e) {
+    if (!enTrain) return;
+    e.preventDefault();
+    const p = position(e);
+    ctx.beginPath();
+    ctx.moveTo(dernierX, dernierY);
+    ctx.lineTo(p.x, p.y);
+    ctx.stroke();
+    dernierX = p.x; dernierY = p.y;
+  }
+  function terminer() {
+    if (!enTrain) return;
+    enTrain = false;
+    // Sauvegarde a la fin de chaque trait plutot qu'une seule fois a la
+    // fin : reveler/mot suivant peuvent arriver a tout moment, on ne veut
+    // jamais perdre un trait deja fini.
+    session.dessinDataUrl = canvas.toDataURL();
+  }
+
+  canvas.addEventListener('pointerdown', debuter);
+  canvas.addEventListener('pointermove', tracer);
+  canvas.addEventListener('pointerup', terminer);
+  canvas.addEventListener('pointercancel', terminer);
+}
+
 // Vue "Kanji seul" : séparée de renderReview() par choix (aucune branche
 // supplémentaire ajoutée au quiz vocabulaire déjà testé), même esprit
 // (saisie libre, correction par similarité, historique séparé).
@@ -2650,7 +2712,12 @@ function startEcritureQuiz(semesterId, week, verbeFilter) {
     mode: 'ecriture', semesterId, week,
     queue: shuffle(vocabList.map(v => v.id)),
     index: 0,
-    revealed: false
+    revealed: false,
+    // PNG (toDataURL) de la case de dessin (voir activerDessinCanvas) --
+    // necessaire car chaque reveler/mot suivant reconstruit tout le HTML
+    // (innerHTML), ce qui recree un <canvas> vierge : on restaure ce PNG
+    // dedans juste apres pour que le dessin survive au clic "Reveler".
+    dessinDataUrl: null
   };
 }
 
@@ -2682,26 +2749,33 @@ function renderEcritureQuizView(container) {
         <div style="font-size:12px; color:var(--muted);">${quizSession.index + 1} / ${quizSession.queue.length}</div>
         <div class="progress-bar"><div class="progress-fill" style="width:${progressPct}%"></div></div>
       </div>
-      <div class="flashcard">
-        <div class="front-word${quizSession.revealed ? ' front-word--ecriture-revele' : ''}">${escapeHtml(v.lecture)}</div>
-        <div class="hint" style="margin-top:8px;">Ecris le kanji sur papier, puis revele pour verifier.</div>
-        ${quizSession.revealed ? `
-          ${(() => {
-            // Indice anti-confusion (tache #14) : n'apparait que s'il existe
-            // reellement un piege pour CE mot -- silencieux sinon, pas de
-            // bruit visuel pour les mots sans homophone dans le programme.
-            // Place AVANT la reponse (demande de Paul, 23/09/2026) : l'idee
-            // est de repondre a la question avant de decouvrir le kanji
-            // juste en dessous, pas de le lire une fois la reponse deja vue.
-            const confondables = motsConfondables(v);
-            if (confondables.length === 0) return '';
-            const liste = confondables.map(c => `${escapeHtml(c.mot)}${c.sens ? ' (' + escapeHtml(c.sens) + ')' : ''}`).join(', ');
-            return `<div class="anti-confusion">⚠ Ne pas confondre avec : ${liste} — meme lecture, kanji different.</div>`;
-          })()}
-          <div class="back-reading back-reading--grand">${escapeHtml(v.mot)}${registreBadge(v)}</div>
-          ${htmlTraceInline(v.mot, 'svgTraceEcritureInline')}
-          ${v.sens ? `<div class="back-meaning">${escapeHtml(v.sens)}</div>` : ''}
-        ` : ''}
+      <div class="ecriture-zone">
+        <div class="flashcard">
+          <div class="front-word${quizSession.revealed ? ' front-word--ecriture-revele' : ''}">${escapeHtml(v.lecture)}</div>
+          <div class="hint" style="margin-top:8px;">Ecris le kanji dans la case a droite (ou sur papier), puis revele pour verifier.</div>
+          ${quizSession.revealed ? `
+            ${(() => {
+              // Indice anti-confusion (tache #14) : n'apparait que s'il existe
+              // reellement un piege pour CE mot -- silencieux sinon, pas de
+              // bruit visuel pour les mots sans homophone dans le programme.
+              // Place AVANT la reponse (demande de Paul, 23/09/2026) : l'idee
+              // est de repondre a la question avant de decouvrir le kanji
+              // juste en dessous, pas de le lire une fois la reponse deja vue.
+              const confondables = motsConfondables(v);
+              if (confondables.length === 0) return '';
+              const liste = confondables.map(c => `${escapeHtml(c.mot)}${c.sens ? ' (' + escapeHtml(c.sens) + ')' : ''}`).join(', ');
+              return `<div class="anti-confusion">⚠ Ne pas confondre avec : ${liste} — meme lecture, kanji different.</div>`;
+            })()}
+            <div class="back-reading back-reading--grand">${escapeHtml(v.mot)}${registreBadge(v)}</div>
+            ${htmlTraceInline(v.mot, 'svgTraceEcritureInline')}
+            ${v.sens ? `<div class="back-meaning">${escapeHtml(v.sens)}</div>` : ''}
+          ` : ''}
+        </div>
+        <div class="ecriture-dessin">
+          <div class="ecriture-dessin-titre">Ton tracé</div>
+          <canvas id="canvasEcriture" class="canvas-ecriture" width="200" height="200"></canvas>
+          <button class="secondary small" type="button" id="btnEffacerDessin">Effacer</button>
+        </div>
       </div>
       ${!quizSession.revealed ? `
         <button class="primary" id="btnRevealEcriture" style="margin-top:18px;">Reveler la reponse</button>
@@ -2711,6 +2785,24 @@ function renderEcritureQuizView(container) {
       <button class="secondary" id="btnQuitEcritureQuiz" style="margin-top:12px;">Quitter la session</button>
     </div>
   `;
+
+  // Case de dessin : toujours active (avant ET apres reveler, comme le
+  // papier qu'elle remplace). Le PNG sauvegarde est restaure dedans a
+  // chaque reconstruction du DOM -- voir le commentaire sur dessinDataUrl
+  // dans startEcritureQuiz().
+  const canvasDessin = $('#canvasEcriture');
+  if (canvasDessin) {
+    activerDessinCanvas(canvasDessin, quizSession);
+    if (quizSession.dessinDataUrl) {
+      const img = new Image();
+      img.onload = () => canvasDessin.getContext('2d').drawImage(img, 0, 0);
+      img.src = quizSession.dessinDataUrl;
+    }
+    $('#btnEffacerDessin').addEventListener('click', () => {
+      canvasDessin.getContext('2d').clearRect(0, 0, canvasDessin.width, canvasDessin.height);
+      quizSession.dessinDataUrl = null;
+    });
+  }
 
   if (!quizSession.revealed) {
     $('#btnRevealEcriture').addEventListener('click', () => {
@@ -2723,6 +2815,7 @@ function renderEcritureQuizView(container) {
     nextBtn.addEventListener('click', () => {
       quizSession.index++;
       quizSession.revealed = false;
+      quizSession.dessinDataUrl = null;
       renderReview();
     });
     // Trace incruste (htmlTraceInline ci-dessus) : demarre la boucle
