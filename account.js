@@ -634,9 +634,10 @@ function renderAccount() {
       <div class="card pro-card" style="max-width:420px;">
         <span class="pro-badge">✓ Pro actif</span>
         <p style="font-size:13.5px; color:var(--ink); line-height:1.6; margin:0;">
-          Merci pour ton soutien ! Ce compte n'affiche aucune publicité et
-          a accès aux palettes décoratives. Surtout, il aide KVT à rester
-          gratuit pour tout le monde.
+          Merci pour ton soutien ! Ce compte n'affiche aucune publicité,
+          gagne 50% d'XP et de pièces en plus sur tous ses gains, et a
+          accès aux titres exclusifs de la Boutique. Surtout, il aide KVT
+          à rester gratuit pour tout le monde.
         </p>
       </div>` : `
       <div class="card pro-card" style="max-width:420px;">
@@ -645,11 +646,14 @@ function renderAccount() {
         <p style="font-size:13px; color:var(--muted); line-height:1.6; margin:0 0 12px;">
           KVT est gratuit et le restera : tout ce qui sert à apprendre —
           contenu, statistiques, export Anki, classement — est accessible
-          sans payer. Le Pro sert d'abord à soutenir le projet.
+          sans payer. Le Pro est un soutien volontaire au projet : il ne
+          donne aucun avantage sur l'apprentissage lui-même, seulement
+          quelques bonus décoratifs, en remerciement.
         </p>
         <ul class="pro-features">
           <li><span class="pro-check">✓</span><span><strong>Aucune publicité</strong> — l'app reste nette, quoi qu'il arrive.</span></li>
-          <li><span class="pro-check">✓</span><span><strong>Palettes décoratives</strong> — Sakura et les thèmes à venir. Sombre et Clair restent gratuits.</span></li>
+          <li><span class="pro-check">✓</span><span><strong>+50% d'XP et de pièces</strong> — sur tous les gains (mots réussis, série quotidienne, fin de session). Purement décoratif, ça ne change rien à ce qu'on apprend.</span></li>
+          <li><span class="pro-check">✓</span><span><strong>Titres exclusifs</strong> — Sensei, Dragon de jade et d'autres, à débloquer dans la Boutique.</span></li>
           <li><span class="pro-check">✓</span><span><strong>Tu finances la suite</strong> — nouveaux niveaux JLPT, hébergement, temps de développement.</span></li>
         </ul>
         <a class="pro-cta"
