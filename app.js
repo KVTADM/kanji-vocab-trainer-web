@@ -19,6 +19,27 @@ let modalSemaineOuverte = null; // { semesterId, week } — modale de choix ouve
 let modalMotsMasquesOuvert = false; // modale "Mots masqués" ouverte depuis Vocabulaire (17/09/2026), voir renderVocab()
 let modalTraceKanji = null; // caractere(s) kanji affiche(s) dans la modale de trace des traits (tache #13, KanjiVG), ou null si fermee
 
+// Semestres repliables sur le Tableau de bord (28/09/2026, demande de Paul :
+// "les voir a la maniere d'un fichier pour mieux voir ceux de son choix").
+// Purement une préférence d'affichage locale -- volontairement PAS dans
+// DB.settings (donc pas synchronisée cloud, ni poussée sur les autres
+// appareils) : replier un semestre sur son téléphone ne doit pas le replier
+// sur son PC. localStorage plutôt qu'un simple `let` pour survivre à un
+// rechargement de page.
+const KVT_SEMESTRES_REPLIES_CLE = 'kvtSemestresReplies';
+function chargerSemestresReplies() {
+  try {
+    const brut = JSON.parse(localStorage.getItem(KVT_SEMESTRES_REPLIES_CLE) || '[]');
+    return new Set(Array.isArray(brut) ? brut : []);
+  } catch (e) {
+    return new Set();
+  }
+}
+let semestresReplies = chargerSemestresReplies();
+function sauvegarderSemestresReplies() {
+  try { localStorage.setItem(KVT_SEMESTRES_REPLIES_CLE, JSON.stringify([...semestresReplies])); } catch (e) { /* stockage indisponible : tant pis, juste pas persisté */ }
+}
+
 const $ = (sel, root) => (root || document).querySelector(sel);
 const $$ = (sel, root) => Array.from((root || document).querySelectorAll(sel));
 
@@ -1587,13 +1608,17 @@ function renderDashboard() {
         <option value="jlpt" ${rangeeDans === 'jlpt' ? 'selected' : ''}>JLPT</option>
         ${categoriesLibres().map(c => `<option value="${c.id}" ${rangeeDans === c.id ? 'selected' : ''}>${escapeHtml(c.label)}</option>`).join('')}
       </select>`;
+    const replie = semestresReplies.has(sem.id);
     html += `<div class="card">
       <div class="semestre-tete">
-        <h3>${escapeHtml(sem.label)}${sem.importe ? ` <span class="semestre-origine">importé de ${escapeHtml(sem.auteur || 'quelqu\'un')}</span>` : ''}</h3>
+        <div class="semestre-titre-groupe">
+          <button class="semestre-toggle" type="button" data-toggle-semestre="${sem.id}" aria-expanded="${replie ? 'false' : 'true'}" title="${replie ? 'Déplier' : 'Replier'} ce semestre">${replie ? '▸' : '▾'}</button>
+          <h3>${escapeHtml(sem.label)}${sem.importe ? ` <span class="semestre-origine">importé de ${escapeHtml(sem.auteur || 'quelqu\'un')}</span>` : ''}</h3>
+        </div>
         ${choixCategorie}
       </div>
-      <div class="week-grid">`;
-    for (let w = 1; w <= sem.weeks; w++) {
+      ${replie ? '' : '<div class="week-grid">'}`;
+    if (!replie) for (let w = 1; w <= sem.weeks; w++) {
       const vocabList = getVocabForWeek(sem.id, w);
       const groups = getKanjiGroupsForWeek(sem.id, w);
       const entry = getScoreEntry(sem.id, w);
@@ -1622,7 +1647,7 @@ function renderDashboard() {
         </div>
       `;
     }
-    html += `</div></div>`;
+    html += `${replie ? '' : '</div>'}</div>`;
   });
   }
   html += kvtAdSlotHtml('dashboard-bottom');
@@ -1715,6 +1740,14 @@ function renderDashboard() {
     // ouvrir le menu déclencherait aussi le clic de la carte en dessous.
     sel.addEventListener('click', (e) => e.stopPropagation());
     sel.addEventListener('change', () => rangerSemestre(sel.dataset.ranger, sel.value));
+  });
+  $$('[data-toggle-semestre]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.dataset.toggleSemestre;
+      if (semestresReplies.has(id)) semestresReplies.delete(id); else semestresReplies.add(id);
+      sauvegarderSemestresReplies();
+      renderDashboard();
+    });
   });
 
   $$('.week-card').forEach(el => {

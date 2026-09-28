@@ -2133,6 +2133,29 @@ code {
 }
 .semestre-tete h3 { margin: 0; }
 .semestre-origine { font-size: 12px; color: var(--muted); font-weight: normal; }
+/* Semestres repliables (28/09/2026) : la fleche vit dans son propre groupe
+   flex a cote du h3, pour que .semestre-tete garde exactement 2 blocs
+   (titre / categorie) de part et d'autre du justify-content:space-between
+   ci-dessus. */
+.semestre-titre-groupe {
+  display: flex; align-items: center; gap: 8px;
+}
+.semestre-toggle {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  border-radius: 7px;
+  width: 26px;
+  height: 26px;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.semestre-toggle:hover { color: var(--ink); border-color: var(--accent); }
 .semestre-categorie {
   background: var(--panel-alt); color: var(--muted);
   border: 1px solid var(--border); border-radius: var(--radius);
