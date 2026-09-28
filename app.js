@@ -287,7 +287,16 @@ function formatDuree(ms) {
   const totalSec = Math.round(ms / 1000);
   const min = Math.floor(totalSec / 60);
   const sec = totalSec % 60;
-  return min === 0 ? `${sec} s` : `${min} min ${String(sec).padStart(2, '0')} s`;
+  if (min === 0) return `${sec} s`;
+  // Au-dela d'une heure, "312 min 07 s" est illisible d'un coup d'oeil sur
+  // le classement -- passe en H:MM:SS (28/09/2026, signale par Paul).
+  // Sous une heure, le format "N min SS s" reste plus lisible que "5:07".
+  if (min >= 60) {
+    const h = Math.floor(min / 60);
+    const minRestantes = min % 60;
+    return `${h}:${String(minRestantes).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+  }
+  return `${min} min ${String(sec).padStart(2, '0')} s`;
 }
 
 // ---------- Score composite (#5, rang 5) ----------
@@ -872,14 +881,15 @@ function similarity(input, correct) {
 }
 
 function scoreAnswer(input, correct) {
-  // Quelques mots ont plusieurs lectures valables, stockees separees par
-  // " / " (ex. 門 -> "もん / かど", confirme par Paul le 09/09/2026) :
-  // comparer la reponse tapee a la chaine combinee penalisait a tort une
-  // des deux bonnes reponses (jamais 100%, meme en repondant juste). On
-  // compare a chaque alternative separement et on garde la meilleure —
-  // sans effet sur les mots a lecture unique (pas de "/", une seule
-  // alternative = comportement identique a avant).
-  const alternatives = (correct || '').split('/').map(s => s.trim()).filter(s => s.length > 0);
+  // Quelques mots ont plusieurs lectures/sens valables, stockes separes par
+  // " / " (ex. 門 -> "もん / かど", confirme par Paul le 09/09/2026) ou par
+  // une virgule (ex. un sens du genre "matin, aube" -- signale par Paul le
+  // 28/09/2026, semaine 8 du semestre 2) : comparer la reponse tapee a la
+  // chaine combinee penalisait a tort une des bonnes reponses (jamais 100%,
+  // meme en repondant juste). On compare a chaque alternative separement et
+  // on garde la meilleure -- sans effet sur les mots a alternative unique
+  // (pas de "/" ni de ",", comportement identique a avant).
+  const alternatives = (correct || '').split(/[/,]/).map(s => s.trim()).filter(s => s.length > 0);
   const candidats = alternatives.length > 0 ? alternatives : [correct];
   const pct = Math.max(...candidats.map(c => similarity(input, c)));
   const points = Math.round(pct * DB.settings.pointsPerWord);
@@ -937,6 +947,12 @@ const ROMAJI_VERS_HIRAGANA = {
   gya: 'ぎゃ', gyu: 'ぎゅ', gyo: 'ぎょ',
   sha: 'しゃ', shu: 'しゅ', sho: 'しょ',
   ja: 'じゃ', ju: 'じゅ', jo: 'じょ',
+  // jya/jyu/jyo (28/09/2026, signale par Paul) : orthographe alternative
+  // de じゃ/じゅ/じょ, acceptee par tous les autres convertisseurs romaji
+  // et par un clavier japonais (J -> じ, puis Y+voyelle -> le petit や/ゆ/よ
+  // qui suit) -- notre table ne connaissait que ja/ju/jo. Meme kana que
+  // ja/ju/jo, juste une autre facon de les taper.
+  jya: 'じゃ', jyu: 'じゅ', jyo: 'じょ',
   cha: 'ちゃ', chu: 'ちゅ', cho: 'ちょ',
   nya: 'にゃ', nyu: 'にゅ', nyo: 'にょ',
   hya: 'ひゃ', hyu: 'ひゅ', hyo: 'ひょ',

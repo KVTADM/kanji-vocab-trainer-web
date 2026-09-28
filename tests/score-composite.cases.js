@@ -80,3 +80,26 @@ essai('le score composite personnel moyenne les 4 modes synchronisés', () => {
   const composite = getScoreCompositePersonnel();
   if (composite !== attendu) throw new Error('score composite personnel = ' + composite + ', attendu ' + attendu);
 });
+
+// ---- formatDuree() : affichage de la duree d'une session ----
+essai('formatDuree : moins d\'une minute -> "N s"', () => {
+  if (formatDuree(0) !== '0 s') throw new Error(formatDuree(0));
+  if (formatDuree(45000) !== '45 s') throw new Error(formatDuree(45000));
+});
+
+essai('formatDuree : entre 1 minute et 1 heure -> "N min SS s"', () => {
+  if (formatDuree(65000) !== '1 min 05 s') throw new Error(formatDuree(65000));
+  if (formatDuree(3599000) !== '59 min 59 s') throw new Error(formatDuree(3599000)); // juste sous 1h
+});
+
+essai('formatDuree : 1 heure ou plus -> "H:MM:SS", illisible en "N min SS s" (signale par Paul, 28/09/2026)', () => {
+  if (formatDuree(3600000) !== '1:00:00') throw new Error(formatDuree(3600000)); // pile 1h
+  if (formatDuree(3661000) !== '1:01:01') throw new Error(formatDuree(3661000));
+  if (formatDuree(36034000) !== '10:00:34') throw new Error(formatDuree(36034000)); // ex. du classement : "600 min 34 s"
+});
+
+essai('formatDuree : valeur invalide ou negative -> null, jamais d\'exception', () => {
+  if (formatDuree(null) !== null) throw new Error(String(formatDuree(null)));
+  if (formatDuree(-5) !== null) throw new Error(String(formatDuree(-5)));
+  if (formatDuree(undefined) !== null) throw new Error(String(formatDuree(undefined)));
+});

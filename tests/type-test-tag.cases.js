@@ -138,6 +138,13 @@ essai('romajiVersHiragana : syllabes palatalisees (kya/sha/cha/nya/rya...)', () 
   if (rvh('ryokou') !== 'りょこう') throw new Error(rvh('ryokou'));
 });
 
+essai('romajiVersHiragana : jya/jyu/jyo sont acceptes comme variantes de ja/ju/jo (signale par Paul, 28/09/2026)', () => {
+  if (rvh('jyo') !== 'じょ') throw new Error(rvh('jyo'));
+  if (rvh('jya') !== 'じゃ') throw new Error(rvh('jya'));
+  if (rvh('jyu') !== 'じゅ') throw new Error(rvh('jyu'));
+  if (rvh('ja') !== 'じゃ') throw new Error(rvh('ja')); // l'orthographe standard doit toujours marcher aussi
+});
+
 essai('romajiVersHiragana : consonne doublee -> petit tsu (soku-on)', () => {
   if (rvh('kekkon') !== 'けっこn') throw new Error(rvh('kekkon')); // 'n' final en attente -> voir finaliserKana()
   if (rvh('kitte') !== 'きって') throw new Error(rvh('kitte'));

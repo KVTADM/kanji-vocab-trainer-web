@@ -50,3 +50,15 @@ essai('une vraie faute reste penalisee meme avec des espaces decoratifs des deux
   const r = scoreAnswer('ねむりのもりのびじよ', 'ねむり の もり の びじょ'); // びじよ au lieu de びじょ
   if (r.pct >= 1) throw new Error('une faute reelle ne devrait pas donner 100% : ' + JSON.stringify(r));
 });
+
+essai('un sens a alternatives separees par une virgule fonctionne comme avec "/" (signale par Paul, 28/09/2026, semaine 8 S2)', () => {
+  const r1 = scoreAnswer('matin', 'matin, aube');
+  if (r1.pct !== 1) throw new Error('attendu 100% sur la 1ere alternative, obtenu ' + JSON.stringify(r1));
+  const r2 = scoreAnswer('aube', 'matin, aube');
+  if (r2.pct !== 1) throw new Error('attendu 100% sur la 2eme alternative, obtenu ' + JSON.stringify(r2));
+});
+
+essai('virgule et "/" peuvent se combiner dans le meme champ sans casser les alternatives', () => {
+  const r = scoreAnswer('かど', 'もん / かど, porte');
+  if (r.pct !== 1) throw new Error('attendu 100%, obtenu ' + JSON.stringify(r));
+});
