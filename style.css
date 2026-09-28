@@ -2192,6 +2192,27 @@ code {
 .partie-minuteur-texte { font-size: 13px; color: var(--muted); min-width: 32px; text-align: right; }
 .partie-mot-actif { font-size: 46px; font-weight: 700; text-align: center; margin: 18px 0; letter-spacing: 2px; }
 
+/* Boîte à problèmes / retours utilisateurs (28/09/2026, voir aide.js) */
+.retour-form { display: flex; flex-direction: column; gap: 12px; max-width: 480px; }
+.retour-form label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--muted); }
+.retour-form textarea { font-family: inherit; resize: vertical; }
+.retour-form__case { flex-direction: row !important; align-items: center; gap: 8px !important; }
+.retour-form__case input { width: auto; }
+.retour-item {
+  border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; margin-bottom: 10px;
+}
+.retour-item__tete { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.retour-statut {
+  font-size: 11.5px; font-weight: 600; padding: 3px 9px; border-radius: 20px;
+  background: var(--panel-alt); color: var(--muted); white-space: nowrap;
+}
+.retour-statut--resolu { background: color-mix(in srgb, var(--good-bright, #3ecf8e) 20%, transparent); color: var(--good-bright, #3ecf8e); }
+.retour-statut--en_cours { background: color-mix(in srgb, var(--accent-bright) 20%, transparent); color: var(--accent-bright); }
+.retour-reponse { font-size: 13px; background: var(--panel-alt); border-radius: 8px; padding: 8px 10px; margin-top: 6px; }
+.retour-admin-controles { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+.retour-admin-controles input[type="text"] { flex: 1; min-width: 220px; }
+
+
 .semestre-categorie {
   background: var(--panel-alt); color: var(--muted);
   border: 1px solid var(--border); border-radius: var(--radius);

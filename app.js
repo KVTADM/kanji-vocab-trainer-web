@@ -1320,6 +1320,7 @@ function renderCurrentView() {
   else if (currentView === 'admin' && typeof renderAdmin === 'function') renderAdmin();
   else if (currentView === 'boutique' && typeof renderBoutique === 'function') renderBoutique();
   else if (currentView === 'parties' && typeof renderParties === 'function') renderParties();
+  else if (currentView === 'aide' && typeof renderAide === 'function') renderAide();
   renderSidebarFooter();
   renderTopbarProfil();
 }

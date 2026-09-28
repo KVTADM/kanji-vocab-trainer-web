@@ -48,6 +48,15 @@ async function renderAdmin() {
       <div id="adminUsersBox"><p style="color:var(--muted);">Chargement…</p></div>
     </div>
     <div class="card">
+      <h3>Retours des utilisateurs</h3>
+      <p style="color:var(--muted);font-size:12.5px;line-height:1.6;margin:0 0 12px;">
+        Bugs, solutions proposées et demandes d'aide envoyés depuis "Aide &amp;
+        problèmes" (menu Plus). Change le statut ou écris une réponse, elle
+        redevient visible pour la personne dans "Mes messages".
+      </p>
+      <div id="adminRetoursBox"><p style="color:var(--muted);">Chargement…</p></div>
+    </div>
+    <div class="card">
       <h3>Résultats par joueur</h3>
       <p style="color:var(--muted);font-size:12.5px;line-height:1.6;margin:0 0 12px;">
         Vue réservée à l'admin : un joueur ne voit jamais les résultats d'un
@@ -59,6 +68,7 @@ async function renderAdmin() {
 
   chargerAudience();
   chargerStatsJoueurs();
+  chargerRetoursAdmin();
 
   const result = await callAdminFunction({ action: 'list' });
   const box = $('#adminUsersBox');
@@ -244,4 +254,66 @@ async function chargerAudience() {
   } catch (e) {
     box.innerHTML = `<p style="color:var(--pink);">Lecture impossible : ${escapeHtml(e.message || String(e))}</p>`;
   }
+}
+
+// ------------------------------------------------------------
+// Retours des utilisateurs (28/09/2026) : contrairement aux comptes/stats
+// ci-dessus, pas besoin de passer par la Edge Function -- la table
+// retours_utilisateurs est protégée par sa propre policy RLS
+// (kvt_est_admin()), donc une simple requête directe suffit et reste
+// protégée côté serveur même si ce fichier tournait sans la vérification
+// isAdmin plus haut.
+// ------------------------------------------------------------
+const RETOURS_ADMIN_STATUTS = ['ouvert', 'en_cours', 'resolu', 'ferme'];
+
+async function chargerRetoursAdmin() {
+  const box = $('#adminRetoursBox');
+  if (!box) return;
+  const { data, error } = await window.sb
+    .from('retours_utilisateurs')
+    .select('id, pseudo, titre, description, solution_proposee, besoin_aide, statut, reponse, created_at')
+    .order('created_at', { ascending: false })
+    .limit(100);
+  if (error) {
+    box.innerHTML = `<p style="color:var(--pink);">Erreur : ${escapeHtml(error.message)}</p>`;
+    return;
+  }
+  const retours = data || [];
+  if (!retours.length) {
+    box.innerHTML = `<p style="color:var(--muted);">Aucun message pour l'instant.</p>`;
+    return;
+  }
+  box.innerHTML = retours.map(r => `
+    <div class="retour-item retour-item--admin">
+      <div class="retour-item__tete">
+        <strong>${escapeHtml(r.titre)}</strong>
+        <span style="color:var(--muted); font-size:12px;">${escapeHtml(r.pseudo || "quelqu'un")} · ${new Date(r.created_at).toLocaleDateString('fr-FR')}${r.besoin_aide ? ' · demande une réponse' : ''}</span>
+      </div>
+      <p style="font-size:13px; margin:6px 0;">${escapeHtml(r.description)}</p>
+      ${r.solution_proposee ? `<p style="font-size:13px; color:var(--muted); margin:0 0 6px;"><strong>Solution proposée :</strong> ${escapeHtml(r.solution_proposee)}</p>` : ''}
+      <div class="retour-admin-controles">
+        <select data-retour-statut="${r.id}">
+          ${RETOURS_ADMIN_STATUTS.map(s => `<option value="${s}" ${s === r.statut ? 'selected' : ''}>${escapeHtml(libelleStatutRetour(s))}</option>`).join('')}
+        </select>
+        <input type="text" data-retour-reponse="${r.id}" placeholder="Réponse (visible par la personne)" value="${escapeHtml(r.reponse || '')}">
+        <button class="secondary small" data-retour-enregistrer="${r.id}">Enregistrer</button>
+      </div>
+    </div>`).join('');
+
+  $$('[data-retour-enregistrer]', box).forEach(btn => {
+    btn.onclick = async () => {
+      const id = btn.dataset.retourEnregistrer;
+      const statut = $(`[data-retour-statut="${id}"]`, box).value;
+      const reponse = $(`[data-retour-reponse="${id}"]`, box).value.trim();
+      btn.disabled = true;
+      const { error: erreurMaj } = await window.sb
+        .from('retours_utilisateurs')
+        .update({ statut, reponse: reponse || null, updated_at: new Date().toISOString() })
+        .eq('id', id);
+      btn.disabled = false;
+      if (erreurMaj) { showToast('Erreur : ' + erreurMaj.message); return; }
+      showToast('Enregistré');
+      chargerRetoursAdmin();
+    };
+  });
 }
