@@ -1831,6 +1831,14 @@ function renderDashboard() {
 // ============================================================
 // Vocabulaire : import en masse + parcours
 // ============================================================
+// Lien externe vers la fiche Jisho du mot (demande de Paul, 28/09/2026,
+// point 3 du backlog : "lien jisho auto de redirection pour le voc").
+// Jisho accepte directement le mot japonais (kanji ou kana) dans l'URL de
+// recherche -- pas besoin de romaji ni d'API, un simple lien suffit.
+function jishoLienHtml(mot) {
+  return `<a class="lien-jisho" href="https://jisho.org/search/${encodeURIComponent(mot)}" target="_blank" rel="noopener" title="Voir « ${escapeHtml(mot)} » sur Jisho">Jisho ↗</a>`;
+}
+
 function renderVocab() {
   const semesters = DB.settings.semesters;
   if (!browsingWeek) browsingWeek = { semesterId: semesters[0].id, week: 1 };
@@ -1889,7 +1897,7 @@ function renderVocab() {
                   <td>${escapeHtml(v.mot)}${registreBadge(v)}</td>
                   <td>${escapeHtml(v.lecture)}</td>
                   <td>${escapeHtml(v.sens)}</td>
-                  <td><button class="secondary small btn-masquer-vocab" data-vocab="${v.id}" title="Masquer ce mot (reversible, voir Mots masques)">Masquer</button></td>
+                  <td>${jishoLienHtml(v.mot)} <button class="secondary small btn-masquer-vocab" data-vocab="${v.id}" title="Masquer ce mot (reversible, voir Mots masques)">Masquer</button></td>
                 </tr>
               `).join('')}
             </tbody>
@@ -1928,7 +1936,7 @@ function renderVocab() {
                       <td>${escapeHtml(v.mot)}${registreBadge(v)}</td>
                       <td>${escapeHtml(v.lecture)}</td>
                       <td>${escapeHtml(v.sens)}</td>
-                      <td><button class="secondary small btn-demasquer-vocab" data-vocab="${v.id}">Restaurer</button></td>
+                      <td>${jishoLienHtml(v.mot)} <button class="secondary small btn-demasquer-vocab" data-vocab="${v.id}">Restaurer</button></td>
                     </tr>
                   `).join('')}
                 </tbody>

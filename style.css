@@ -1913,6 +1913,14 @@ code {
   font-size: 13px; cursor: pointer; padding: 0;
 }
 .lien-retour:hover { color: var(--accent); }
+/* Lien Jisho par mot (28/09/2026), dans les tables de vocabulaire : discret
+   par defaut (meme esprit que .lien-retour), colore seulement au survol
+   pour ne pas rivaliser visuellement avec le bouton d'action a cote. */
+.lien-jisho {
+  color: var(--muted); font-size: 12px; text-decoration: none;
+  margin-right: 8px; white-space: nowrap;
+}
+.lien-jisho:hover { color: var(--accent-bright); text-decoration: underline; }
 
 /* ---- Accueil : widgets Classement + Nouveautés (#21, rang 5) ---- */
 .accueil-widgets-row { margin: 16px 0; }
