@@ -26,19 +26,19 @@ essai('progressionNiveau calcule le bon pourcentage vers le niveau suivant', () 
 
 // ---------- Rangs ----------
 
-essai('rangDepuisNiveau : Bronze en dessous du niveau 4', () => {
+essai('rangDepuisNiveau : Bronze en dessous du niveau 10', () => {
   if (rangDepuisNiveau(1).nom !== 'Bronze') throw new Error('niveau 1 -> ' + rangDepuisNiveau(1).nom);
-  if (rangDepuisNiveau(3).nom !== 'Bronze') throw new Error('niveau 3 -> ' + rangDepuisNiveau(3).nom);
+  if (rangDepuisNiveau(9).nom !== 'Bronze') throw new Error('niveau 9 -> ' + rangDepuisNiveau(9).nom);
 });
 
 essai('rangDepuisNiveau : chaque seuil bascule pile sur le nouveau palier', () => {
-  if (rangDepuisNiveau(4).nom !== 'Argent') throw new Error('niveau 4 -> ' + rangDepuisNiveau(4).nom);
-  if (rangDepuisNiveau(7).nom !== 'Or') throw new Error('niveau 7 -> ' + rangDepuisNiveau(7).nom);
-  if (rangDepuisNiveau(10).nom !== 'Émeraude') throw new Error('niveau 10 -> ' + rangDepuisNiveau(10).nom);
-  if (rangDepuisNiveau(13).nom !== 'Rubis') throw new Error('niveau 13 -> ' + rangDepuisNiveau(13).nom);
-  if (rangDepuisNiveau(16).nom !== 'Diamant') throw new Error('niveau 16 -> ' + rangDepuisNiveau(16).nom);
-  if (rangDepuisNiveau(20).nom !== 'Champion') throw new Error('niveau 20 -> ' + rangDepuisNiveau(20).nom);
-  if (rangDepuisNiveau(25).nom !== 'Grand Champion') throw new Error('niveau 25 -> ' + rangDepuisNiveau(25).nom);
+  if (rangDepuisNiveau(10).nom !== 'Argent') throw new Error('niveau 10 -> ' + rangDepuisNiveau(10).nom);
+  if (rangDepuisNiveau(20).nom !== 'Or') throw new Error('niveau 20 -> ' + rangDepuisNiveau(20).nom);
+  if (rangDepuisNiveau(30).nom !== 'Émeraude') throw new Error('niveau 30 -> ' + rangDepuisNiveau(30).nom);
+  if (rangDepuisNiveau(45).nom !== 'Rubis') throw new Error('niveau 45 -> ' + rangDepuisNiveau(45).nom);
+  if (rangDepuisNiveau(60).nom !== 'Diamant') throw new Error('niveau 60 -> ' + rangDepuisNiveau(60).nom);
+  if (rangDepuisNiveau(80).nom !== 'Champion') throw new Error('niveau 80 -> ' + rangDepuisNiveau(80).nom);
+  if (rangDepuisNiveau(100).nom !== 'Grand Champion') throw new Error('niveau 100 -> ' + rangDepuisNiveau(100).nom);
 });
 
 essai('rangDepuisNiveau : un tres haut niveau reste au dernier palier (pas de dépassement du tableau)', () => {

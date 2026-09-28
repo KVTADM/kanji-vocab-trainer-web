@@ -220,17 +220,21 @@ function progressionNiveau(xp) {
 // Purement cosmetique : un nom de palier plus parlant qu'un simple numero,
 // facon jeu competitif -- aucun changement au calcul XP/niveau ci-dessus,
 // juste un nom+couleur associes a une plage de niveaux deja existante.
-// Seuils calibres sur l'echelle deja utilisee par la boutique (niveauRequis
-// va jusqu'a 20 pour les objets les plus prestigieux, voir GAMIF_BOUTIQUE).
+// Seuils remontes le 28/09/2026 (retour de Paul le jour meme : "le niveau
+// de rang devrait etre bien plus eleve, ex grand champion niveau 100") --
+// Grand Champion doit representer une utilisation vraiment intensive et
+// prolongee, pas quelques semaines d'usage normal. Avec la courbe XP
+// quadratique existante (niveauDepuisXp), le niveau 100 demande 50*99^2 =
+// 490 050 XP, un vrai sommet plutot qu'un palier atteignable en un mois.
 const GAMIF_RANGS = [
   { seuil: 1, nom: 'Bronze', emoji: '🥉', couleur: '#a5682f' },
-  { seuil: 4, nom: 'Argent', emoji: '🥈', couleur: '#7c8794' },
-  { seuil: 7, nom: 'Or', emoji: '🥇', couleur: '#c1902a' },
-  { seuil: 10, nom: 'Émeraude', emoji: '💚', couleur: '#2ca367' },
-  { seuil: 13, nom: 'Rubis', emoji: '❤️', couleur: '#c22e49' },
-  { seuil: 16, nom: 'Diamant', emoji: '💎', couleur: '#2b9ccb' },
-  { seuil: 20, nom: 'Champion', emoji: '🏆', couleur: '#8a5cf0' },
-  { seuil: 25, nom: 'Grand Champion', emoji: '👑', couleur: '#e06a2a' }
+  { seuil: 10, nom: 'Argent', emoji: '🥈', couleur: '#7c8794' },
+  { seuil: 20, nom: 'Or', emoji: '🥇', couleur: '#c1902a' },
+  { seuil: 30, nom: 'Émeraude', emoji: '💚', couleur: '#2ca367' },
+  { seuil: 45, nom: 'Rubis', emoji: '❤️', couleur: '#c22e49' },
+  { seuil: 60, nom: 'Diamant', emoji: '💎', couleur: '#2b9ccb' },
+  { seuil: 80, nom: 'Champion', emoji: '🏆', couleur: '#8a5cf0' },
+  { seuil: 100, nom: 'Grand Champion', emoji: '👑', couleur: '#e06a2a' }
 ];
 
 // Le tableau est trie par seuil croissant : on garde le dernier palier dont
