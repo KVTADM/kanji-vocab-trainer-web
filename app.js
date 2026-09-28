@@ -1577,26 +1577,23 @@ function renderDashboard() {
 
   if (dashboardMode === 'special') {
     // Onglet "Special" (17/09/2026, complete le 22/09/2026 avec Double
-    // reponse, reduit le 28/09/2026) : ne garde que Vocabulaire pratique.
-    // Ecriture/Traduction/Double sont retires d'ici -- demande de Paul --
-    // car accessibles directement depuis la modale de semaine du tableau
-    // de bord (choix de mode Vocabulaire/Ecriture/Traduction/Double, voir
-    // plus bas dans ce fichier), ce qui evite de les dupliquer a 2 endroits.
-    // Pas de semestre ici : la carte mene directement a l'ecran de choix du
-    // mode concerne (Reviser), avec le bon mode deja preselectionne.
-    const specialModes = [
-      { id: 'pratique', titre: 'Vocabulaire pratique', desc: 'Compteurs, couleurs et expressions de temps/heure -- du vocabulaire utile en dehors du programme.' }
-    ];
-    html += `<div class="special-modes-grid">`;
-    specialModes.forEach(m => {
-      html += `
-        <div class="card special-mode-card" data-special-mode="${m.id}">
-          <h3>${escapeHtml(m.titre)}</h3>
-          <p style="font-size:13px; color:var(--muted); margin-top:4px;">${escapeHtml(m.desc)}</p>
-          <button class="primary" data-special-mode-btn="${m.id}" style="margin-top:12px;">Ouvrir</button>
-        </div>`;
-    });
-    html += `</div>`;
+    // reponse, reduit le 28/09/2026 a Vocabulaire pratique puis passe en
+    // affichage direct des 3 cartes le meme jour) : Ecriture/Traduction/
+    // Double sont accessibles depuis la modale de semaine (voir plus bas
+    // dans ce fichier) -- plus besoin d'eux ici. Vocabulaire pratique
+    // n'a plus de carte d'entree "Ouvrir" : les 3 themes (compteurs,
+    // couleurs, heure) s'affichent directement, demande de Paul -- meme
+    // grille/logique (buildPratiqueCardsHtml) que l'ecran Reviser, mais
+    // avec des classes marqueur separees (.special-pratique-*) pour que
+    // les gestionnaires de clic ci-dessous ne mordent jamais sur les
+    // cartes de Reviser si elles trainent encore dans le DOM (meme piege
+    // que .week-card vs .review-week-card, deja documente plus haut).
+    html += `
+      <div class="card">
+        <h3>Vocabulaire pratique</h3>
+        <p style="font-size:13px; color:var(--muted); margin-top:4px;">Compteurs, couleurs et expressions de temps/heure -- du vocabulaire utile en dehors du programme.</p>
+        <div class="week-grid" style="margin-top:12px;">${buildPratiqueCardsHtml('review-week-card special-pratique-card', 'review-week-restart-btn special-pratique-restart-btn')}</div>
+      </div>`;
   } else {
   const visibleSemesters = DB.settings.semesters.filter(sem => categorieDuSemestre(sem) === dashboardMode);
 
@@ -1723,13 +1720,23 @@ function renderDashboard() {
     b.addEventListener('click', () => { dashboardMode = b.dataset.onglet; renderDashboard(); });
   });
   $('#btnNouvelleCategorie').addEventListener('click', creerCategorie);
-  // Cartes de l'onglet "Special" (17/09/2026) : chaque carte ouvre l'ecran
-  // Reviser avec le mode correspondant deja présélectionné (meme geste
-  // que "Reviser (choisir mode...)" mais sans repasser par le menu).
-  $$('[data-special-mode-btn]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      reviewPickerMode = btn.dataset.specialModeBtn;
-      quizSession = null;
+  // Cartes theme de l'onglet "Special" (28/09/2026) : demarrent directement
+  // la session (comme une carte de semaine Cursus/JLPT) et basculent sur
+  // Reviser pour l'afficher -- plus de detour par un bouton "Ouvrir".
+  $$('.special-pratique-restart-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      startPratiqueQuiz(btn.dataset.theme, true);
+      reviewPickerMode = 'pratique';
+      switchView('review');
+    });
+  });
+  $$('.special-pratique-card').forEach(el => {
+    el.addEventListener('click', () => {
+      const count = getPratiqueList(el.dataset.theme).length;
+      if (count === 0) return;
+      startPratiqueQuiz(el.dataset.theme, false);
+      reviewPickerMode = 'pratique';
       switchView('review');
     });
   });
@@ -3416,6 +3423,30 @@ function clearPratiqueInProgress(theme) {
   if (DB.inProgressPratique) delete DB.inProgressPratique[theme];
 }
 
+function buildPratiqueCardsHtml(cardClass, restartClass) {
+  let html = '';
+  PRATIQUE_THEMES.forEach(t => {
+    const count = getPratiqueList(t.id).length;
+    const entry = getPratiqueScoreEntry(t.id);
+    const saved = getValidPratiqueInProgress(t.id);
+    html += `
+      <div class="${cardClass}${count === 0 ? ' empty' : ''}" data-theme="${t.id}">
+        <div class="week-num">${escapeHtml(t.label)}</div>
+        <div class="week-meta">${count} mots</div>
+        ${entry ? `<div class="week-score">${entry.best.points}/${entry.best.maxPoints} pts <span class="week-score-pct">(${entry.best.pct}%)</span></div>` : '<div class="week-score muted">—</div>'}
+        ${saved ? `
+          <div class="week-progress-bar"><div class="week-progress-fill" style="width:${Math.round((saved.index / saved.queue.length) * 100)}%"></div></div>
+          <div class="week-progress-label">
+            ${saved.index}/${saved.queue.length} · ${saved.totals.points} pts gagnés
+            <button class="${restartClass}" data-theme="${t.id}" title="Recommencer ce thème">↺ Recommencer</button>
+          </div>
+        ` : ''}
+      </div>
+    `;
+  });
+  return html;
+}
+
 function renderPratiqueQuizView(container) {
   if (quizSession.index >= quizSession.queue.length) {
     const { points, maxPoints, startedAt } = quizSession.totals;
@@ -3711,26 +3742,7 @@ function renderReview() {
     // cliquables (28/09/2026, demande de Paul) : meme principe que Kana
     // ci-dessus, a la place du menu deroulant de themes utilise jusque-la.
     if (reviewPickerMode === 'pratique') {
-      let cartesHtmlPratique = '';
-      PRATIQUE_THEMES.forEach(t => {
-        const count = getPratiqueList(t.id).length;
-        const entry = getPratiqueScoreEntry(t.id);
-        const saved = getValidPratiqueInProgress(t.id);
-        cartesHtmlPratique += `
-          <div class="review-week-card ${count === 0 ? 'empty' : ''}" data-theme="${t.id}">
-            <div class="week-num">${escapeHtml(t.label)}</div>
-            <div class="week-meta">${count} mots</div>
-            ${entry ? `<div class="week-score">${entry.best.points}/${entry.best.maxPoints} pts <span class="week-score-pct">(${entry.best.pct}%)</span></div>` : '<div class="week-score muted">—</div>'}
-            ${saved ? `
-              <div class="week-progress-bar"><div class="week-progress-fill" style="width:${Math.round((saved.index / saved.queue.length) * 100)}%"></div></div>
-              <div class="week-progress-label">
-                ${saved.index}/${saved.queue.length} · ${saved.totals.points} pts gagnés
-                <button class="review-week-restart-btn" data-theme="${t.id}" title="Recommencer ce thème">↺ Recommencer</button>
-              </div>
-            ` : ''}
-          </div>
-        `;
-      });
+      const cartesHtmlPratique = buildPratiqueCardsHtml('review-week-card', 'review-week-restart-btn');
       container.innerHTML = `
         <h2>Réviser</h2>
         <div class="card">
