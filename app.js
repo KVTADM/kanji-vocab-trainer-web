@@ -12,7 +12,6 @@ let importPreview = null;   // { rows, errors } — résultat de l'analyse avant
 let browsingWeek = null;    // { semesterId, week } — semaine affichée dans l'onglet Vocabulaire (fusionné : mots + fiches)
 let learnImportPreview = null; // { rows, errors } — résultat de l'analyse avant import des fiches (anciennement onglet Apprendre, fusionné dans Vocabulaire)
 let reviewPickerMode = 'vocab'; // 'vocab' | 'kanji' | 'kana' — mode choisi sur l'écran de démarrage de Réviser (kanji seul et kana ajoutés le 09/09/2026)
-let reviewKanaType = 'hiragana'; // 'hiragana' | 'katakana' — persiste le choix entre deux rendus du picker kana
 let reviewVerbeFilter = 'tous'; // 'tous' | 'sans_verbe' | 'verbe_seul' — filtre "avec/sans verbe de base" (09/09/2026), pertinent seulement en mode vocabulaire
 let dashboardMode = 'cursus';  // 'cursus' (S0-S6) ou 'jlpt' (modules JLPT) — bascule en haut à droite de l'Accueil
 let modalSemaineOuverte = null; // { semesterId, week } — modale de choix ouverte sur une carte du Tableau de bord (09/09/2026), voir renderDashboard()
@@ -3646,72 +3645,118 @@ function renderReview() {
 
     // Mode "Kana" : pas de semestre/semaine (à part des JLPT/cursus comme
     // demandé), juste un type (hiragana/katakana) et un groupe de lecture.
+    // Grille de cartes cliquables (28/09/2026, demande de Paul) : meme
+    // principe visuel/interactif que Cursus/JLPT/Ecriture/Traduction/Double
+    // (score + reprise directement sur la carte), a la place du double
+    // menu deroulant type+groupe utilise jusque-la. Hiragana et Katakana
+    // s'affichent tous les deux en meme temps (comme 2 "semestres"), plus
+    // besoin de choisir un type avant de voir les groupes.
     if (reviewPickerMode === 'kana') {
-      if (!reviewKanaType) reviewKanaType = 'hiragana';
-      const groupOpts = KANA_GROUPS.map(g => {
-        const count = buildKanaQueue(reviewKanaType, g.id).length;
-        return `<option value="${g.id}">${escapeHtml(g.label)} (${count})</option>`;
-      }).join('');
+      let semainesHtmlKana = '';
+      [{ id: 'hiragana', label: 'Hiragana' }, { id: 'katakana', label: 'Katakana' }].forEach(type => {
+        let cartesHtml = '';
+        KANA_GROUPS.forEach(g => {
+          const count = buildKanaQueue(type.id, g.id).length;
+          const entry = getKanaScoreEntry(type.id, g.id);
+          const saved = getValidKanaInProgress(type.id, g.id);
+          cartesHtml += `
+            <div class="review-week-card ${count === 0 ? 'empty' : ''}" data-kana-type="${type.id}" data-group="${g.id}">
+              <div class="week-num">${escapeHtml(g.label)}</div>
+              <div class="week-meta">${count} kana</div>
+              ${entry ? `<div class="week-score">${entry.best.points}/${entry.best.maxPoints} pts <span class="week-score-pct">(${entry.best.pct}%)</span></div>` : '<div class="week-score muted">—</div>'}
+              ${saved ? `
+                <div class="week-progress-bar"><div class="week-progress-fill" style="width:${Math.round((saved.index / saved.queue.length) * 100)}%"></div></div>
+                <div class="week-progress-label">
+                  ${saved.index}/${saved.queue.length} · ${saved.totals.points} pts gagnés
+                  <button class="review-week-restart-btn" data-kana-type="${type.id}" data-group="${g.id}" title="Recommencer ce groupe">↺ Recommencer</button>
+                </div>
+              ` : ''}
+            </div>
+          `;
+        });
+        semainesHtmlKana += `<div class="card"><h3>${type.label}</h3><div class="week-grid week-grid--kana">${cartesHtml}</div></div>`;
+      });
       container.innerHTML = `
         <h2>Réviser</h2>
         <div class="card">
           <div class="form-row">${modeSelectHtml}${difficulteSelectHtml}</div>
-          <div class="form-row">
-            <select id="kanaTypePicker">
-              <option value="hiragana" ${reviewKanaType === 'hiragana' ? 'selected' : ''}>Hiragana</option>
-              <option value="katakana" ${reviewKanaType === 'katakana' ? 'selected' : ''}>Katakana</option>
-            </select>
-            <select id="kanaGroupPicker">${groupOpts}</select>
-            <button class="primary" id="btnStartQuiz">Démarrer</button>
-          </div>
         </div>
+        ${semainesHtmlKana}
       `;
       $('#quizModePicker').addEventListener('change', (e) => {
         reviewPickerMode = e.target.value;
         renderReview();
       });
       brancherDifficultePicker();
-      $('#kanaTypePicker').addEventListener('change', (e) => {
-        reviewKanaType = e.target.value;
-        renderReview();
+      $$('.review-week-restart-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          startKanaQuiz(btn.dataset.kanaType, btn.dataset.group, true);
+          renderReview();
+        });
       });
-      $('#btnStartQuiz').addEventListener('click', () => {
-        const groupId = $('#kanaGroupPicker').value;
-        if (!groupId) return;
-        startKanaQuiz(reviewKanaType, groupId);
-        renderReview();
+      $$('.review-week-card').forEach(el => {
+        el.addEventListener('click', () => {
+          const count = buildKanaQueue(el.dataset.kanaType, el.dataset.group).length;
+          if (count === 0) return;
+          startKanaQuiz(el.dataset.kanaType, el.dataset.group, false);
+          renderReview();
+        });
       });
       return;
     }
 
     // Mode "Vocabulaire pratique" (17/09/2026) : pas de semestre/semaine,
-    // juste un theme (compteurs/couleurs/heure) -- meme emplacement/esprit
-    // que la branche kana ci-dessus.
+    // juste un theme (compteurs/couleurs/heure). Grille de cartes
+    // cliquables (28/09/2026, demande de Paul) : meme principe que Kana
+    // ci-dessus, a la place du menu deroulant de themes utilise jusque-la.
     if (reviewPickerMode === 'pratique') {
-      const themeOpts = PRATIQUE_THEMES.map(t => {
+      let cartesHtmlPratique = '';
+      PRATIQUE_THEMES.forEach(t => {
         const count = getPratiqueList(t.id).length;
-        return `<option value="${t.id}">${escapeHtml(t.label)} (${count})</option>`;
-      }).join('');
+        const entry = getPratiqueScoreEntry(t.id);
+        const saved = getValidPratiqueInProgress(t.id);
+        cartesHtmlPratique += `
+          <div class="review-week-card ${count === 0 ? 'empty' : ''}" data-theme="${t.id}">
+            <div class="week-num">${escapeHtml(t.label)}</div>
+            <div class="week-meta">${count} mots</div>
+            ${entry ? `<div class="week-score">${entry.best.points}/${entry.best.maxPoints} pts <span class="week-score-pct">(${entry.best.pct}%)</span></div>` : '<div class="week-score muted">—</div>'}
+            ${saved ? `
+              <div class="week-progress-bar"><div class="week-progress-fill" style="width:${Math.round((saved.index / saved.queue.length) * 100)}%"></div></div>
+              <div class="week-progress-label">
+                ${saved.index}/${saved.queue.length} · ${saved.totals.points} pts gagnés
+                <button class="review-week-restart-btn" data-theme="${t.id}" title="Recommencer ce thème">↺ Recommencer</button>
+              </div>
+            ` : ''}
+          </div>
+        `;
+      });
       container.innerHTML = `
         <h2>Réviser</h2>
         <div class="card">
           <div class="form-row">${modeSelectHtml}${difficulteSelectHtml}</div>
-          <div class="form-row">
-            <select id="pratiqueThemePicker">${themeOpts}</select>
-            <button class="primary" id="btnStartQuiz">Démarrer</button>
-          </div>
         </div>
+        <div class="card"><h3>Vocabulaire pratique</h3><div class="week-grid">${cartesHtmlPratique}</div></div>
       `;
       $('#quizModePicker').addEventListener('change', (e) => {
         reviewPickerMode = e.target.value;
         renderReview();
       });
       brancherDifficultePicker();
-      $('#btnStartQuiz').addEventListener('click', () => {
-        const theme = $('#pratiqueThemePicker').value;
-        if (!theme) return;
-        startPratiqueQuiz(theme);
-        renderReview();
+      $$('.review-week-restart-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          startPratiqueQuiz(btn.dataset.theme, true);
+          renderReview();
+        });
+      });
+      $$('.review-week-card').forEach(el => {
+        el.addEventListener('click', () => {
+          const count = getPratiqueList(el.dataset.theme).length;
+          if (count === 0) return;
+          startPratiqueQuiz(el.dataset.theme, false);
+          renderReview();
+        });
       });
       return;
     }
