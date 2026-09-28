@@ -517,6 +517,15 @@ function collationHtml() {
 // Paul) : plus de section pour elles ici (voir GAMIF_BOUTIQUE plus haut --
 // `retireDeLaVente` -- pour pourquoi les entrees elles-memes restent dans
 // le catalogue).
+// Apercu d'un theme avant achat (demande de Paul, 28/09/2026) : applique
+// live le theme choisi sur toute la page (juste document.documentElement,
+// jamais DB.settings.theme -- rien n'est persiste ni pousse au cloud) pour
+// que l'utilisateur voie a quoi ca ressemble en vrai avant de depenser ses
+// pieces. Remis a zero en quittant la vue Boutique (voir switchView() dans
+// app.js) pour ne jamais laisser quelqu'un "coince" dans un theme qu'il n'a
+// pas choisi s'il oublie de cliquer sur "Revenir a mon theme".
+let boutiqueApercuTheme = null;
+
 const GAMIF_SECTIONS_BOUTIQUE = [
   { type: 'titre', titre: 'Titres', aide: "Affichés à côté de ton niveau, sur le tableau de bord." },
   { type: 'theme', titre: 'Thèmes du site', aide: "Débloque une palette normalement réservée au Pro, sans toucher à l'abonnement. Le choix du thème se fait ensuite dans Réglages." },
@@ -566,6 +575,7 @@ function renderBoutique() {
             <div class="boutique-item__emoji">${o.emoji}</div>
             <div class="boutique-item__nom">${escapeHtml(o.nom)}</div>
             ${o.pro ? '<div class="boutique-item__pro">Pro</div>' : ''}
+            ${o.type === 'theme' ? `<button class="secondary small boutique-item__apercu" data-apercu-theme="${o.themeId}">Aperçu</button>` : ''}
             ${boutiqueBouton(o, g, pro, niveauActuel)}
           </div>`).join('')}
       </div>`;
@@ -573,6 +583,11 @@ function renderBoutique() {
 
   container.innerHTML = `
     <h2>Boutique</h2>
+    ${boutiqueApercuTheme ? `
+    <div class="boutique-apercu-bar">
+      <span>Aperçu : ${escapeHtml((GAMIF_BOUTIQUE.find(o => o.themeId === boutiqueApercuTheme) || {}).nom || boutiqueApercuTheme)}</span>
+      <button class="secondary small" data-revenir-apercu>Revenir à mon thème</button>
+    </div>` : ''}
     <div class="card gamif-solde">
       <span class="gamif-piece">${iconePiece(18)} ${g.pieces} pièce${g.pieces > 1 ? 's' : ''} d'or</span>
       <span style="color:var(--muted); font-size:13px;">Gagnées en révisant — deux pièces d'or par mot correct, un bonus si tu finis une session à 80% ou plus, davantage sur les semestres avancés. Purement décoratif : aucun avantage sur le classement.</span>
@@ -585,6 +600,21 @@ function renderBoutique() {
     </div>
   `;
 
+  $$('[data-apercu-theme]', container).forEach(b => {
+    b.onclick = () => {
+      boutiqueApercuTheme = b.dataset.apercuTheme;
+      document.documentElement.dataset.theme = boutiqueApercuTheme;
+      renderBoutique();
+    };
+  });
+  const btnRevenirApercu = $('[data-revenir-apercu]', container);
+  if (btnRevenirApercu) {
+    btnRevenirApercu.onclick = () => {
+      boutiqueApercuTheme = null;
+      document.documentElement.dataset.theme = (DB.settings && DB.settings.theme) || 'dark';
+      renderBoutique();
+    };
+  }
   $$('[data-acheter]', container).forEach(b => {
     b.onclick = () => {
       const res = acheterObjet(b.dataset.acheter);

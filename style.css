@@ -3126,6 +3126,28 @@ code {
 .boutique-item button {
   width: 100%;
 }
+.boutique-item__apercu {
+  margin-bottom: 6px;
+}
+.boutique-apercu-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  background: var(--panel-alt);
+  border: 1px solid var(--accent);
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin-bottom: 14px;
+  font-size: 13.5px;
+}
+.boutique-apercu-bar span {
+  font-weight: 600;
+}
+.boutique-apercu-bar button {
+  white-space: nowrap;
+}
 
 /* ---------- Boutique v6 (25/08/2026) : collations, boosts, thèmes,
    bannières de profil ---------- */

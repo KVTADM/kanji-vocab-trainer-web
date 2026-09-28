@@ -554,3 +554,35 @@ essai('renderBoutique affiche "Débloqué" pour un thème déjà acheté au lieu
   const html = $('#view-boutique').innerHTML;
   if (!html.includes('Débloqué')) throw new Error('le badge "Débloqué" n\'apparaît pas pour un thème déjà acheté');
 });
+
+// ---------- v7 : apercu de theme avant achat (28/09/2026) ----------
+
+essai('renderBoutique propose un bouton Aperçu pour chaque thème, même non possédé', () => {
+  boutiqueApercuTheme = null;
+  DB = { gamification: { ...baseGamif(), pieces: 5000, xp: xpPourNiveau(10) } };
+  window.accountUser = null;
+  renderBoutique();
+  const html = $('#view-boutique').innerHTML;
+  if (!html.includes('data-apercu-theme="sakura"')) throw new Error('bouton Aperçu absent pour un thème non possédé');
+});
+
+essai('sans aperçu actif, aucune barre de rappel ne s\'affiche', () => {
+  boutiqueApercuTheme = null;
+  DB = { gamification: { ...baseGamif(), pieces: 5000, xp: xpPourNiveau(10) } };
+  window.accountUser = null;
+  renderBoutique();
+  const html = $('#view-boutique').innerHTML;
+  if (html.includes('boutique-apercu-bar')) throw new Error('la barre d\'aperçu ne devrait pas apparaître sans aperçu actif');
+});
+
+essai('un aperçu actif affiche la barre de rappel avec le nom du thème et un bouton de retour', () => {
+  boutiqueApercuTheme = 'sakura';
+  DB = { gamification: { ...baseGamif(), pieces: 5000, xp: xpPourNiveau(10) } };
+  window.accountUser = null;
+  renderBoutique();
+  const html = $('#view-boutique').innerHTML;
+  boutiqueApercuTheme = null; // ne pas laisser fuir cet etat vers les scenarios suivants
+  if (!html.includes('boutique-apercu-bar')) throw new Error('la barre d\'aperçu devrait apparaître');
+  if (!html.includes('Palette Sakura')) throw new Error('le nom du thème en aperçu devrait apparaître dans la barre');
+  if (!html.includes('data-revenir-apercu')) throw new Error('le bouton "Revenir à mon thème" est absent');
+});

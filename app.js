@@ -1238,6 +1238,13 @@ function switchView(view) {
   if (changementReel && currentView === 'account' && typeof kvtAuthErrorMessage !== 'undefined') {
     kvtAuthErrorMessage = null;
   }
+  // Apercu de theme (voir renderBoutique() dans gamification.js) : on ne
+  // laisse jamais quelqu'un repartir de la Boutique avec un theme
+  // d'emprunt encore applique sur toute la page.
+  if (changementReel && currentView === 'boutique' && typeof boutiqueApercuTheme !== 'undefined' && boutiqueApercuTheme) {
+    boutiqueApercuTheme = null;
+    applyTheme();
+  }
   currentView = view;
   $$('.nav-btn[data-view]').forEach(b => b.classList.toggle('active', b.dataset.view === view));
   $$('.view').forEach(v => { v.classList.remove('active', 'view-enter'); });
