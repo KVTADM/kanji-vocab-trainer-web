@@ -15,7 +15,7 @@ let apercuErreur = null;
 let apercuSemestre = 'tous';// filtre facultatif, jamais un préalable
 let globalLignes = null;    // scores bruts tous modes confondus (rang 5, #16)
 let globalErreur = null;
-let globalTri = 'points';   // 'points' | 'pct' | 'temps' | 'essais'
+let globalTri = 'points';   // 'points' | 'pct' | 'temps' | 'composite'
 
 function renderLeaderboard() {
   const el = $('#view-leaderboard');
@@ -70,7 +70,6 @@ function renderLeaderboard() {
           <option value="points" ${globalTri === 'points' ? 'selected' : ''}>Points cumulés</option>
           <option value="pct" ${globalTri === 'pct' ? 'selected' : ''}>Meilleur % moyen</option>
           <option value="temps" ${globalTri === 'temps' ? 'selected' : ''}>Temps moyen (plus rapide)</option>
-          <option value="essais" ${globalTri === 'essais' ? 'selected' : ''}>Nombre d'essais</option>
           <option value="composite" ${globalTri === 'composite' ? 'selected' : ''}>Score composite (#5)</option>
         </select>
       </div>` : ''}
@@ -501,8 +500,6 @@ function trierGlobal(rows, tri) {
       if (b.dureeMoyenne == null) return -1;
       return a.dureeMoyenne - b.dureeMoyenne;
     });
-  } else if (tri === 'essais') {
-    copie.sort((a, b) => b.essais - a.essais);
   } else if (tri === 'composite') {
     copie.sort((a, b) => (b.compositeMoyen ?? -1) - (a.compositeMoyen ?? -1));
   } else {
@@ -539,7 +536,6 @@ function renderGlobal() {
   const critere = (r) => {
     if (globalTri === 'pct') return r.pctMoyen == null ? '—' : `${Math.round(r.pctMoyen)}%`;
     if (globalTri === 'temps') return r.dureeMoyenne == null ? '—' : formatDuree(r.dureeMoyenne);
-    if (globalTri === 'essais') return `${r.essais} essai${r.essais > 1 ? 's' : ''}`;
     if (globalTri === 'composite') return r.compositeMoyen == null ? '—' : `${Math.round(r.compositeMoyen)}/100`;
     return `${r.points} pts`;
   };
@@ -552,6 +548,7 @@ function renderGlobal() {
           <div class="lb-podium-pseudo">${window.kvtProfils ? window.kvtProfils.auteurHtml(r.user_id, r.pseudo, 22) : escapeHtml(r.pseudo)}</div>
           <div class="lb-podium-points">${critere(r)}</div>
           <div class="lb-podium-pct">${r.points} pts cumulés</div>
+          ${globalTri === 'temps' ? '' : `<div class="lb-podium-temps">${r.dureeMoyenne == null ? 'Temps : —' : `Temps moyen : ${formatDuree(r.dureeMoyenne)}`}</div>`}
         </div>`).join('')}
     </div>`;
 

@@ -653,6 +653,7 @@ button.small { padding: 5px 10px; font-size: 12px; }
 .lb-rank-2 .lb-podium-points { color: #c9c9d6; }
 .lb-rank-3 .lb-podium-points { color: #d7924c; }
 .lb-podium-pct { font-size: 10.5px; color: var(--muted); margin-top: 4px; }
+.lb-podium-temps { font-size: 10.5px; color: var(--muted); margin-top: 2px; }
 
 .lb-table td.lb-rank { font-weight: 700; color: var(--muted); }
 .lb-row-me td { background: rgba(41, 128, 185, 0.14); font-weight: 700; }
