@@ -1247,10 +1247,22 @@ code {
    ces règles ne s'activent qu'en dessous de 860px de large.
    ============================================================ */
 @media (max-width: 860px) {
+  /* Bug de superposition signale par Paul (28/09/2026) : sur certaines
+     largeurs reduites (fenetre PC retrecie ou mobile), le pied de page legal
+     (.site-footer, un frere APRES .app dans le DOM) s'affichait par-dessus
+     les dernieres cartes du Tableau de bord au lieu d'apparaitre en dessous.
+     Cause : ce `height:100vh/100dvh` fixe, en plus du `min-height:100vh` de
+     la regle de base, donnait a `.app` (display:flex, .kvt-topbar +
+     .content en colonne) une hauteur EXPLICITE plutot qu'un simple plancher
+     -- avec .content en `flex:1`, ca rend le calcul de la hauteur reelle
+     de .content ambigu des que son contenu depasse un ecran (semestres
+     nombreux), et le rendu devient incoherent d'un moteur de rendu a
+     l'autre au lieu de deborder proprement sous .app comme prevu. Un
+     `min-height:100vh` seul (deja herite de la regle de base ci-dessus)
+     suffit a garder l'effet recherche (l'app occupe au moins un ecran
+     plein) sans creer cette ambiguite. */
   .app {
     flex-direction: column;
-    height: 100vh;
-    height: 100dvh;
   }
   .sidebar {
     width: 100%;
