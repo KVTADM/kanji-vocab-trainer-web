@@ -1306,7 +1306,6 @@ function renderCurrentView() {
   if (currentView === 'dashboard') renderDashboard();
   else if (currentView === 'manage') renderVocab();
   else if (currentView === 'review') renderReview();
-  else if (currentView === 'stats') renderStats();
   else if (currentView === 'download') renderDownload();
   else if (currentView === 'settings') renderSettings();
   else if (currentView === 'account' && typeof renderAccount === 'function') renderAccount();
@@ -1697,6 +1696,11 @@ function renderDashboard() {
               Meilleur score : ${entryModal.best.points}/${entryModal.best.maxPoints} pts (${entryModal.best.pct}%)${entryModal.best.verbeFilter ? ' · ' + escapeHtml(libelleFiltreMots(entryModal.best.verbeFilter)) : ''}
             </div>
           ` : ''}
+          <div class="filtre-mode">
+            <label><input type="radio" name="modalMode" value="vocab" checked> Vocabulaire</label>
+            <label><input type="radio" name="modalMode" value="ecriture"> Écriture</label>
+            <label><input type="radio" name="modalMode" value="traduction"> Traduction</label>
+          </div>
           <div class="filtre-mots">
             <label><input type="checkbox" id="chkModalMotsGroupe" ${filtreGroupeCocheModal ? 'checked' : ''}> Mots à kanji groupés</label>
             <label><input type="checkbox" id="chkModalMotsSimple" ${filtreSimpleCocheModal ? 'checked' : ''}> Mots simples</label>
@@ -1874,10 +1878,29 @@ function renderDashboard() {
         switchView('review');
       });
     }
-    $('#btnDemarrerModalSemaine').addEventListener('click', () => {
+    // Le label du bouton ("Recommencer" au lieu de "Demarrer") ne concerne
+    // que la reprise d'une session Vocabulaire en cours (savedModal) : si on
+    // choisit Ecriture/Traduction a la place, on demarre toujours une
+    // session neuve, donc le bouton doit revenir a "Demarrer" (28/09/2026).
+    const btnDemarrerModal = $('#btnDemarrerModalSemaine');
+    $$('input[name="modalMode"]').forEach(input => {
+      input.addEventListener('change', () => {
+        const repriseVocabActive = input.value === 'vocab' && !!savedModal;
+        btnDemarrerModal.textContent = repriseVocabActive ? 'Recommencer' : 'Démarrer';
+      });
+    });
+    btnDemarrerModal.addEventListener('click', () => {
       const { semesterId, week } = modalSemaineOuverte;
+      const modeRadioCoche = $('input[name="modalMode"]:checked');
+      const modeChoisi = modeRadioCoche ? modeRadioCoche.value : 'vocab';
       modalSemaineOuverte = null;
-      startQuiz(semesterId, week, true, reviewVerbeFilter);
+      if (modeChoisi === 'ecriture') {
+        startEcritureQuiz(semesterId, week, reviewVerbeFilter);
+      } else if (modeChoisi === 'traduction') {
+        startTraductionQuiz(semesterId, week, true, reviewVerbeFilter);
+      } else {
+        startQuiz(semesterId, week, true, reviewVerbeFilter);
+      }
       switchView('review');
     });
   }
@@ -4104,167 +4127,12 @@ function renderReview() {
   });
 }
 
-// ============================================================
-// Statistiques
-// ============================================================
-// ---------- Statistiques avancées (Pro) ----------
-// Rassemble toutes les tentatives de toutes les semaines, triées par date
-// — utilisé pour la courbe de progression globale ci-dessous.
-function getAllSessionsChronological() {
-  const all = [];
-  Object.keys(DB.scores).forEach(key => {
-    DB.scores[key].history.forEach(h => all.push(h));
-  });
-  all.sort((a, b) => a.date.localeCompare(b.date));
-  return all;
-}
-
-// Gratuit depuis le 25/07/2026. Le Pro se limite désormais à deux choses :
-// pas de publicité, et les palettes décoratives. Tout ce qui touche à
-// l'apprentissage lui-même — statistiques, export Anki, contenu — reste
-// accessible à tout le monde.
-function renderAdvancedStatsCard() {
-  const recent = getAllSessionsChronological().slice(-30);
-  const trendBars = recent.map(h => {
-    const cls = h.pct >= 99 ? 'good' : (h.pct >= 60 ? 'mid' : 'bad');
-    const d = new Date(h.date);
-    const dateLabel = d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
-    return `<div class="error-bar ${cls}" style="height:${Math.max(6, h.pct)}%" title="${dateLabel} — ${h.pct}%"></div>`;
-  }).join('');
-
-  const weekRanking = [];
-  DB.settings.semesters.forEach(sem => {
-    for (let w = 1; w <= getMaxRelevantWeek(sem); w++) {
-      const entry = getScoreEntry(sem.id, w);
-      if (entry) weekRanking.push({ label: `${sem.label} — S${w}`, pct: entry.best.pct });
-    }
-  });
-  weekRanking.sort((a, b) => a.pct - b.pct);
-  const weakest = weekRanking.slice(0, 5);
-
-  return `
-    <div class="card">
-      <h3>Statistiques avancées <span style="color:var(--good-bright); font-size:11px;">PRO</span></h3>
-      ${recent.length === 0 ? `
-        <p class="empty-state">Pas encore assez de sessions pour afficher une tendance.</p>
-      ` : `
-        <p style="font-size:12px; color:var(--muted); margin-top:-4px;">Progression sur tes ${recent.length} dernières sessions, toutes semaines confondues.</p>
-        <div class="error-history-list">
-          <div class="error-history-row"><div class="error-history-bars">${trendBars}</div></div>
-        </div>
-      `}
-      ${weakest.length > 0 ? `
-        <h4 style="margin:18px 0 8px; font-size:13px; color:var(--muted); text-transform:uppercase; letter-spacing:0.5px;">Semaines à retravailler en priorité</h4>
-        <table>
-          <thead><tr><th>Semaine</th><th>Meilleur score</th></tr></thead>
-          <tbody>${weakest.map(w => `<tr><td>${escapeHtml(w.label)}</td><td>${w.pct}%</td></tr>`).join('')}</tbody>
-        </table>
-      ` : ''}
-    </div>`;
-}
-
-function renderStats() {
-  let rows = '';
-  let totalAttempts = 0;
-  const weeksWithHistory = [];
-  DB.settings.semesters.forEach(sem => {
-    for (let w = 1; w <= getMaxRelevantWeek(sem); w++) {
-      const entry = getScoreEntry(sem.id, w);
-      const vocabCount = getVocabForWeek(sem.id, w).length;
-      if (vocabCount === 0 && !entry) continue;
-      totalAttempts += entry ? entry.history.length : 0;
-      rows += `
-        <tr>
-          <td>${sem.label} — S${w}</td>
-          <td>${vocabCount}</td>
-          <td>${entry ? entry.best.pct + '%' : '—'}</td>
-          <td>${entry ? entry.history.length : 0}</td>
-        </tr>
-      `;
-      if (entry && entry.history.length > 0) {
-        weeksWithHistory.push({ label: `${sem.label} — S${w}`, history: entry.history });
-      }
-    }
-  });
-
-  // ---- Historique visuel des erreurs : évolution du score par semaine ----
-  const errorHistoryHtml = weeksWithHistory.length === 0 ? `
-    <p class="empty-state">Aucune session terminée pour le moment — cette vue se remplit au fil de tes révisions.</p>
-  ` : weeksWithHistory.map(w => {
-    const bars = w.history.map(h => {
-      const cls = h.pct >= 99 ? 'good' : (h.pct >= 60 ? 'mid' : 'bad');
-      const d = new Date(h.date);
-      const dateLabel = d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
-      return `<div class="error-bar ${cls}" style="height:${Math.max(6, h.pct)}%" title="${dateLabel} — ${h.pct}%"></div>`;
-    }).join('');
-    const trend = w.history.length >= 2 ? w.history[w.history.length - 1].pct - w.history[0].pct : 0;
-    const trendLabel = w.history.length >= 2
-      ? (trend > 0 ? `▲ +${trend}%` : (trend < 0 ? `▼ ${trend}%` : '— stable'))
-      : '';
-    return `
-      <div class="error-history-row">
-        <div class="error-history-label">${escapeHtml(w.label)}</div>
-        <div class="error-history-bars">${bars}</div>
-        <div class="error-history-trend">${trendLabel}</div>
-      </div>
-    `;
-  }).join('');
-
-  // ---- Mots les plus souvent ratés ----
-  const worst = getWorstWords(15).filter(x => x.avgPct < 0.99);
-  const worstRows = worst.map(x => `
-    <tr>
-      <td class="kj">${escapeHtml(x.kanji)}</td>
-      <td>${escapeHtml(x.mot)}</td>
-      <td>${escapeHtml(x.lecture)}</td>
-      <td>${escapeHtml(x.sens)}</td>
-      <td>${x.semesterId ? x.semesterId.toUpperCase() + ' — S' + x.week : '—'}</td>
-      <td>${Math.round(x.avgPct * 100)}%</td>
-      <td>${x.misses} / ${x.attempts}</td>
-    </tr>
-  `).join('');
-
-  const composite = getScoreCompositePersonnel();
-
-  $('#view-stats').innerHTML = `
-    <h2>Statistiques</h2>
-    <div class="grid-4">
-      <div class="stat-box"><div class="num">${DB.vocab.length}</div><div class="label">Mots au total</div></div>
-      <div class="stat-box"><div class="num">${totalAttempts}</div><div class="label">Sessions jouées</div></div>
-      <div class="stat-box"><div class="num">${DB.kanjiGroups.length}</div><div class="label">Kanji importés</div></div>
-      <div class="stat-box" title="Précision, vitesse, assiduité et difficulté du contenu, combinées sur 100 (voir #5 de la feuille de route).">
-        <div class="num">${composite === null ? '—' : composite}</div><div class="label">Score composite</div>
-      </div>
-    </div>
-    ${renderAdvancedStatsCard()}
-    <div class="card">
-      <h3>Meilleur score par semaine</h3>
-      <table>
-        <thead><tr><th>Semaine</th><th>Mots</th><th>Meilleur score</th><th>Tentatives</th></tr></thead>
-        <tbody>${rows || '<tr><td colspan="4">Aucune donnée pour le moment.</td></tr>'}</tbody>
-      </table>
-    </div>
-    <div class="card">
-      <h3>Historique des erreurs</h3>
-      <p style="font-size:12px; color:var(--muted); margin-top:-4px;">
-        Score de chaque session jouée, dans l'ordre chronologique (gauche → droite) pour les semaines déjà tentées.
-        Plus une barre est basse et rouge, plus il y a eu d'erreurs ce jour-là.
-      </p>
-      <div class="error-history-list">${errorHistoryHtml}</div>
-    </div>
-    <div class="card">
-      <h3>Mots les plus souvent ratés</h3>
-      ${worst.length === 0 ? `
-        <p class="empty-state">Rien à signaler pour le moment — continue à réviser pour voir apparaître ici les mots à retravailler.</p>
-      ` : `
-        <table>
-          <thead><tr><th>Kanji</th><th>Mot</th><th>Lecture</th><th>Sens</th><th>Semaine</th><th>Réussite moy.</th><th>Ratés / tentatives</th></tr></thead>
-          <tbody>${worstRows}</tbody>
-        </table>
-      `}
-    </div>
-  `;
-}
+// (28/09/2026, demande de Paul) La page Statistiques a ete supprimee : le
+// tableau de bord permet desormais de lancer Ecriture/Traduction/Vocabulaire
+// directement depuis la modale de semaine. getWorstWords() (plus haut dans
+// ce fichier) est conservee : c'est une fonction utilitaire generale, pas
+// liee a la page en elle-meme, gardee au cas ou ces donnees (mots les plus
+// rates) soient un jour resurfacees ailleurs (ex. dans le tableau de bord).
 
 // ============================================================
 // Applications (téléchargement des versions Mac/Windows)

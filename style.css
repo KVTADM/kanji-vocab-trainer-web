@@ -760,6 +760,17 @@ tr:hover td { background: var(--panel-alt); }
   display: flex; flex-direction: row; align-items: center; gap: 6px;
   font-size: 14px; color: var(--ink); text-transform: none; letter-spacing: normal;
 }
+/* Choix du mode (Vocabulaire/Ecriture/Traduction) dans la modale de semaine
+   (28/09/2026) : boutons radio sur une ligne, au-dessus du filtre
+   mots-groupes/simples ci-dessus qui s'applique aux 3 modes. */
+.filtre-mode {
+  display: flex; flex-direction: row; flex-wrap: wrap; gap: 14px; width: 100%;
+  margin-bottom: 4px;
+}
+.filtre-mode label {
+  display: flex; flex-direction: row; align-items: center; gap: 6px;
+  font-size: 14px; color: var(--ink); text-transform: none; letter-spacing: normal;
+}
 
 code {
   background: var(--panel-alt);
