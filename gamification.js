@@ -216,6 +216,33 @@ function progressionNiveau(xp) {
   return { niveau, xpDansNiveau, largeurNiveau, pct };
 }
 
+// ---------- Rangs (point 1.5 du backlog envoye par Paul le 28/09/2026) ----------
+// Purement cosmetique : un nom de palier plus parlant qu'un simple numero,
+// facon jeu competitif -- aucun changement au calcul XP/niveau ci-dessus,
+// juste un nom+couleur associes a une plage de niveaux deja existante.
+// Seuils calibres sur l'echelle deja utilisee par la boutique (niveauRequis
+// va jusqu'a 20 pour les objets les plus prestigieux, voir GAMIF_BOUTIQUE).
+const GAMIF_RANGS = [
+  { seuil: 1, nom: 'Bronze', emoji: '🥉', couleur: '#a5682f' },
+  { seuil: 4, nom: 'Argent', emoji: '🥈', couleur: '#7c8794' },
+  { seuil: 7, nom: 'Or', emoji: '🥇', couleur: '#c1902a' },
+  { seuil: 10, nom: 'Émeraude', emoji: '💚', couleur: '#2ca367' },
+  { seuil: 13, nom: 'Rubis', emoji: '❤️', couleur: '#c22e49' },
+  { seuil: 16, nom: 'Diamant', emoji: '💎', couleur: '#2b9ccb' },
+  { seuil: 20, nom: 'Champion', emoji: '🏆', couleur: '#8a5cf0' },
+  { seuil: 25, nom: 'Grand Champion', emoji: '👑', couleur: '#e06a2a' }
+];
+
+// Le tableau est trie par seuil croissant : on garde le dernier palier dont
+// le seuil est atteint, jamais besoin de trier a l'appel.
+function rangDepuisNiveau(niveau) {
+  let rang = GAMIF_RANGS[0];
+  for (const r of GAMIF_RANGS) {
+    if (niveau >= r.seuil) rang = r;
+  }
+  return rang;
+}
+
 // ---------- Boost XP temporaire ----------
 
 function activerBoostXp() {
@@ -447,10 +474,12 @@ function iconePiece(taillePx) {
 function widgetGamification() {
   const g = assurerGamification();
   const prog = progressionNiveau(g.xp);
+  const rang = rangDepuisNiveau(prog.niveau);
   const titre = g.titreActif ? objetBoutique(g.titreActif) : null;
   return `
     <div class="card gamif-widget">
       <div class="gamif-widget__niveau">
+        <div class="gamif-widget__rang" style="background:${rang.couleur};" title="Palier ${escapeHtml(rang.nom)}, débloqué au niveau ${rang.seuil}">${rang.emoji} ${escapeHtml(rang.nom)}</div>
         <div class="gamif-widget__badge">Niv. ${prog.niveau}</div>
         <div class="gamif-widget__barre" title="${prog.xpDansNiveau}/${prog.largeurNiveau} XP avant le niveau suivant">
           <div class="gamif-widget__barre-remplie" style="width:${prog.pct}%"></div>

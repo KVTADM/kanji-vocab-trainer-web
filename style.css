@@ -3030,6 +3030,18 @@ code {
   flex: 1 1 220px;
   min-width: 200px;
 }
+/* Palier de rang (28/09/2026, point 1.5 du backlog) : meme forme que le
+   badge de niveau, couleur posee en inline (une par palier, voir
+   GAMIF_RANGS dans gamification.js) -- texte blanc, toutes les couleurs du
+   tableau sont choisies assez foncees/saturees pour rester lisibles. */
+.gamif-widget__rang {
+  font-weight: 700;
+  font-size: 13px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  color: #fff;
+  white-space: nowrap;
+}
 .gamif-widget__badge {
   font-weight: 700;
   font-size: 13px;

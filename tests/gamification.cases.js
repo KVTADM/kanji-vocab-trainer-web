@@ -24,6 +24,27 @@ essai('progressionNiveau calcule le bon pourcentage vers le niveau suivant', () 
   if (milieu.niveau !== 2 || milieu.pct !== 50) throw new Error(JSON.stringify(milieu));
 });
 
+// ---------- Rangs ----------
+
+essai('rangDepuisNiveau : Bronze en dessous du niveau 4', () => {
+  if (rangDepuisNiveau(1).nom !== 'Bronze') throw new Error('niveau 1 -> ' + rangDepuisNiveau(1).nom);
+  if (rangDepuisNiveau(3).nom !== 'Bronze') throw new Error('niveau 3 -> ' + rangDepuisNiveau(3).nom);
+});
+
+essai('rangDepuisNiveau : chaque seuil bascule pile sur le nouveau palier', () => {
+  if (rangDepuisNiveau(4).nom !== 'Argent') throw new Error('niveau 4 -> ' + rangDepuisNiveau(4).nom);
+  if (rangDepuisNiveau(7).nom !== 'Or') throw new Error('niveau 7 -> ' + rangDepuisNiveau(7).nom);
+  if (rangDepuisNiveau(10).nom !== 'Émeraude') throw new Error('niveau 10 -> ' + rangDepuisNiveau(10).nom);
+  if (rangDepuisNiveau(13).nom !== 'Rubis') throw new Error('niveau 13 -> ' + rangDepuisNiveau(13).nom);
+  if (rangDepuisNiveau(16).nom !== 'Diamant') throw new Error('niveau 16 -> ' + rangDepuisNiveau(16).nom);
+  if (rangDepuisNiveau(20).nom !== 'Champion') throw new Error('niveau 20 -> ' + rangDepuisNiveau(20).nom);
+  if (rangDepuisNiveau(25).nom !== 'Grand Champion') throw new Error('niveau 25 -> ' + rangDepuisNiveau(25).nom);
+});
+
+essai('rangDepuisNiveau : un tres haut niveau reste au dernier palier (pas de dépassement du tableau)', () => {
+  if (rangDepuisNiveau(999).nom !== 'Grand Champion') throw new Error('niveau 999 -> ' + rangDepuisNiveau(999).nom);
+});
+
 // ---------- Difficulté selon le semestre ----------
 
 essai('multiplicateurDifficulte vaut 1 pour le tout premier semestre du programme', () => {
