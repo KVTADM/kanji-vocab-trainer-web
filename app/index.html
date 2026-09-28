@@ -55,7 +55,6 @@
           <button class="nav-btn" data-view="stats">Statistiques</button>
           <button class="nav-btn" data-view="leaderboard">Classement</button>
           <button class="nav-btn" data-view="boutique">Boutique</button>
-          <button class="nav-btn" data-view="parties">Parties</button>
           <!-- Le menu vit DANS la navigation, pas a cote : c'est ce qui lui
                permet, sous 860 px, de se deplier avec le reste au lieu de
                former un second menu concurrent. Aucun deplacement de noeud au
@@ -63,6 +62,17 @@
           <div class="kvt-topbar__more">
             <button class="kvt-topbar__more-btn" type="button" aria-expanded="false" aria-haspopup="true" aria-controls="navSecondaire">Plus</button>
             <div class="kvt-topbar__more-panel" id="navSecondaire" role="menu">
+              <!-- Parties (28/09/2026) : atterrit ici, pas dans la barre visible.
+                   La barre est budgetee pile pour les sept entrees deja en place
+                   (voir le commentaire plus haut sur les 1360px/1180px) ; une
+                   huitieme deborde et se superpose visuellement a .kvt-topbar__end
+                   (badge de mots + profil), sans qu'aucun overflow ne le signale
+                   puisque .kvt-topbar__nav ne doit surtout pas en avoir (le menu
+                   Plus serait rogne avec). Bug remonte par Paul (capture d'ecran,
+                   28/09/2026) juste apres l'ajout en position visible -- a
+                   remonter dans la barre plus tard seulement en retirant autre
+                   chose a la place, pas en ajoutant tel quel. -->
+              <button class="nav-btn" data-view="parties">Parties</button>
               <button class="nav-btn" data-view="download">Applications</button>
               <button class="nav-btn" data-view="account">Compte</button>
               <button class="nav-btn" data-view="settings">Réglages</button>
