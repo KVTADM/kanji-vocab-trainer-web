@@ -1266,6 +1266,13 @@ function switchView(view) {
     boutiqueApercuTheme = null;
     applyTheme();
   }
+  // Salons multijoueur (voir parties.js) : les minuteurs (affichage + arbitrage
+  // hote) ne servent a rien hors de cette vue, autant les arreter en partant --
+  // l'abonnement temps reel au salon, lui, reste actif (on peut re-ouvrir
+  // l'onglet Parties et retrouver la partie en cours sans tout reperdre).
+  if (changementReel && currentView === 'parties' && typeof arreterMinuteursPartie === 'function') {
+    arreterMinuteursPartie();
+  }
   currentView = view;
   $$('.nav-btn[data-view]').forEach(b => b.classList.toggle('active', b.dataset.view === view));
   $$('.view').forEach(v => { v.classList.remove('active', 'view-enter'); });
@@ -1312,6 +1319,7 @@ function renderCurrentView() {
   else if (currentView === 'creation' && typeof renderCreation === 'function') renderCreation();
   else if (currentView === 'admin' && typeof renderAdmin === 'function') renderAdmin();
   else if (currentView === 'boutique' && typeof renderBoutique === 'function') renderBoutique();
+  else if (currentView === 'parties' && typeof renderParties === 'function') renderParties();
   renderSidebarFooter();
   renderTopbarProfil();
 }

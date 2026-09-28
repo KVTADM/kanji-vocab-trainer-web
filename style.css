@@ -2168,6 +2168,30 @@ code {
   justify-content: center;
 }
 .semestre-toggle:hover { color: var(--ink); border-color: var(--accent); }
+
+/* Salons multijoueur / jeu de la bombe (28/09/2026, voir parties.js) */
+.partie-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.partie-form { display: flex; flex-direction: column; gap: 12px; max-width: 420px; }
+.partie-form label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--muted); }
+.partie-form__case { flex-direction: row !important; align-items: center; gap: 8px !important; }
+.partie-form__case input { width: auto; }
+.partie-liste-item {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 10px 14px; border: 1px solid var(--border); border-radius: 10px; margin-bottom: 8px;
+}
+.partie-joueurs-liste { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
+.partie-joueur-chip {
+  display: inline-flex; align-items: center; gap: 8px; background: var(--panel-alt);
+  border: 1px solid var(--border); border-radius: 20px; padding: 6px 12px; font-size: 13.5px;
+}
+.partie-joueur-chip--actif { border-color: var(--accent-bright); box-shadow: 0 0 0 1px var(--accent-bright) inset; }
+.partie-vies { font-size: 12px; letter-spacing: 1px; }
+.partie-minuteur { display: flex; align-items: center; gap: 10px; margin: 14px 0; }
+.partie-minuteur-barre { flex: 1; height: 8px; border-radius: 4px; background: var(--panel-alt); border: 1px solid var(--border); overflow: hidden; }
+.partie-minuteur-barre__remplissage { height: 100%; width: 100%; background: var(--accent); transition: width 0.2s linear; }
+.partie-minuteur-texte { font-size: 13px; color: var(--muted); min-width: 32px; text-align: right; }
+.partie-mot-actif { font-size: 46px; font-weight: 700; text-align: center; margin: 18px 0; letter-spacing: 2px; }
+
 .semestre-categorie {
   background: var(--panel-alt); color: var(--muted);
   border: 1px solid var(--border); border-radius: var(--radius);
