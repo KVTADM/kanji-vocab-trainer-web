@@ -1462,6 +1462,11 @@ function renderDashboard() {
       </div>` : ''}
     <div id="kvtVersionMarque" style="font-size:11px; color:var(--muted); margin:-4px 0 12px;"></div>`;
 
+  // Cadeau en attente (28/09/2026) : au-dessus du widget de niveau, pour
+  // être la toute première chose vue -- voir widgetCadeau() dans
+  // gamification.js.
+  if (typeof widgetCadeau === 'function') html += widgetCadeau();
+
   // Gamification (24/08/2026) : niveau/XP/pièces/série, tout en haut du
   // tableau de bord — la première chose vue à l'ouverture de l'app.
   if (typeof widgetGamification === 'function') html += widgetGamification();
@@ -1676,6 +1681,7 @@ function renderDashboard() {
   renderAllAdSlots();
   afficherVersionDeploiement();
   if (typeof chargerNouveautesAccueil === 'function') chargerNouveautesAccueil();
+  if (typeof wireWidgetCadeau === 'function') wireWidgetCadeau();
 
   $$('[data-onglet]').forEach(b => {
     b.addEventListener('click', () => { dashboardMode = b.dataset.onglet; renderDashboard(); });

@@ -397,6 +397,40 @@ h3 {
   flex-wrap: wrap;
 }
 
+/* ---------- Cadeau en attente (tableau de bord, 28/09/2026) ---------- */
+.gamif-cadeau {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  border-color: var(--accent-bright);
+  background: linear-gradient(135deg, var(--panel-alt), var(--panel));
+  animation: gamifCadeauPulse 2.4s ease-in-out infinite;
+}
+@keyframes gamifCadeauPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 196, 71, 0.25); }
+  50% { box-shadow: 0 0 0 6px rgba(255, 196, 71, 0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .gamif-cadeau { animation: none; }
+}
+.gamif-cadeau__emoji {
+  font-size: 34px;
+  line-height: 1;
+}
+.gamif-cadeau__texte {
+  flex: 1;
+  min-width: 160px;
+}
+.gamif-cadeau__titre {
+  font-weight: 700;
+}
+.gamif-cadeau__detail {
+  font-size: 13px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
 .grid-2 {
   display: grid;
   grid-template-columns: 1fr 1fr;

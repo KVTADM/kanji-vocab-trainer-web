@@ -586,3 +586,52 @@ essai('un aperçu actif affiche la barre de rappel avec le nom du thème et un b
   if (!html.includes('Palette Sakura')) throw new Error('le nom du thème en aperçu devrait apparaître dans la barre');
   if (!html.includes('data-revenir-apercu')) throw new Error('le bouton "Revenir à mon thème" est absent');
 });
+
+// ---------- Cadeaux ponctuels de pièces (28/09/2026) ----------
+
+essai('totalCadeauxEnAttente additionne les pièces de chaque cadeau en attente', () => {
+  cadeauxEnAttente = [{ id: 1, pieces: 2600 }, { id: 2, pieces: 400 }];
+  if (totalCadeauxEnAttente() !== 3000) throw new Error('total=' + totalCadeauxEnAttente());
+  cadeauxEnAttente = [];
+});
+
+essai('widgetCadeau ne rend rien sans cadeau en attente', () => {
+  cadeauxEnAttente = [];
+  if (widgetCadeau() !== '') throw new Error('widgetCadeau devrait être vide sans cadeau en attente');
+});
+
+essai('widgetCadeau affiche le total et un bouton de récupération quand un cadeau est en attente', () => {
+  cadeauxEnAttente = [{ id: 1, pieces: 2600, raison: 'Cadeau de Paul' }];
+  const html = widgetCadeau();
+  cadeauxEnAttente = [];
+  if (!html.includes('2600')) throw new Error('le total de pièces n\'apparaît pas : ' + html);
+  if (!html.includes('id="btnReclamerCadeau"')) throw new Error('le bouton "Récupérer" est absent');
+});
+
+essai('reclamerCadeaux crédite le total, vide la liste en attente et marque les lignes appliquées', () => {
+  DB = { gamification: { ...baseGamif(), pieces: 100 } };
+  cadeauxEnAttente = [{ id: 7, pieces: 2600 }];
+  let idsAppliques = null;
+  window.sb = {
+    from: () => ({
+      update: (champs) => ({
+        in: async (colonne, ids) => { idsAppliques = ids; return { error: (champs.applique === true) ? null : new Error('champ inattendu') }; }
+      })
+    })
+  };
+  return reclamerCadeaux().then(() => {
+    if (DB.gamification.pieces !== 2700) throw new Error('pieces=' + DB.gamification.pieces);
+    if (cadeauxEnAttente.length !== 0) throw new Error('cadeauxEnAttente devrait être vidé après récupération');
+    if (!idsAppliques || idsAppliques[0] !== 7) throw new Error('la ligne 7 aurait dû être marquée appliquée');
+  });
+});
+
+essai('reclamerCadeaux ne crédite rien si le marquage "appliqué" échoue (réseau)', () => {
+  DB = { gamification: { ...baseGamif(), pieces: 100 } };
+  cadeauxEnAttente = [{ id: 9, pieces: 500 }];
+  window.sb = { from: () => ({ update: () => ({ in: async () => ({ error: new Error('réseau') }) }) }) };
+  return reclamerCadeaux().then(() => {
+    if (DB.gamification.pieces !== 100) throw new Error('les pièces n\'auraient pas dû bouger : ' + DB.gamification.pieces);
+    if (cadeauxEnAttente.length !== 1) throw new Error('cadeauxEnAttente n\'aurait pas dû être vidé sur échec');
+  });
+});

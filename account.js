@@ -341,38 +341,22 @@ async function kvtPullCloud() {
 
 // Cadeaux ponctuels de pièces (ex. Paul qui compense un bug ou remercie un
 // joueur) offerts via la table gamification_grants (insérée à la main,
-// jamais depuis le client). Appliqué comme un DELTA sur la valeur LOCALE
-// actuelle de DB.gamification.pieces, jamais un remplacement du blob
-// complet -- contrairement à un edit direct de user_backups.data, qui se
-// faisait systématiquement écraser par la sauvegarde automatique du client
-// (saveData pousse vers le cloud à chaque action de jeu, pas seulement via
-// "Sauvegarder maintenant") dès que le joueur restait actif entre l'edit et
-// sa prise en compte (28/09/2026 -- cas réel avec Zoé, deux édits directs
-// écrasés coup sur coup). Idempotent et sans risque à rappeler : sans ligne
-// non appliquée, c'est un aller-retour réseau qui ne fait rien.
-async function appliquerGrantsEnAttente() {
-  if (!window.accountUser || !DB || !DB.gamification) return;
+// jamais depuis le client). Ne fait QUE charger la liste en attente dans
+// cadeauxEnAttente (gamification.js) -- la carte "cadeau" du tableau de
+// bord (widgetCadeau()) s'affiche alors toute seule au prochain rendu, et
+// c'est reclamerCadeaux() (gamification.js), déclenché par le clic sur
+// "Récupérer", qui crédite réellement les pièces. Paul a préféré ce geste
+// explicite à un crédit silencieux à la connexion (v1 du 28/09/2026) :
+// plus visible, et ça ne dépend plus d'un toast qu'on peut rater.
+async function chargerCadeauxEnAttente() {
+  if (!window.accountUser || typeof cadeauxEnAttente === 'undefined') return;
   const { data: lignes, error } = await window.sb
     .from('gamification_grants')
-    .select('id, pieces')
+    .select('id, pieces, raison')
     .eq('user_id', window.accountUser.id)
     .eq('applique', false);
-  if (error || !lignes || !lignes.length) return;
-  const total = lignes.reduce((somme, l) => somme + (Number(l.pieces) || 0), 0);
-  if (total <= 0) return;
-  const ids = lignes.map(l => l.id);
-  const { error: erreurMaj } = await window.sb
-    .from('gamification_grants')
-    .update({ applique: true })
-    .in('id', ids);
-  // Si le marquage "appliqué" échoue (réseau), on ne touche pas aux pièces
-  // : mieux vaut réessayer au prochain chargement que risquer de créditer
-  // deux fois si le marquage échoue après coup.
-  if (erreurMaj) return;
-  DB.gamification.pieces = (DB.gamification.pieces || 0) + total;
-  await window.api.saveData(DB);
-  if (typeof renderCurrentView === 'function') renderCurrentView();
-  if (typeof showToast === 'function') showToast(`+${total} pièce${total > 1 ? 's' : ''} d'or reçue${total > 1 ? 's' : ''} !`);
+  if (error || !lignes) return;
+  cadeauxEnAttente = lignes;
 }
 
 // Appelé une seule fois par connexion interactive réussie (pas au simple
@@ -456,7 +440,7 @@ window.sb.auth.onAuthStateChange((event, session) => {
       // Toujours tentée (login neuf ou simple rechargement avec session déjà
       // active) : contrairement à syncAfterLogin, sans effet de bord si rien
       // n'est en attente, donc pas besoin de la verrouiller derrière shouldSync.
-      await appliquerGrantsEnAttente();
+      await chargerCadeauxEnAttente();
     } else {
       window.accountUser = null;
       kvtSyncedThisSession = false;

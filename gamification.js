@@ -475,6 +475,71 @@ function iconePiece(taillePx) {
 // ---------- Rendu : widget tableau de bord ----------
 // Inséré dans renderDashboard() (app.js) — voir en-tête de la fonction.
 
+// ---------- Cadeaux ponctuels de pièces (voir gamification_grants) ----------
+// Contrairement à un ancien essai (28/09/2026, créditées silencieusement dès
+// la connexion) : Paul a demandé une vraie carte "à récupérer" sur le
+// tableau de bord plutôt qu'un crédit invisible noyé dans un toast — plus
+// visible, et ça laisse un vrai geste ("cliquer pour récupérer son cadeau")
+// au lieu d'un ajout qu'on peut rater. cadeauxEnAttente est peuplé par
+// chargerCadeauxEnAttente() (account.js, appelé à la connexion/au
+// rechargement) ; les pièces ne sont créditées qu'au clic, via
+// reclamerCadeaux() ci-dessous.
+let cadeauxEnAttente = [];
+
+function totalCadeauxEnAttente() {
+  return cadeauxEnAttente.reduce((somme, c) => somme + (Number(c.pieces) || 0), 0);
+}
+
+// Carte "cadeau" du tableau de bord : rien si aucun don en attente, sinon
+// tout en haut à côté du widget de niveau (voir renderDashboard() dans
+// app.js) pour être vue dès l'ouverture de l'app.
+function widgetCadeau() {
+  if (!cadeauxEnAttente.length) return '';
+  const total = totalCadeauxEnAttente();
+  return `
+    <div class="card gamif-cadeau" id="gamifCadeauCard">
+      <div class="gamif-cadeau__emoji">🎁</div>
+      <div class="gamif-cadeau__texte">
+        <div class="gamif-cadeau__titre">Un cadeau t'attend !</div>
+        <div class="gamif-cadeau__detail">${iconePiece(14)} ${total} pièce${total > 1 ? 's' : ''} d'or à récupérer</div>
+      </div>
+      <button class="primary" id="btnReclamerCadeau">Récupérer</button>
+    </div>`;
+}
+
+// Branché depuis renderDashboard() (app.js) juste après avoir posé le HTML
+// du tableau de bord -- mirroring le geste deja fait pour les autres widgets
+// dont le rendu vit ici mais dont le cablage des boutons vit la-bas.
+function wireWidgetCadeau() {
+  const btn = $('#btnReclamerCadeau');
+  if (!btn) return;
+  btn.onclick = async () => {
+    btn.disabled = true;
+    btn.textContent = 'Récupération…';
+    await reclamerCadeaux();
+  };
+}
+
+async function reclamerCadeaux() {
+  if (!cadeauxEnAttente.length) return;
+  const total = totalCadeauxEnAttente();
+  const ids = cadeauxEnAttente.map(c => c.id);
+  const { error } = await window.sb
+    .from('gamification_grants')
+    .update({ applique: true })
+    .in('id', ids);
+  if (error) {
+    showToast('Impossible de récupérer le cadeau pour l\'instant, réessaie plus tard.');
+    return;
+  }
+  const g = assurerGamification();
+  g.pieces = (g.pieces || 0) + total;
+  cadeauxEnAttente = [];
+  await persist();
+  showToast(`+${total} pièce${total > 1 ? 's' : ''} d'or reçue${total > 1 ? 's' : ''} !`);
+  if (typeof renderCurrentView === 'function') renderCurrentView();
+}
+
 function widgetGamification() {
   const g = assurerGamification();
   const prog = progressionNiveau(g.xp);
