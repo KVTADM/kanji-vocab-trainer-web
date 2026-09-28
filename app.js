@@ -2093,6 +2093,30 @@ function construireSvgTraceKanji(paths, idSvg) {
 function animerTraceKanji(svgEl) {
   const traits = $$('.trait-kanji', svgEl);
   const DUREE_PAR_TRAIT_MS = 380;
+  // Laisse le kanji complet visible un instant avant de relancer la boucle
+  // (demande de Paul, 28/09/2026 : "les animations de tracé doivent être
+  // répétées à l'infini") -- sans cette pause, l'oeil n'a pas le temps de
+  // voir le caractere entier avant que tout reparte de zero.
+  const PAUSE_AVANT_REPRISE_MS = 900;
+  // Un appel repart toujours de zero (ex. bouton "Rejouer") : on annule
+  // d'abord toute boucle deja programmee pour ce SVG, sinon deux boucles
+  // tourneraient en parallele sur les memes traits.
+  if (svgEl._kvtBoucleTraceId) {
+    clearTimeout(svgEl._kvtBoucleTraceId);
+    svgEl._kvtBoucleTraceId = null;
+  }
+  // Respecte la preference systeme reduced-motion (meme principe que les
+  // autres @media (prefers-reduced-motion: reduce) du CSS) : le kanji
+  // s'affiche direct, trait complet, sans animation ni boucle.
+  const reduitMouvement = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (reduitMouvement) {
+    traits.forEach(path => {
+      path.style.transition = 'none';
+      path.style.strokeDasharray = '';
+      path.style.strokeDashoffset = '0';
+    });
+    return;
+  }
   traits.forEach((path, i) => {
     const longueur = path.getTotalLength();
     path.style.transition = 'none';
@@ -2105,6 +2129,14 @@ function animerTraceKanji(svgEl) {
     path.style.transition = `stroke-dashoffset ${DUREE_PAR_TRAIT_MS}ms ease-in-out ${i * DUREE_PAR_TRAIT_MS}ms`;
     path.style.strokeDashoffset = '0';
   });
+  // Boucle infinie tant que le SVG reste dans la page : isConnected coupe
+  // proprement la boucle des que la modale se ferme ou que la vue change
+  // (innerHTML remplace), sans avoir a intercepter chaque endroit qui
+  // pourrait faire disparaitre cet element.
+  const dureeTotale = traits.length * DUREE_PAR_TRAIT_MS + PAUSE_AVANT_REPRISE_MS;
+  svgEl._kvtBoucleTraceId = setTimeout(() => {
+    if (svgEl.isConnected) animerTraceKanji(svgEl);
+  }, dureeTotale);
 }
 
 function htmlModalTraceKanji() {
@@ -2140,6 +2172,31 @@ function htmlModalTraceKanji() {
       </div>
     </div>
   `;
+}
+
+// Version incrustee du trace anime (sans modale, sans bouton) : pensee
+// pour un affichage direct des que la reponse est revelee (demande de
+// Paul, 28/09/2026 : "les kanji affiches a la reponse doivent etre
+// affiches directement en trace"). Meme rendu que htmlModalTraceKanji()
+// (construireSvgTraceKanji + caracteresKanjiDistincts), mais sans le cadre
+// modal -- et silencieuse (chaine vide) si aucun trace n'est disponible
+// pour aucun caractere du mot, plutot que d'afficher un cadre vide.
+function htmlTraceInline(mot, prefixeId) {
+  const caracteres = caracteresKanjiDistincts(mot);
+  const blocs = caracteres.map((kanji, i) => {
+    const paths = tracesDisponibles(kanji);
+    if (!paths) return '';
+    return `<div class="trace-svg-wrap">${construireSvgTraceKanji(paths, `${prefixeId}-${i}`)}</div>`;
+  }).filter(Boolean).join('');
+  if (!blocs) return '';
+  return `<div class="trace-blocs trace-blocs--inline">${blocs}</div>`;
+}
+
+// A appeler juste apres avoir pose le HTML de htmlTraceInline() dans le
+// DOM : demarre (ou relance) la boucle d'animation de chaque SVG incruste
+// portant ce prefixe d'id.
+function animerTracesInline(prefixeId) {
+  $$(`svg[id^="${prefixeId}-"]`).forEach(svg => animerTraceKanji(svg));
 }
 
 // rerender : fonction de la vue APPELANTE a relancer apres fermeture --
@@ -2634,8 +2691,8 @@ function renderEcritureQuizView(container) {
             return `<div class="anti-confusion">⚠ Ne pas confondre avec : ${liste} — meme lecture, kanji different.</div>`;
           })()}
           <div class="back-reading back-reading--grand">${escapeHtml(v.mot)}${registreBadge(v)}</div>
+          ${htmlTraceInline(v.mot, 'svgTraceEcritureInline')}
           ${v.sens ? `<div class="back-meaning">${escapeHtml(v.sens)}</div>` : ''}
-          <button class="secondary small" id="btnVoirTraceEcriture" style="margin-top:10px;">Voir le tracé des traits</button>
         ` : ''}
       </div>
       ${!quizSession.revealed ? `
@@ -2645,7 +2702,6 @@ function renderEcritureQuizView(container) {
       `}
       <button class="secondary" id="btnQuitEcritureQuiz" style="margin-top:12px;">Quitter la session</button>
     </div>
-    ${htmlModalTraceKanji()}
   `;
 
   if (!quizSession.revealed) {
@@ -2661,25 +2717,17 @@ function renderEcritureQuizView(container) {
       quizSession.revealed = false;
       renderReview();
     });
+    // Trace incruste (htmlTraceInline ci-dessus) : demarre la boucle
+    // d'animation des que le DOM de la reponse revelee existe. Plus besoin
+    // du bouton "Voir le trace" ni de la modale -- affichage direct demande
+    // par Paul le 28/09/2026.
+    animerTracesInline('svgTraceEcritureInline');
   }
 
   $('#btnQuitEcritureQuiz').addEventListener('click', () => {
     quizSession = null;
     renderReview();
   });
-
-  const btnVoirTrace = $('#btnVoirTraceEcriture');
-  if (btnVoirTrace) {
-    btnVoirTrace.addEventListener('click', () => {
-      // v.mot peut contenir plusieurs kanji (mot compose) : htmlModalTraceKanji
-      // utilise deja caracteresKanjiDistincts() pour les isoler un par un,
-      // meme mecanisme que le bouton equivalent en Kanji seul (g.kanji, lui,
-      // n'en contient qu'un seul).
-      modalTraceKanji = v.mot;
-      renderReview();
-    });
-  }
-  wireModalTraceKanji(renderReview);
 }
 
 // ---------- Mode "Traduction" (francais -> japonais) ----------
