@@ -245,8 +245,11 @@ essai('seules les sessions complètes comptent : 110/110 (filtrée) ne passe pas
   ];
   const ordre = meilleursParSemaine(lignesCompletes(lignes))[0].lignes.map(r => r.pseudo).join(',');
   if (ordre !== 'Lu,Po') throw new Error('ordre = ' + ordre);
-  const global = computeGlobal(lignesCompletes(lignes)).map(u => u.pseudo);
-  if (global.includes('Vy')) throw new Error('la session filtrée compte encore au classement global');
+  const vy = agregerGlobal(lignes).find(u => u.pseudo === 'Vy');
+  if (!vy || vy.points !== 110) throw new Error('les points filtrés doivent compter au global : ' + JSON.stringify(vy));
+  if (vy.pctMoyen !== null) throw new Error('mais pas le % : ' + vy.pctMoyen);
+  const ordreGlobal = trierGlobal(agregerGlobal(lignes), 'classement').map(u => u.pseudo);
+  if (ordreGlobal[ordreGlobal.length - 1] !== 'Vy') throw new Error('sans session complète, en bas du classement au % : ' + ordreGlobal.join(','));
 });
 
 essai('une session complète reste comptée même si son total est plus petit que celui d\'un autre (mots masqués)', () => {
@@ -257,4 +260,14 @@ essai('une session complète reste comptée même si son total est plus petit qu
   ];
   const ordre = meilleursParSemaine(lignesCompletes(lignes))[0].lignes.map(r => r.pseudo).join(',');
   if (ordre !== 'B,A') throw new Error('ordre = ' + ordre);
+});
+
+essai('points cumulés au global : sessions filtrées incluses, % moyen sur les complètes seulement', () => {
+  const lignes = [
+    { user_id: 'p', pseudo: 'P', semester_id: 'zz', week: 1, mode: 'vocab', pct: 50, points: 300, max_points: 600, verbe_filter: 'tous' },
+    { user_id: 'p', pseudo: 'P', semester_id: 'zz', week: 2, mode: 'vocab', pct: 90, points: 400, max_points: 450, verbe_filter: 'kanji_groupe' }
+  ];
+  const p = agregerGlobal(lignes)[0];
+  if (p.points !== 700) throw new Error('points = ' + p.points);
+  if (p.pctMoyen !== 50) throw new Error('% moyen = ' + p.pctMoyen);
 });

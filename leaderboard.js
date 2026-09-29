@@ -120,7 +120,7 @@ function renderLeaderboard() {
         : leaderboardMode === 'apercu'
           ? 'Le meilleur score de chaque semaine, dans l\'ordre du programme. Le filtre est là si tu veux resserrer, pas pour commencer.'
         : leaderboardMode === 'global'
-          ? 'Tous les modes de quiz confondus (Vocabulaire, Kanji seul, Traduction, Double réponse). Classement : ton % moyen d\'abord, puis à % égal la difficulté (Difficile devant Normal devant Facile), puis le temps moyen le plus court. Seules les sessions « tous les mots » comptent. Les essais sont affichés à titre indicatif. Le Kana et la Pratique libre n\'ont pas de semaine fixe, ils ne comptent pas ici.'
+          ? 'Tous les modes de quiz confondus (Vocabulaire, Kanji seul, Traduction, Double réponse). Classement : ton % moyen d\'abord, puis à % égal la difficulté (Difficile devant Normal devant Facile), puis le temps moyen le plus court. Seules les sessions « tous les mots » comptent pour le %, la difficulté et le temps ; les points cumulés comptent toutes les sessions, filtrées comprises. Les essais sont affichés à titre indicatif. Le Kana et la Pratique libre n\'ont pas de semaine fixe, ils ne comptent pas ici.'
           : 'Meilleurs scores de la semaine choisie : le % d\'abord, puis la difficulté, puis le temps. Seules les sessions « tous les mots » comptent.'}</p>
       <div id="lbTableWrap"><p style="color:var(--muted);">Chargement…</p></div>
       <p style="font-size:12px; color:var(--muted); margin-top:14px;">
@@ -526,6 +526,21 @@ function computeGlobal(rows) {
   }));
 }
 
+// Classement global (Paul, 29/09/2026) : les POINTS cumules comptent toutes
+// les sessions, filtrees comprises (kanji groupes, mots simples) ; le % moyen,
+// la difficulte, le temps et les essais ne comptent que les sessions
+// completes, comme les classements par semaine. Un joueur qui n'a que des
+// sessions filtrees apparait donc avec ses points, sans % ni temps.
+function agregerGlobal(rows) {
+  const complets = new Map(computeGlobal(lignesCompletes(rows)).map(u => [u.user_id, u]));
+  return computeGlobal(rows).map(u => {
+    const c = complets.get(u.user_id);
+    return c
+      ? { ...c, points: u.points }
+      : { ...u, pctMoyen: null, dureeMoyenne: null, essais: 0, difficulteMoyenne: 1 };
+  });
+}
+
 function trierGlobal(rows, tri) {
   const copie = rows.slice();
   if (tri === 'classement') {
@@ -560,7 +575,7 @@ function renderGlobal() {
     return;
   }
 
-  const agrege = computeGlobal(lignesCompletes(globalLignes)).filter((u) => u.points > 0);
+  const agrege = agregerGlobal(globalLignes).filter((u) => u.points > 0);
   if (!agrege.length) {
     wrap.innerHTML = `<p style="color:var(--muted);">Aucun score enregistré pour l'instant. Termine une session (Vocabulaire, Kanji seul, Traduction ou Double réponse) : tu seras le premier du tableau.</p>`;
     return;
@@ -657,7 +672,7 @@ function renderClassementAccueilWidget() {
     return;
   }
 
-  const classes = trierGlobal(computeGlobal(lignesCompletes(accueilClassementLignes)).filter((u) => u.points > 0), 'classement');
+  const classes = trierGlobal(agregerGlobal(accueilClassementLignes).filter((u) => u.points > 0 && u.pctMoyen != null), 'classement');
   if (!classes.length) {
     wrap.innerHTML = `<p style="font-size:13px; color:var(--muted);">Personne n'a encore de score. Termine une session : tu seras le premier.</p>`;
     return;
