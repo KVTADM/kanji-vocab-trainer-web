@@ -236,3 +236,15 @@ essai('classement global : à % moyen égal, la difficulté moyenne départage',
   const ordre = trierGlobal(computeGlobal(lignes), 'classement').map(u => u.pseudo).join(',');
   if (ordre !== 'B,A') throw new Error('ordre = ' + ordre);
 });
+
+essai('seules les sessions complètes comptent : 110/110 (filtrée) ne passe pas devant 560/560 (29/09/2026)', () => {
+  const lignes = [
+    { user_id: 'vy', pseudo: 'Vy', semester_id: 'zz', week: 2, mode: 'vocab', pct: 100, points: 110, max_points: 110, duree_ms: 83000 },
+    { user_id: 'lu', pseudo: 'Lu', semester_id: 'zz', week: 2, mode: 'vocab', pct: 100, points: 560, max_points: 560, duree_ms: 155000 },
+    { user_id: 'po', pseudo: 'Po', semester_id: 'zz', week: 2, mode: 'vocab', pct: 96, points: 535, max_points: 560, duree_ms: 400000 }
+  ];
+  const ordre = meilleursParSemaine(lignesCompletes(lignes))[0].lignes.map(r => r.pseudo).join(',');
+  if (ordre !== 'Lu,Po') throw new Error('ordre = ' + ordre);
+  const global = computeGlobal(lignesCompletes(lignes)).map(u => u.pseudo);
+  if (global.includes('Vy')) throw new Error('la session filtrée compte encore au classement global');
+});

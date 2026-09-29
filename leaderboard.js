@@ -38,6 +38,41 @@ function badgeDifficulte(d) {
   if (d === 'facile') return '<span class="lb-diff lb-diff--facile">Facile</span>';
   return '';
 }
+// Seules les sessions completes ("tous les mots") comptent dans TOUS les
+// classements (Paul, 29/09/2026). Les lignes poussees avant cette regle
+// peuvent venir d'une session filtree (mots simples OU groupes seulement),
+// reconnaissable a son total de points possible bien plus petit que celui
+// de la semaine (ex. 110/110 au lieu de 560/560). Reference : le nombre de
+// mots de la semaine dans le cursus x 10 (Vocabulaire, Traduction, Double) ;
+// a defaut (mode Kanji, deck partage), le plus grand total vu pour cette
+// semaine. Tolerance de 10 % pour les mots masques.
+const LB_TOLERANCE_COMPLET = 0.9;
+function pointsAttendusCursus(semesterId, week) {
+  if (typeof DB === 'undefined' || !DB || !Array.isArray(DB.vocab) || !Array.isArray(DB.kanjiGroups)) return null;
+  const groupes = new Set(DB.kanjiGroups.filter(g => g.semesterId === semesterId && Number(g.week) === Number(week)).map(g => g.id));
+  if (!groupes.size) return null;
+  const n = DB.vocab.filter(v => groupes.has(v.kanjiGroupId)).length;
+  return n ? n * ((DB.settings && DB.settings.pointsPerWord) || 10) : null;
+}
+function lignesCompletes(rows) {
+  const maxVu = new Map();
+  (rows || []).forEach(r => {
+    const cle = `${r.mode || 'vocab'}|${r.semester_id}|${r.week}`;
+    maxVu.set(cle, Math.max(maxVu.get(cle) || 0, Number(r.max_points) || 0));
+  });
+  const attendus = new Map();
+  return (rows || []).filter(r => {
+    const mode = r.mode || 'vocab';
+    const cle = `${mode}|${r.semester_id}|${r.week}`;
+    if (!attendus.has(cle)) {
+      const cursus = mode === 'kanji' ? null : pointsAttendusCursus(r.semester_id, r.week);
+      attendus.set(cle, cursus || maxVu.get(cle) || 0);
+    }
+    const ref = attendus.get(cle);
+    return !ref || (Number(r.max_points) || 0) >= LB_TOLERANCE_COMPLET * ref;
+  });
+}
+
 function tempsTexte(ms) { return ms == null || !Number.isFinite(Number(ms)) ? '—' : formatDuree(Number(ms)); }
 
 function renderLeaderboard() {
@@ -188,7 +223,7 @@ function renderApercu() {
     return;
   }
 
-  let semaines = meilleursParSemaine(apercuLignes);
+  let semaines = meilleursParSemaine(lignesCompletes(apercuLignes));
   if (apercuSemestre !== 'tous') semaines = semaines.filter(s => s.semesterId === apercuSemestre);
 
   if (!semaines.length) {
@@ -324,14 +359,16 @@ function computeProgression(rows) {
 }
 
 async function loadLeaderboardRows(semesterId, week) {
-  const { data, error } = await window.sb
+  const resultat = await window.sb
     .from('scores')
     .select('user_id, pseudo, pct, points, max_points, duree_ms, nb_essais, difficulte')
     .eq('semester_id', semesterId)
     .eq('week', week)
     .eq('mode', 'vocab') // rang 5, #16 : voir remarque dans chargerApercu()
     .limit(200);
-  if (data) data.sort(ordreLignes);
+  let data = lignesCompletes((resultat.data || []).map(r => ({ ...r, semester_id: semesterId, week, mode: 'vocab' })));
+  const error = resultat.error;
+  data.sort(ordreLignes);
 
   // La vue a pu changer pendant le chargement (autre semaine sélectionnée,
   // ou navigation ailleurs) — on n'écrit alors plus rien.
@@ -387,7 +424,7 @@ async function loadProgressionRows() {
   // ce calcul dans une vue Postgres pour éviter de tout télécharger.
   const { data, error } = await window.sb
     .from('scores')
-    .select('user_id, pseudo, semester_id, week, pct, created_at')
+    .select('user_id, pseudo, semester_id, week, pct, max_points, created_at')
     .eq('mode', 'vocab') // rang 5, #16 : voir remarque dans chargerApercu()
     .limit(5000);
 
@@ -400,7 +437,7 @@ async function loadProgressionRows() {
     return;
   }
 
-  const rows = computeProgression(data || []);
+  const rows = computeProgression(lignesCompletes((data || []).map(r => ({ ...r, mode: 'vocab' }))));
   if (rows.length === 0) {
     wrap.innerHTML = `<p style="color:var(--muted);">Personne n'a encore refait un contenu déjà tenté. Recommence une semaine déjà travaillée : l'écart avec ton premier essai apparaîtra ici.</p>`;
     return;
@@ -450,7 +487,7 @@ async function chargerGlobal() {
   try {
     const { data, error } = await window.sb
       .from('scores')
-      .select('user_id, pseudo, points, pct, duree_ms, nb_essais, semester_id, mode, difficulte')
+      .select('user_id, pseudo, points, max_points, pct, duree_ms, nb_essais, semester_id, week, mode, difficulte')
       .limit(5000);
     if (error) throw error;
     globalLignes = data || [];
@@ -539,7 +576,7 @@ function renderGlobal() {
     return;
   }
 
-  const agrege = computeGlobal(globalLignes).filter((u) => u.points > 0);
+  const agrege = computeGlobal(lignesCompletes(globalLignes)).filter((u) => u.points > 0);
   if (!agrege.length) {
     wrap.innerHTML = `<p style="color:var(--muted);">Aucun score enregistré pour l'instant. Termine une session (Vocabulaire, Kanji seul, Traduction ou Double réponse) : tu seras le premier du tableau.</p>`;
     return;
@@ -604,7 +641,7 @@ async function chargerClassementAccueil() {
     if (!window.sb) throw new Error('Connexion indisponible');
     const { data, error } = await window.sb
       .from('scores')
-      .select('user_id, pseudo, points, pct, duree_ms, nb_essais, semester_id, mode, difficulte')
+      .select('user_id, pseudo, points, max_points, pct, duree_ms, nb_essais, semester_id, week, mode, difficulte')
       .limit(5000);
     if (error) throw error;
     accueilClassementLignes = data || [];
@@ -636,7 +673,7 @@ function renderClassementAccueilWidget() {
     return;
   }
 
-  const classes = trierGlobal(computeGlobal(accueilClassementLignes).filter((u) => u.points > 0), 'classement');
+  const classes = trierGlobal(computeGlobal(lignesCompletes(accueilClassementLignes)).filter((u) => u.points > 0), 'classement');
   if (!classes.length) {
     wrap.innerHTML = `<p style="font-size:13px; color:var(--muted);">Personne n'a encore de score. Termine une session : tu seras le premier.</p>`;
     return;

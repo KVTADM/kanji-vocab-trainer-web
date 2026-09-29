@@ -319,10 +319,14 @@ async function kvtVerifierCloudAuChargement() {
     .select('semester_id, week, mode, points, max_points, pct, duree_ms, difficulte, created_at')
     .eq('user_id', window.accountUser.id);
   rattraperScoresDepuisClassement(fusion, lignesScores);
-  if (JSON.stringify(fusion) === avant && JSON.stringify(ligne.data) === avant) return;
-  DB = fusion;
-  await window.api.saveData(DB);
-  rerendreSiSansRisque();
+  if (JSON.stringify(fusion) !== avant || JSON.stringify(ligne.data) !== avant) {
+    DB = fusion;
+    await window.api.saveData(DB);
+    rerendreSiSansRisque();
+  }
+  // Remet au classement la meilleure session complete de chaque semaine
+  // (remplace les lignes issues de sessions filtrees, voir kvtPushAllScores).
+  if (typeof window.kvtPushAllScores === 'function') window.kvtPushAllScores(DB);
 }
 
 // --- Sauvegardes automatiques horodatées (user_backups_history, table
@@ -481,9 +485,9 @@ window.kvtPushAllScores = async function (data) {
   ];
   const { data: existing } = await window.sb
     .from('scores')
-    .select('semester_id, week, mode, points, pct, duree_ms, difficulte')
+    .select('semester_id, week, mode, points, max_points, pct, duree_ms, difficulte')
     .eq('user_id', window.accountUser.id);
-  const existingMap = new Map((existing || []).map(r => [`${r.mode}|${r.semester_id}-w${r.week}`, { points: r.points, pct: Number(r.pct), dureeMs: r.duree_ms, difficulte: r.difficulte }]));
+  const existingMap = new Map((existing || []).map(r => [`${r.mode}|${r.semester_id}-w${r.week}`, { points: r.points, maxPoints: r.max_points, pct: Number(r.pct), dureeMs: r.duree_ms, difficulte: r.difficulte }]));
 
   for (const { champ, mode } of NAMESPACES) {
     const scoresNamespace = data[champ];
@@ -499,7 +503,11 @@ window.kvtPushAllScores = async function (data) {
       const best = typeof meilleurPourClassement === 'function' ? meilleurPourClassement(entry.history) : entry.best;
       if (!best) continue;
       const enLigne = existingMap.get(`${mode}|${key}`);
-      if (enLigne && typeof comparerResultats === 'function' && comparerResultats(best, enLigne) <= 0) continue;
+      // Une ligne en ligne venue d'une session filtree (total possible bien
+      // plus petit, poussee avant la regle du 29/09/2026) est remplacee par
+      // la meilleure session complete, meme si son % etait plus haut.
+      const enLigneIncomplete = enLigne && (Number(enLigne.maxPoints) || 0) < 0.9 * (Number(best.maxPoints) || 0);
+      if (enLigne && !enLigneIncomplete && typeof comparerResultats === 'function' && comparerResultats(best, enLigne) <= 0) continue;
       await window.kvtPushScore(semesterId, week, best.points, best.maxPoints, best.pct, mode, best.dureeMs, undefined, best.difficulte || 'normal');
     }
   }
