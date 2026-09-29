@@ -2240,6 +2240,14 @@ code {
   background: var(--accent-bright); color: #0b1020; vertical-align: middle;
 }
 .retour-admin-controles button.retour-btn-supprimer { color: var(--pink); }
+.retour-captures { display: flex; flex-wrap: wrap; gap: 8px; margin: 6px 0; }
+.retour-captures:empty { display: none; }
+.retour-captures img { width: 120px; height: 80px; object-fit: cover; border-radius: 8px; border: 1px solid var(--border); display: block; }
+.retour-capture-apercu { position: relative; display: inline-block; }
+.retour-capture-apercu button {
+  position: absolute; top: -6px; right: -6px; width: 22px; height: 22px; padding: 0; border-radius: 50%;
+  background: var(--pink); color: #fff; border: none; font-size: 14px; line-height: 22px; cursor: pointer;
+}
 .admin-section > summary { cursor: pointer; list-style: none; display: flex; align-items: center; gap: 8px; }
 .admin-section > summary::-webkit-details-marker { display: none; }
 .admin-section > summary::before { content: '▾'; color: var(--muted); transition: transform .15s; }

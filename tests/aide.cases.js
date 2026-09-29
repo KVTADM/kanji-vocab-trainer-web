@@ -85,3 +85,39 @@ essai('envoyerRetour renvoie une erreur générale si Supabase échoue', async (
   if (resultat.ok) throw new Error('un échec Supabase doit remonter comme non-ok');
   if (!resultat.erreurs.general) throw new Error('un message d\'erreur général est attendu');
 });
+
+// ---------- Captures d'écran (29/09/2026) ----------
+
+essai('validerCaptures : 3 images max, 5 Mo max, images uniquement', () => {
+  const img = (type, size) => ({ type, size });
+  if (!validerCaptures([]).ok) throw new Error('aucune capture doit passer');
+  if (!validerCaptures([img('image/png', 1000), img('image/jpeg', 1000), img('image/webp', 1000)]).ok) throw new Error('3 images valides refusées');
+  if (validerCaptures([img('image/png', 1), img('image/png', 1), img('image/png', 1), img('image/png', 1)]).ok) throw new Error('4 captures acceptées');
+  if (validerCaptures([img('application/pdf', 1)]).ok) throw new Error('un PDF accepté');
+  if (validerCaptures([img('image/png', 6 * 1024 * 1024)]).ok) throw new Error('6 Mo accepté');
+});
+
+essai('envoyerRetour dépose les captures dans le dossier du compte et enregistre leurs chemins', async () => {
+  let insere = null; const deposes = [];
+  window.sb = {
+    storage: { from: (bucket) => ({ upload: async (chemin) => { deposes.push(bucket + ':' + chemin); return { error: null }; }, remove: async () => ({}) }) },
+    from() { return { insert: async (payload) => { insere = payload; return { error: null }; } }; }
+  };
+  window.accountUser = { id: 'u1', pseudo: 'T' };
+  const r = await envoyerRetour({ titre: 'Un vrai titre', description: 'Ça bug.', captures: [{ type: 'image/png', size: 10 }, { type: 'image/jpeg', size: 10 }] });
+  if (!r.ok) throw new Error(JSON.stringify(r.erreurs));
+  if (deposes.length !== 2 || !deposes.every(d => d.startsWith('retours-captures:u1/'))) throw new Error('dépôt : ' + deposes);
+  if (insere.captures.length !== 2 || !insere.captures[1].endsWith('.jpg')) throw new Error('chemins : ' + insere.captures);
+  window.accountUser = { id: 'moi', pseudo: 'Moi' };
+});
+
+essai('envoyerRetour : échec d\'une capture -> rien n\'est inséré, les captures déjà déposées sont retirées', async () => {
+  let insere = false; let retires = null; let n = 0;
+  window.sb = {
+    storage: { from: () => ({ upload: async () => ({ error: ++n === 2 ? { message: 'boom' } : null }), remove: async (c) => { retires = c; return {}; } }) },
+    from() { return { insert: async () => { insere = true; return { error: null }; } }; }
+  };
+  const r = await envoyerRetour({ titre: 'Un vrai titre', description: 'Ça bug.', captures: [{ type: 'image/png', size: 10 }, { type: 'image/png', size: 10 }] });
+  if (r.ok || insere) throw new Error('le message ne doit pas partir');
+  if (!retires || retires.length !== 1) throw new Error('la 1re capture aurait dû être retirée');
+});

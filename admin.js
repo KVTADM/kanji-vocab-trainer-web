@@ -282,7 +282,7 @@ async function chargerRetoursAdmin() {
   if (!box) return;
   const { data, error } = await window.sb
     .from('retours_utilisateurs')
-    .select('id, pseudo, titre, description, solution_proposee, besoin_aide, statut, reponse, created_at')
+    .select('id, pseudo, titre, description, solution_proposee, besoin_aide, statut, reponse, captures, created_at')
     .order('created_at', { ascending: false })
     .limit(100);
   if (error) {
@@ -307,16 +307,19 @@ async function chargerRetoursAdmin() {
       </div>
       <p style="font-size:13px; margin:6px 0;">${escapeHtml(r.description)}</p>
       ${r.solution_proposee ? `<p style="font-size:13px; color:var(--muted); margin:0 0 6px;"><strong>Solution proposée :</strong> ${escapeHtml(r.solution_proposee)}</p>` : ''}
+      ${capturesHtml(r.captures)}
       <div class="retour-admin-controles">
         <select data-retour-statut="${r.id}">
           ${RETOURS_ADMIN_STATUTS.map(s => `<option value="${s}" ${s === r.statut ? 'selected' : ''}>${escapeHtml(libelleStatutRetour(s))}</option>`).join('')}
         </select>
         <input type="text" data-retour-reponse="${r.id}" placeholder="Réponse (visible par la personne)" value="${escapeHtml(r.reponse || '')}">
         <button class="secondary small" data-retour-enregistrer="${r.id}">Enregistrer</button>
-        <button class="secondary small retour-btn-supprimer" data-retour-supprimer="${r.id}">Supprimer</button>
+        <button class="secondary small retour-btn-supprimer" data-retour-supprimer="${r.id}" data-captures="${escapeHtml(JSON.stringify(r.captures || []))}">Supprimer</button>
       </div>
     </div>`;
   }).join('');
+
+  remplirCaptures(box);
 
   // Suppression definitive : deux clics (pas de boite de dialogue du
   // navigateur), le premier arme le bouton pendant 4 s.
@@ -334,6 +337,10 @@ async function chargerRetoursAdmin() {
         .delete()
         .eq('id', btn.dataset.retourSupprimer);
       if (erreurSuppr) { btn.disabled = false; showToast('Erreur : ' + erreurSuppr.message); return; }
+      // Captures jointes supprimees avec le message (meilleur effort).
+      let captures = [];
+      try { captures = JSON.parse(btn.dataset.captures || '[]'); } catch (e) {}
+      if (captures.length) await window.sb.storage.from(CAPTURES_BUCKET).remove(captures);
       showToast('Message supprimé');
       chargerRetoursAdmin();
     };
