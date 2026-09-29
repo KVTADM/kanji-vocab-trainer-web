@@ -464,7 +464,7 @@ function pousserMeilleurScore(entry, semesterId, week, mode) {
   if (typeof window === 'undefined' || typeof window.kvtPushScore !== 'function' || !entry) return;
   const best = meilleurPourClassement(entry.history);
   if (!best) return;
-  window.kvtPushScore(semesterId, week, best.points, best.maxPoints, best.pct, mode, best.dureeMs, nbEssais(entry, mode, semesterId, week), best.difficulte || 'normal');
+  window.kvtPushScore(semesterId, week, best.points, best.maxPoints, best.pct, mode, best.dureeMs, nbEssais(entry, mode, semesterId, week), best.difficulte || 'normal', 'tous');
 }
 
 // { pct, dureeMs, essais, semesterId, mode } -> score composite entre 0 et 100.

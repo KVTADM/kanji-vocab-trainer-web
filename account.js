@@ -432,7 +432,7 @@ window.kvtCompterHistorique = async function () {
 // dureeMs/nbEssais sont optionnels (undefined -> colonnes NULL) : certains
 // appelants (repoussee en masse depuis une sauvegarde importee, voir
 // kvtPushAllScores) n'ont pas forcement cette info sous la main.
-window.kvtPushScore = async function (semesterId, week, points, maxPoints, pct, mode, dureeMs, nbEssais, difficulte) {
+window.kvtPushScore = async function (semesterId, week, points, maxPoints, pct, mode, dureeMs, nbEssais, difficulte, verbeFilter) {
   if (!window.accountUser || !window.accountUser.pseudo) return;
   await window.sb.from('scores').upsert({
     user_id: window.accountUser.id,
@@ -445,7 +445,8 @@ window.kvtPushScore = async function (semesterId, week, points, maxPoints, pct, 
     mode: mode || 'vocab',
     duree_ms: Number.isFinite(dureeMs) ? dureeMs : null,
     nb_essais: Number.isFinite(nbEssais) ? nbEssais : null,
-    difficulte: difficulte || 'normal'
+    difficulte: difficulte || 'normal',
+    verbe_filter: verbeFilter || 'tous'
   }, { onConflict: 'user_id,semester_id,week,mode' });
 };
 
@@ -485,9 +486,9 @@ window.kvtPushAllScores = async function (data) {
   ];
   const { data: existing } = await window.sb
     .from('scores')
-    .select('semester_id, week, mode, points, max_points, pct, duree_ms, difficulte')
+    .select('semester_id, week, mode, points, max_points, pct, duree_ms, difficulte, verbe_filter')
     .eq('user_id', window.accountUser.id);
-  const existingMap = new Map((existing || []).map(r => [`${r.mode}|${r.semester_id}-w${r.week}`, { points: r.points, maxPoints: r.max_points, pct: Number(r.pct), dureeMs: r.duree_ms, difficulte: r.difficulte }]));
+  const existingMap = new Map((existing || []).map(r => [`${r.mode}|${r.semester_id}-w${r.week}`, { points: r.points, maxPoints: r.max_points, pct: Number(r.pct), dureeMs: r.duree_ms, difficulte: r.difficulte, verbeFilter: r.verbe_filter }]));
 
   for (const { champ, mode } of NAMESPACES) {
     const scoresNamespace = data[champ];
@@ -506,9 +507,9 @@ window.kvtPushAllScores = async function (data) {
       // Une ligne en ligne venue d'une session filtree (total possible bien
       // plus petit, poussee avant la regle du 29/09/2026) est remplacee par
       // la meilleure session complete, meme si son % etait plus haut.
-      const enLigneIncomplete = enLigne && (Number(enLigne.maxPoints) || 0) < 0.9 * (Number(best.maxPoints) || 0);
+      const enLigneIncomplete = enLigne && (enLigne.verbeFilter || 'tous') !== 'tous';
       if (enLigne && !enLigneIncomplete && typeof comparerResultats === 'function' && comparerResultats(best, enLigne) <= 0) continue;
-      await window.kvtPushScore(semesterId, week, best.points, best.maxPoints, best.pct, mode, best.dureeMs, undefined, best.difficulte || 'normal');
+      await window.kvtPushScore(semesterId, week, best.points, best.maxPoints, best.pct, mode, best.dureeMs, undefined, best.difficulte || 'normal', 'tous');
     }
   }
 };

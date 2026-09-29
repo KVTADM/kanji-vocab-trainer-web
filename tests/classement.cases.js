@@ -239,7 +239,7 @@ essai('classement global : à % moyen égal, la difficulté moyenne départage',
 
 essai('seules les sessions complètes comptent : 110/110 (filtrée) ne passe pas devant 560/560 (29/09/2026)', () => {
   const lignes = [
-    { user_id: 'vy', pseudo: 'Vy', semester_id: 'zz', week: 2, mode: 'vocab', pct: 100, points: 110, max_points: 110, duree_ms: 83000 },
+    { user_id: 'vy', pseudo: 'Vy', semester_id: 'zz', week: 2, mode: 'vocab', pct: 100, points: 110, max_points: 110, duree_ms: 83000, verbe_filter: 'simple' },
     { user_id: 'lu', pseudo: 'Lu', semester_id: 'zz', week: 2, mode: 'vocab', pct: 100, points: 560, max_points: 560, duree_ms: 155000 },
     { user_id: 'po', pseudo: 'Po', semester_id: 'zz', week: 2, mode: 'vocab', pct: 96, points: 535, max_points: 560, duree_ms: 400000 }
   ];
@@ -247,4 +247,14 @@ essai('seules les sessions complètes comptent : 110/110 (filtrée) ne passe pas
   if (ordre !== 'Lu,Po') throw new Error('ordre = ' + ordre);
   const global = computeGlobal(lignesCompletes(lignes)).map(u => u.pseudo);
   if (global.includes('Vy')) throw new Error('la session filtrée compte encore au classement global');
+});
+
+essai('une session complète reste comptée même si son total est plus petit que celui d\'un autre (mots masqués)', () => {
+  const lignes = [
+    { user_id: 'a', pseudo: 'A', semester_id: 'zz', week: 3, mode: 'vocab', pct: 90, points: 450, max_points: 500, verbe_filter: 'tous' },
+    { user_id: 'b', pseudo: 'B', semester_id: 'zz', week: 3, mode: 'vocab', pct: 95, points: 380, max_points: 400, verbe_filter: 'tous' },
+    { user_id: 'c', pseudo: 'C', semester_id: 'zz', week: 3, mode: 'vocab', pct: 99, points: 480, max_points: 490, verbe_filter: 'kanji_groupe' }
+  ];
+  const ordre = meilleursParSemaine(lignesCompletes(lignes))[0].lignes.map(r => r.pseudo).join(',');
+  if (ordre !== 'B,A') throw new Error('ordre = ' + ordre);
 });

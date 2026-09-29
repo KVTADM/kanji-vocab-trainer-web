@@ -39,37 +39,21 @@ function badgeDifficulte(d) {
   return '';
 }
 // Seules les sessions completes ("tous les mots") comptent dans TOUS les
-// classements (Paul, 29/09/2026). Les lignes poussees avant cette regle
-// peuvent venir d'une session filtree (mots simples OU groupes seulement),
-// reconnaissable a son total de points possible bien plus petit que celui
-// de la semaine (ex. 110/110 au lieu de 560/560). Reference : le nombre de
-// mots de la semaine dans le cursus x 10 (Vocabulaire, Traduction, Double) ;
-// a defaut (mode Kanji, deck partage), le plus grand total vu pour cette
-// semaine. Tolerance de 10 % pour les mots masques.
-const LB_TOLERANCE_COMPLET = 0.9;
-function pointsAttendusCursus(semesterId, week) {
-  if (typeof DB === 'undefined' || !DB || !Array.isArray(DB.vocab) || !Array.isArray(DB.kanjiGroups)) return null;
-  const groupes = new Set(DB.kanjiGroups.filter(g => g.semesterId === semesterId && Number(g.week) === Number(week)).map(g => g.id));
-  if (!groupes.size) return null;
-  const n = DB.vocab.filter(v => groupes.has(v.kanjiGroupId)).length;
-  return n ? n * ((DB.settings && DB.settings.pointsPerWord) || 10) : null;
-}
+// classements (Paul, 29/09/2026). Chaque ligne porte le filtre de mots de
+// la session (`verbe_filter`, colonne ajoutee et remplie retroactivement a
+// partir de l'historique des sauvegardes le 29/09/2026). Garde-fou en plus
+// pour de tres vieilles lignes incoherentes : un total possible inferieur a
+// la moitie du plus grand vu pour la semaine est ecarte aussi.
 function lignesCompletes(rows) {
   const maxVu = new Map();
   (rows || []).forEach(r => {
     const cle = `${r.mode || 'vocab'}|${r.semester_id}|${r.week}`;
     maxVu.set(cle, Math.max(maxVu.get(cle) || 0, Number(r.max_points) || 0));
   });
-  const attendus = new Map();
   return (rows || []).filter(r => {
-    const mode = r.mode || 'vocab';
-    const cle = `${mode}|${r.semester_id}|${r.week}`;
-    if (!attendus.has(cle)) {
-      const cursus = mode === 'kanji' ? null : pointsAttendusCursus(r.semester_id, r.week);
-      attendus.set(cle, cursus || maxVu.get(cle) || 0);
-    }
-    const ref = attendus.get(cle);
-    return !ref || (Number(r.max_points) || 0) >= LB_TOLERANCE_COMPLET * ref;
+    if ((r.verbe_filter || 'tous') !== 'tous') return false;
+    const ref = maxVu.get(`${r.mode || 'vocab'}|${r.semester_id}|${r.week}`) || 0;
+    return !ref || (Number(r.max_points) || 0) >= 0.5 * ref;
   });
 }
 
@@ -194,7 +178,7 @@ async function chargerApercu() {
         // avant ; le nouvel onglet "Classement global" ci-dessous est le seul
         // a agreger les 4 modes ensemble.
         const { data, error } = await window.sb
-      .from('scores').select('user_id,pseudo,semester_id,week,pct,points,max_points,duree_ms,difficulte,created_at')
+      .from('scores').select('user_id,pseudo,semester_id,week,pct,points,max_points,duree_ms,difficulte,verbe_filter,created_at')
       .eq('mode', 'vocab')
       .order('created_at', { ascending: false }).limit(2000);
     if (error) throw error;
@@ -361,7 +345,7 @@ function computeProgression(rows) {
 async function loadLeaderboardRows(semesterId, week) {
   const resultat = await window.sb
     .from('scores')
-    .select('user_id, pseudo, pct, points, max_points, duree_ms, nb_essais, difficulte')
+    .select('user_id, pseudo, pct, points, max_points, duree_ms, nb_essais, difficulte, verbe_filter')
     .eq('semester_id', semesterId)
     .eq('week', week)
     .eq('mode', 'vocab') // rang 5, #16 : voir remarque dans chargerApercu()
@@ -424,7 +408,7 @@ async function loadProgressionRows() {
   // ce calcul dans une vue Postgres pour éviter de tout télécharger.
   const { data, error } = await window.sb
     .from('scores')
-    .select('user_id, pseudo, semester_id, week, pct, max_points, created_at')
+    .select('user_id, pseudo, semester_id, week, pct, max_points, verbe_filter, created_at')
     .eq('mode', 'vocab') // rang 5, #16 : voir remarque dans chargerApercu()
     .limit(5000);
 
@@ -487,7 +471,7 @@ async function chargerGlobal() {
   try {
     const { data, error } = await window.sb
       .from('scores')
-      .select('user_id, pseudo, points, max_points, pct, duree_ms, nb_essais, semester_id, week, mode, difficulte')
+      .select('user_id, pseudo, points, max_points, pct, duree_ms, nb_essais, semester_id, week, mode, difficulte, verbe_filter')
       .limit(5000);
     if (error) throw error;
     globalLignes = data || [];
@@ -641,7 +625,7 @@ async function chargerClassementAccueil() {
     if (!window.sb) throw new Error('Connexion indisponible');
     const { data, error } = await window.sb
       .from('scores')
-      .select('user_id, pseudo, points, max_points, pct, duree_ms, nb_essais, semester_id, week, mode, difficulte')
+      .select('user_id, pseudo, points, max_points, pct, duree_ms, nb_essais, semester_id, week, mode, difficulte, verbe_filter')
       .limit(5000);
     if (error) throw error;
     accueilClassementLignes = data || [];
