@@ -214,10 +214,10 @@ function renderApercu() {
             ${window.kvtProfils ? window.kvtProfils.auteurHtml(premier.user_id, premier.pseudo, 34) : `<span class="auteur"><span class="auteur-pseudo">${escapeHtml(premier.pseudo)}</span></span>`}
             <div class="lb-case-infos">
               ${jeSuisPremier ? '<span class="com-marque">toi</span>' : ''}
-              <div class="lb-case-detail">${premier.points}/${premier.max_points} pts · ${tempsTexte(premier.duree_ms)}</div>
             </div>
-            <div class="lb-case-pct">${formatPct(premier.pct)} ${badgeDifficulte(premier.difficulte)}</div>
+            <div class="lb-case-pct">${formatPct(premier.pct)}</div>
           </div>
+          <div class="lb-case-detail">${premier.points}/${premier.max_points} pts${premier.duree_ms != null ? ' · ' + tempsTexte(premier.duree_ms) : ''} ${badgeDifficulte(premier.difficulte)}</div>
           ${suivants.length ? `
             <div class="lb-case-suite">
               ${suivants.slice(0, 2).map((r, i) => `
