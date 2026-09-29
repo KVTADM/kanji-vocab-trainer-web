@@ -2234,6 +2234,18 @@ code {
 .retour-reponse { font-size: 13px; background: var(--panel-alt); border-radius: 8px; padding: 8px 10px; margin-top: 6px; }
 .retour-admin-controles { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
 .retour-admin-controles input[type="text"] { flex: 1; min-width: 220px; }
+.retour-item--recent { border-color: var(--accent-bright); background: color-mix(in srgb, var(--accent-bright) 8%, transparent); }
+.retour-badge-nouveau {
+  font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 20px; margin-right: 4px;
+  background: var(--accent-bright); color: #0b1020; vertical-align: middle;
+}
+.retour-admin-controles button.retour-btn-supprimer { color: var(--pink); }
+.admin-section > summary { cursor: pointer; list-style: none; display: flex; align-items: center; gap: 8px; }
+.admin-section > summary::-webkit-details-marker { display: none; }
+.admin-section > summary::before { content: '▾'; color: var(--muted); transition: transform .15s; }
+.admin-section:not([open]) > summary::before { transform: rotate(-90deg); }
+.admin-section > summary h3 { margin: 0; }
+.admin-section[open] > summary { margin-bottom: 12px; }
 
 
 .semestre-categorie {

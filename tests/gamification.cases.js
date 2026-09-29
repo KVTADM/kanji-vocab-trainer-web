@@ -635,3 +635,16 @@ essai('reclamerCadeaux ne crédite rien si le marquage "appliqué" échoue (rés
     if (cadeauxEnAttente.length !== 1) throw new Error('cadeauxEnAttente n\'aurait pas dû être vidé sur échec');
   });
 });
+
+essai('cadeau en XP (29/09/2026) : affiché, puis crédité sur l\'XP sans toucher aux pièces', () => {
+  cadeauxEnAttente = [{ id: 11, pieces: 0, xp: 16000 }];
+  const html = widgetCadeau();
+  if (!html.includes('16000 XP')) throw new Error('XP absente du widget : ' + html);
+  if (html.includes('0 pièce')) throw new Error('"0 pièce" ne devrait pas apparaître : ' + html);
+  DB = { gamification: { ...baseGamif(), pieces: 100, xp: 68000 } };
+  window.sb = { from: () => ({ update: () => ({ in: async () => ({ error: null }) }) }) };
+  return reclamerCadeaux().then(() => {
+    if (DB.gamification.xp !== 84000) throw new Error('xp=' + DB.gamification.xp);
+    if (DB.gamification.pieces !== 100) throw new Error('pieces=' + DB.gamification.pieces);
+  });
+});

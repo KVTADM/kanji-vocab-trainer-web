@@ -90,6 +90,95 @@ function faitUneSnapshotHistorique(dernierSnapshotIso, maintenantMs, intervalleM
   return (maintenantMs - new Date(dernierSnapshotIso).getTime()) >= intervalleMs;
 }
 
+// Panne du 29/09/2026 (lucienrosset36) : deux appareils du meme compte,
+// l'un avec une copie locale plus ancienne encore en memoire. Chaque
+// sauvegarde envoie le blob ENTIER (dernier arrive = gagnant) : l'appareil
+// en retard a ecrase la progression de l'autre (XP, 4 semaines de scores).
+// Desormais, quand le cloud a ete modifie par un autre appareil depuis
+// notre derniere synchro, on FUSIONNE au lieu d'ecraser :
+// - scores* : union des tentatives (dedoublonnees par date), meilleur
+//   score recalcule ;
+// - wordStats : pour chaque mot, la fiche avec le plus de tentatives ;
+// - XP/pieces : valeur cloud + ce que CET appareil a gagne/depense depuis
+//   la derniere synchro (base memorisee localement). Sans base connue :
+//   XP et pieces du cote le plus avance en XP (l'XP ne fait que monter) ;
+// - inventaire : union ; serie : la plus recente ;
+// - tout le reste (reglages, vocabulaire, parties en cours) : local.
+// Pure, testee dans tests/sync.cases.js.
+function fusionnerNamespaceScores(local, cloud) {
+  const res = Object.assign({}, cloud || {}, local || {});
+  Object.keys(res).forEach(cle => {
+    const a = local && local[cle], b = cloud && cloud[cle];
+    if (!a || !b || !Array.isArray(a.history) || !Array.isArray(b.history)) return;
+    const parDate = new Map();
+    b.history.concat(a.history).forEach(r => { if (r && r.date) parDate.set(r.date, r); });
+    const history = Array.from(parDate.values()).sort((x, y) => x.date.localeCompare(y.date));
+    let best = null;
+    history.forEach(r => { if (!best || r.pct > best.pct) best = r; });
+    res[cle] = Object.assign({}, a, { history, best });
+  });
+  return res;
+}
+
+function fusionnerSauvegardes(local, cloud, base) {
+  const res = Object.assign({}, cloud, local);
+  Object.keys(res).forEach(k => {
+    if (/^scores/.test(k) && res[k] && typeof res[k] === 'object' && !Array.isArray(res[k])) {
+      res[k] = fusionnerNamespaceScores(local[k], cloud[k]);
+    }
+  });
+  if (local.wordStats || cloud.wordStats) {
+    const ws = Object.assign({}, cloud.wordStats || {}, local.wordStats || {});
+    Object.keys(ws).forEach(id => {
+      const a = local.wordStats && local.wordStats[id], b = cloud.wordStats && cloud.wordStats[id];
+      if (a && b && (b.attempts || 0) > (a.attempts || 0)) ws[id] = b;
+    });
+    res.wordStats = ws;
+  }
+  const gl = local.gamification, gc = cloud.gamification;
+  if (gl && gc) {
+    const g = Object.assign({}, gl);
+    if (base) {
+      g.xp = (gc.xp || 0) + Math.max(0, (gl.xp || 0) - (base.xp || 0));
+      g.pieces = Math.max(0, (gc.pieces || 0) + ((gl.pieces || 0) - (base.pieces || 0)));
+    } else if ((gc.xp || 0) > (gl.xp || 0)) {
+      g.xp = gc.xp;
+      g.pieces = gc.pieces || 0;
+    }
+    g.inventaire = Array.from(new Set([].concat(gc.inventaire || [], gl.inventaire || [])));
+    const sl = gl.streak || {}, sc = gc.streak || {};
+    const plusRecente = (sc.dernierJour || '') > (sl.dernierJour || '') ? sc : sl;
+    g.streak = Object.assign({}, plusRecente, { record: Math.max(sl.record || 0, sc.record || 0) });
+    res.gamification = g;
+  } else if (gc && !gl) {
+    res.gamification = gc;
+  }
+  return res;
+}
+
+// Reintegre dans la sauvegarde les scores presents dans la table `scores`
+// (classement, jamais ecrasee par un autre appareil) mais absents de la
+// sauvegarde -- c'est ce qui rend a lucienrosset36 ses 4 semaines perdues
+// le 29/09/2026. N'ajoute QUE si la semaine n'a aucune entree locale pour
+// ce mode (jamais de doublon d'une tentative deja connue). Pure : renvoie
+// le nombre d'entrees ajoutees.
+const KVT_MODE_VERS_CHAMP = { vocab: 'scores', kanji: 'scoresKanji', traduction: 'scoresTraduction', double: 'scoresDouble' };
+function rattraperScoresDepuisClassement(data, lignes) {
+  let ajouts = 0;
+  (lignes || []).forEach(l => {
+    const champ = KVT_MODE_VERS_CHAMP[l.mode || 'vocab'];
+    if (!champ) return;
+    if (!data[champ]) data[champ] = {};
+    const cle = `${l.semester_id}-w${l.week}`;
+    if (data[champ][cle]) return;
+    const record = { date: new Date(l.created_at).toISOString(), points: l.points, maxPoints: l.max_points, pct: Number(l.pct) };
+    if (Number.isFinite(l.duree_ms)) record.dureeMs = l.duree_ms;
+    data[champ][cle] = { best: record, history: [record] };
+    ajouts++;
+  });
+  return ajouts;
+}
+
 // Vrai uniquement pendant une réinitialisation de mot de passe : l'utilisateur
 // arrive depuis le lien reçu par mail, Supabase ouvre une session valide mais
 // il faut lui faire choisir un nouveau mot de passe avant toute autre chose.
@@ -138,17 +227,102 @@ async function buildAccountUser(session) {
 
 // --- Sync cloud : sauvegarde complète (le même blob que IndexedDB) dans
 // la table user_backups, protégée par RLS (chacun ne voit que la sienne).
-window.kvtPushCloud = async function (data) {
+//
+// Protection contre l'ecrasement par un autre appareil (29/09/2026, voir
+// fusionnerSauvegardes plus haut) : kvtBaseSync memorise, EN MEMOIRE DE CET
+// ONGLET (pas localStorage : deux onglets du meme navigateur doivent se
+// proteger l'un de l'autre aussi), la version du cloud dont nos donnees
+// derivent (date d'ecriture + XP/pieces a ce moment-la). Avant chaque envoi,
+// on relit seulement la date du cloud : si elle a change, un autre appareil
+// a ecrit entre-temps -> on recupere sa version et on fusionne avant
+// d'envoyer. Les envois sont mis en file (jamais deux a la fois depuis cet
+// onglet), sinon un envoi pourrait prendre le precedent pour un autre
+// appareil. `forcer` (import d'une sauvegarde, reinitialisation) garde
+// l'ancien comportement : ecraser, c'est ce que l'utilisateur a demande.
+let kvtBaseSync = null;
+let kvtFilePush = Promise.resolve();
+
+function noterBaseSync(dateIso, data) {
+  const g = (data && data.gamification) || {};
+  kvtBaseSync = { atMs: Date.parse(dateIso), xp: g.xp || 0, pieces: g.pieces || 0 };
+}
+
+function rerendreSiSansRisque() {
+  if (typeof renderCurrentView !== 'function' || typeof currentView === 'undefined') return;
+  if (['dashboard', 'manage', 'account', 'settings', 'admin', 'communaute'].includes(currentView)) renderCurrentView();
+}
+
+window.kvtPushCloud = function (data, options) {
+  const tache = kvtFilePush.then(() => kvtPushCloudMaintenant(data, options || {}));
+  kvtFilePush = tache.catch(() => {});
+  return tache;
+};
+
+async function kvtPushCloudMaintenant(data, options) {
   if (!window.accountUser) return { ok: false, motif: 'non-connecte' };
+  if (!options.forcer && kvtBaseSync) {
+    const { data: ligne, error: errLecture } = await window.sb
+      .from('user_backups')
+      .select('updated_at')
+      .eq('user_id', window.accountUser.id)
+      .maybeSingle();
+    if (!errLecture && ligne && Date.parse(ligne.updated_at) !== kvtBaseSync.atMs) {
+      const pull = await kvtPullCloud();
+      if (pull.ok && pull.data) {
+        const fusion = fusionnerSauvegardes(data, pull.data, kvtBaseSync);
+        if (data === DB) {
+          DB = fusion;
+          await window.api.saveData(DB, { sansCloud: true });
+          rerendreSiSansRisque();
+        }
+        data = fusion;
+      }
+    }
+  }
+  const dateIso = new Date().toISOString();
   const { error } = await window.sb.from('user_backups').upsert({
     user_id: window.accountUser.id,
     data,
-    updated_at: new Date().toISOString()
+    updated_at: dateIso
   });
   const res = interpreterReponsePushCloud(error);
-  if (!res.ok) console.error('kvtPushCloud a échoué :', res.motif);
+  if (res.ok) noterBaseSync(dateIso, data);
+  else console.error('kvtPushCloud a échoué :', res.motif);
   return res;
-};
+}
+
+// Au chargement de la page avec une session deja ouverte (aucun
+// SIGNED_IN, donc pas de syncAfterLogin) : jusqu'ici rien n'etait relu,
+// un appareil reste en retard aussi longtemps qu'on ne se reconnecte pas.
+// On fusionne la version cloud avec la copie locale (sans base connue :
+// voir fusionnerSauvegardes) et on rattrape les scores du classement
+// absents de la sauvegarde. N'envoie rien si rien n'a change.
+async function attendreDB() {
+  for (let i = 0; i < 50 && !DB; i++) await new Promise(r => setTimeout(r, 200));
+  return !!DB;
+}
+
+async function kvtVerifierCloudAuChargement() {
+  if (!window.accountUser || !(await attendreDB())) return;
+  const { data: ligne, error } = await window.sb
+    .from('user_backups')
+    .select('data, updated_at')
+    .eq('user_id', window.accountUser.id)
+    .maybeSingle();
+  if (error || !ligne || !ligne.data) return;
+  const avant = JSON.stringify(DB);
+  const fusion = fusionnerSauvegardes(DB, ligne.data, kvtBaseSync);
+  noterBaseSync(ligne.updated_at, ligne.data);
+  const { data: lignesScores } = await window.sb
+    .from('scores')
+    .select('semester_id, week, mode, points, max_points, pct, duree_ms, created_at')
+    .eq('user_id', window.accountUser.id);
+  rattraperScoresDepuisClassement(fusion, lignesScores);
+  if (JSON.stringify(fusion) === avant && JSON.stringify(ligne.data) === avant) return;
+  DB = fusion;
+  await window.api.saveData(DB);
+  rerendreSiSansRisque();
+}
 
 // --- Sauvegardes automatiques horodatées (user_backups_history, table
 // séparée de user_backups) : filet de sécurité en plus de la sauvegarde
@@ -210,7 +384,8 @@ window.kvtRecupererCloud = async function () {
   if (!result.ok) return { ok: false, motif: 'reseau' };
   if (!result.data) return { ok: false, motif: 'aucune-sauvegarde' };
   DB = result.data;
-  await window.api.saveData(DB);
+  kvtBaseSync = null;
+  await window.api.saveData(DB, { forcer: true });
   if (window.accountUser) localStorage.setItem(kvtCleSyncFlag(window.accountUser.id), '1');
   return { ok: true };
 };
@@ -352,7 +527,7 @@ async function chargerCadeauxEnAttente() {
   if (!window.accountUser || typeof cadeauxEnAttente === 'undefined') return;
   const { data: lignes, error } = await window.sb
     .from('gamification_grants')
-    .select('id, pieces, raison')
+    .select('id, pieces, xp, raison')
     .eq('user_id', window.accountUser.id)
     .eq('applique', false);
   if (error || !lignes) return;
@@ -394,8 +569,12 @@ async function syncAfterLogin() {
     return;
   }
   if (decision === 'appliquer-cloud') {
+    // Remplacement (pas de fusion) conserve : l'appareil peut porter les
+    // donnees d'un autre compte. Mais on repart d'une base neuve pour que
+    // le prochain envoi ne se croie pas en conflit avec lui-meme.
     DB = result.data;
-    await window.api.saveData(DB);
+    kvtBaseSync = null;
+    await window.api.saveData(DB, { forcer: true });
     localStorage.setItem(cleFlag, '1');
     browsingWeek = null;
     if (typeof applyTheme === 'function') applyTheme();
@@ -436,6 +615,8 @@ window.sb.auth.onAuthStateChange((event, session) => {
       window.accountUser = await buildAccountUser(session);
       if (shouldSync) {
         await syncAfterLogin();
+      } else {
+        await kvtVerifierCloudAuChargement();
       }
       // Toujours tentée (login neuf ou simple rechargement avec session déjà
       // active) : contrairement à syncAfterLogin, sans effet de bord si rien

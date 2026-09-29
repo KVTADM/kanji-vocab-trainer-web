@@ -219,3 +219,33 @@ essai('recordPratiqueSessionResult enregistre la duree passee en 5e argument', (
   const entry = getPratiqueScoreEntry('heure');
   if (entry.best.dureeMs !== 60000) throw new Error(JSON.stringify(entry));
 });
+
+// Double reponse : sens francais assoupli (signalement du 28/09/2026).
+essai('scoreSens : casse, accents, parentheses, alternatives et ordre tolérés', () => {
+  DB = baseDB();
+  const ok = (saisie, sens) => {
+    const r = scoreSens(saisie, sens);
+    if (r.pct !== 1) throw new Error('"' + saisie + '" pour "' + sens + '" -> ' + r.pct);
+  };
+  ok('identique', 'identique, égal');
+  ok('Descendre', "Descendre (d'un véhicule, d'un escalier)");
+  ok("descendre d'un vehicule d'un escalier", "Descendre (d'un véhicule, d'un escalier)");
+  ok('droite gauche', 'gauche, droite');
+  ok('egal', 'identique, égal');
+  ok('SOUTIEN', 'Soutien / support.');
+  ok('se promener aux alentours de la gare', 'Se promener aux alentours de la gare');
+  const faux = scoreSens('voiture', 'gauche, droite');
+  if (faux.pct > 0.5) throw new Error('une reponse fausse passe : ' + faux.pct);
+  const vide = scoreSens('', 'gauche, droite');
+  if (vide.pct !== 0) throw new Error('une reponse vide rapporte des points : ' + vide.pct);
+});
+
+essai('durée de session : une pause (session reprise le lendemain) ne compte pas', () => {
+  const t = { startedAt: Date.now() - 30000 };
+  noterActivite(t);                                  // 1re réponse après 30 s
+  t.derniereActivite = Date.now() - 24 * 3600 * 1000; // puis 24 h de pause
+  noterActivite(t);
+  const d = dureeSessionMs(t);
+  if (d > 30000 + DUREE_PLAFOND_ENTRE_REPONSES_MS + 1000 || d < 30000) throw new Error('durée=' + d);
+  if (dureeSessionMs({ startedAt: Date.now() - 5000 }) < 5000) throw new Error('repli sur startedAt cassé');
+});

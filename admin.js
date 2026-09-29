@@ -33,8 +33,8 @@ async function renderAdmin() {
 
   el.innerHTML = `
     <h2>Admin</h2>
-    <div class="card">
-      <h3>Audience — 30 derniers jours</h3>
+    <details class="card admin-section" data-admin-section="audience" open>
+      <summary><h3>Audience — 30 derniers jours</h3></summary>
       <p style="color:var(--muted);font-size:12.5px;line-height:1.6;margin:0 0 12px;">
         Comptage maison, anonyme et sans cookie : ce sont des évènements, pas des
         personnes. Une même personne qui revient compte deux fois. Pour distinguer
@@ -42,29 +42,39 @@ async function renderAdmin() {
         que tu mets en bio.
       </p>
       <div id="adminAudienceBox"><p style="color:var(--muted);">Chargement…</p></div>
-    </div>
-    <div class="card">
-      <h3>Comptes</h3>
+    </details>
+    <details class="card admin-section" data-admin-section="comptes" open>
+      <summary><h3>Comptes</h3></summary>
       <div id="adminUsersBox"><p style="color:var(--muted);">Chargement…</p></div>
-    </div>
-    <div class="card">
-      <h3>Retours des utilisateurs</h3>
+    </details>
+    <details class="card admin-section" data-admin-section="retours" open>
+      <summary><h3>Retours des utilisateurs</h3></summary>
       <p style="color:var(--muted);font-size:12.5px;line-height:1.6;margin:0 0 12px;">
         Bugs, solutions proposées et demandes d'aide envoyés depuis "Aide &amp;
         problèmes" (menu Plus). Change le statut ou écris une réponse, elle
         redevient visible pour la personne dans "Mes messages".
       </p>
       <div id="adminRetoursBox"><p style="color:var(--muted);">Chargement…</p></div>
-    </div>
-    <div class="card">
-      <h3>Résultats par joueur</h3>
+    </details>
+    <details class="card admin-section" data-admin-section="resultats" open>
+      <summary><h3>Résultats par joueur</h3></summary>
       <p style="color:var(--muted);font-size:12.5px;line-height:1.6;margin:0 0 12px;">
         Vue réservée à l'admin : un joueur ne voit jamais les résultats d'un
         autre. Le score par mode est la moyenne du meilleur essai de chaque
         semaine/thème déjà travaillé (n = nombre de semaines/thèmes concernés).
       </p>
       <div id="adminStatsBox"><p style="color:var(--muted);">Chargement…</p></div>
-    </div>`;
+    </details>`;
+
+  // Sections repliables (29/09/2026, demande de Paul) : l'etat replie est
+  // retenu par navigateur -- simple confort, sans risque s'il se perd.
+  $$('[data-admin-section]', el).forEach(sec => {
+    const cle = 'kvtAdminReplie:' + sec.dataset.adminSection;
+    try { if (localStorage.getItem(cle) === '1') sec.open = false; } catch (e) {}
+    sec.addEventListener('toggle', () => {
+      try { localStorage.setItem(cle, sec.open ? '0' : '1'); } catch (e) {}
+    });
+  });
 
   chargerAudience();
   chargerStatsJoueurs();
@@ -265,6 +275,7 @@ async function chargerAudience() {
 // isAdmin plus haut.
 // ------------------------------------------------------------
 const RETOURS_ADMIN_STATUTS = ['ouvert', 'en_cours', 'resolu', 'ferme'];
+const RETOURS_ADMIN_RECENT_MS = 3 * 24 * 60 * 60 * 1000;
 
 async function chargerRetoursAdmin() {
   const box = $('#adminRetoursBox');
@@ -283,11 +294,16 @@ async function chargerRetoursAdmin() {
     box.innerHTML = `<p style="color:var(--muted);">Aucun message pour l'instant.</p>`;
     return;
   }
-  box.innerHTML = retours.map(r => `
-    <div class="retour-item retour-item--admin">
+  // Derniers messages mis en evidence (29/09/2026) : envoyes il y a moins
+  // de RETOURS_ADMIN_RECENT_MS, deja tries du plus recent au plus ancien.
+  const maintenant = Date.now();
+  box.innerHTML = retours.map(r => {
+    const recent = maintenant - new Date(r.created_at).getTime() < RETOURS_ADMIN_RECENT_MS;
+    return `
+    <div class="retour-item retour-item--admin${recent ? ' retour-item--recent' : ''}">
       <div class="retour-item__tete">
-        <strong>${escapeHtml(r.titre)}</strong>
-        <span style="color:var(--muted); font-size:12px;">${escapeHtml(r.pseudo || "quelqu'un")} · ${new Date(r.created_at).toLocaleDateString('fr-FR')}${r.besoin_aide ? ' · demande une réponse' : ''}</span>
+        <strong>${recent ? '<span class="retour-badge-nouveau">Nouveau</span> ' : ''}${escapeHtml(r.titre)}</strong>
+        <span style="color:var(--muted); font-size:12px;">${escapeHtml(r.pseudo || "quelqu'un")} · ${new Date(r.created_at).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}${r.besoin_aide ? ' · demande une réponse' : ''}</span>
       </div>
       <p style="font-size:13px; margin:6px 0;">${escapeHtml(r.description)}</p>
       ${r.solution_proposee ? `<p style="font-size:13px; color:var(--muted); margin:0 0 6px;"><strong>Solution proposée :</strong> ${escapeHtml(r.solution_proposee)}</p>` : ''}
@@ -297,8 +313,31 @@ async function chargerRetoursAdmin() {
         </select>
         <input type="text" data-retour-reponse="${r.id}" placeholder="Réponse (visible par la personne)" value="${escapeHtml(r.reponse || '')}">
         <button class="secondary small" data-retour-enregistrer="${r.id}">Enregistrer</button>
+        <button class="secondary small retour-btn-supprimer" data-retour-supprimer="${r.id}">Supprimer</button>
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
+
+  // Suppression definitive : deux clics (pas de boite de dialogue du
+  // navigateur), le premier arme le bouton pendant 4 s.
+  $$('[data-retour-supprimer]', box).forEach(btn => {
+    btn.onclick = async () => {
+      if (btn.dataset.arme !== '1') {
+        btn.dataset.arme = '1';
+        btn.textContent = 'Confirmer la suppression';
+        setTimeout(() => { if (btn.isConnected) { btn.dataset.arme = '0'; btn.textContent = 'Supprimer'; } }, 4000);
+        return;
+      }
+      btn.disabled = true;
+      const { error: erreurSuppr } = await window.sb
+        .from('retours_utilisateurs')
+        .delete()
+        .eq('id', btn.dataset.retourSupprimer);
+      if (erreurSuppr) { btn.disabled = false; showToast('Erreur : ' + erreurSuppr.message); return; }
+      showToast('Message supprimé');
+      chargerRetoursAdmin();
+    };
+  });
 
   $$('[data-retour-enregistrer]', box).forEach(btn => {
     btn.onclick = async () => {

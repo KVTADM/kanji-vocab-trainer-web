@@ -282,6 +282,25 @@ function libelleFiltreMots(filtre) {
 // Sert de base a un futur classement par vitesse (voir la feuille de
 // route) ; pour l'instant seulement enregistre et affiche en fin de
 // session.
+// Duree d'une session mise en pause (29/09/2026) : startedAt est conserve a
+// la reprise d'une session sauvegardee, donc "maintenant - startedAt"
+// comptait les heures/jours de pause (session reprise le lendemain =
+// 24 h de "duree"), faussant l'affichage et le terme vitesse du score
+// composite dans les 6 modes chronometres. On cumule plutot le temps entre
+// deux reponses, plafonne : au-dela, c'etait une pause, pas de la reflexion.
+const DUREE_PLAFOND_ENTRE_REPONSES_MS = 2 * 60 * 1000;
+function noterActivite(totals) {
+  const maintenant = Date.now();
+  const depuis = Number.isFinite(totals.derniereActivite) ? totals.derniereActivite : totals.startedAt;
+  if (!Number.isFinite(depuis)) return;
+  totals.actifMs = (totals.actifMs || 0) + Math.min(Math.max(0, maintenant - depuis), DUREE_PLAFOND_ENTRE_REPONSES_MS);
+  totals.derniereActivite = maintenant;
+}
+function dureeSessionMs(totals) {
+  if (Number.isFinite(totals.actifMs)) return totals.actifMs;
+  return Number.isFinite(totals.startedAt) ? Date.now() - totals.startedAt : null;
+}
+
 function formatDuree(ms) {
   if (!Number.isFinite(ms) || ms < 0) return null;
   const totalSec = Math.round(ms / 1000);
@@ -896,18 +915,47 @@ function scoreAnswer(input, correct) {
   return { pct, points };
 }
 
+// Champ "sens" (francais) assoupli le 29/09/2026 apres un signalement de la
+// boite a problemes : scoreAnswer() compare lettre a lettre, ce qui comptait
+// faux une majuscule, un accent oublie, une ponctuation absente, les
+// precisions entre parentheses ("Descendre (d'un vehicule, d'un
+// escalier)") et les alternatives tapees dans un autre ordre ("droite
+// gauche" pour "gauche, droite"). On normalise les deux cotes (minuscules,
+// sans accents ni ponctuation), on essaie le sens avec et sans ses
+// parentheses, chaque alternative seule, toutes ensemble, et on compare
+// aussi les mots tries (l'ordre ne compte plus). La lecture japonaise
+// garde scoreAnswer() tel quel.
+function normaliserSens(str) {
+  return (str || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+}
+
+function scoreSens(input, sens) {
+  const trier = str => str.split(' ').sort().join(' ');
+  const saisie = normaliserSens(input);
+  const candidats = [];
+  [(sens || '').replace(/\([^)]*\)/g, ' '), (sens || '').replace(/[()]/g, ' ')].forEach(variante => {
+    const alternatives = variante.split(/[/,;]/).map(normaliserSens).filter(a => a.length > 0);
+    candidats.push(...alternatives, alternatives.join(' '));
+  });
+  const valides = candidats.filter(c => c.length > 0);
+  if (valides.length === 0) return scoreAnswer(input, sens);
+  const pct = Math.max(...valides.map(c => Math.max(similarity(saisie, c), similarity(trier(saisie), trier(c)))));
+  return { pct, points: Math.round(pct * DB.settings.pointsPerWord) };
+}
+
 // Mode "Double reponse" (tache #11, rang 4) : une seule carte affiche le
 // mot en kanji, DEUX champs a remplir (lecture + sens), les deux doivent
 // etre justes pour marquer des points -- validee par Paul le 22/09/2026
-// ("Oui exactement ca"). On reutilise scoreAnswer() tel quel sur chaque
-// champ (tolerance aux fautes de frappe deja geree, alternatives "/"
+// ("Oui exactement ca"). scoreAnswer() sur la lecture, scoreSens() sur le
+// sens (voir juste au-dessus) (tolerance aux fautes de frappe deja geree, alternatives "/"
 // deja gerees pour les lectures a choix multiple) et on combine par le
 // MINIMUM des deux pourcentages, pas une moyenne : une lecture parfaite
 // ne doit pas racheter un sens invente, et inversement. La tolerance
 // reste au niveau de CHAQUE champ ; seule la combinaison est stricte.
 function scoreDoubleAnswer(inputLecture, inputSens, v) {
   const resLecture = scoreAnswer(inputLecture, v.lecture);
-  const resSens = scoreAnswer(inputSens, v.sens);
+  const resSens = scoreSens(inputSens, v.sens);
   const pct = Math.min(resLecture.pct, resSens.pct);
   const points = Math.round(pct * DB.settings.pointsPerWord);
   return { pct, points, lecture: resLecture, sens: resSens };
@@ -2397,8 +2445,8 @@ function activerDessinCanvas(canvas, session) {
 function renderKanjiQuizView(container) {
   // Session terminée
   if (quizSession.index >= quizSession.queue.length) {
-    const { points, maxPoints, startedAt } = quizSession.totals;
-    const dureeMs = Number.isFinite(startedAt) ? Date.now() - startedAt : null;
+    const { points, maxPoints } = quizSession.totals;
+    const dureeMs = dureeSessionMs(quizSession.totals);
     const pct = maxPoints > 0
       // Bug #19 (22/09/2026) : un score presque parfait (ex. 569/570)
       // arrondissait a 100%, ce qui donnait un faux sentiment de sans-faute.
@@ -2499,6 +2547,7 @@ function renderKanjiQuizView(container) {
       quizSession.lastAnswer = val;
       quizSession.lastResult = result;
       quizSession.totals.points += result.points;
+      noterActivite(quizSession.totals);
       quizSession.answers.push({ kanji: g.kanji, type: item.type, userAnswer: val, points: result.points, pct: result.pct });
       saveKanjiInProgress();
       renderReview();
@@ -2607,8 +2656,8 @@ function clearKanaInProgress(kanaType, groupId) {
 // pas besoin d'une logique de correspondance dédiée.
 function renderKanaQuizView(container) {
   if (quizSession.index >= quizSession.queue.length) {
-    const { points, maxPoints, startedAt } = quizSession.totals;
-    const dureeMs = Number.isFinite(startedAt) ? Date.now() - startedAt : null;
+    const { points, maxPoints } = quizSession.totals;
+    const dureeMs = dureeSessionMs(quizSession.totals);
     const pct = maxPoints > 0
       // Bug #19 (22/09/2026) : un score presque parfait (ex. 569/570)
       // arrondissait a 100%, ce qui donnait un faux sentiment de sans-faute.
@@ -2695,6 +2744,7 @@ function renderKanaQuizView(container) {
       quizSession.lastAnswer = val;
       quizSession.lastResult = result;
       quizSession.totals.points += result.points;
+      noterActivite(quizSession.totals);
       quizSession.answers.push({ char: item.char, romaji: item.romaji, userAnswer: val, points: result.points, pct: result.pct });
       saveKanaInProgress();
       renderReview();
@@ -2985,8 +3035,8 @@ function clearTraductionInProgress(semesterId, week) {
 
 function renderTraductionQuizView(container) {
   if (quizSession.index >= quizSession.queue.length) {
-    const { points, maxPoints, startedAt } = quizSession.totals;
-    const dureeMs = Number.isFinite(startedAt) ? Date.now() - startedAt : null;
+    const { points, maxPoints } = quizSession.totals;
+    const dureeMs = dureeSessionMs(quizSession.totals);
     const pct = maxPoints > 0
       // Bug #19 (22/09/2026) : un score presque parfait (ex. 569/570)
       // arrondissait a 100%, ce qui donnait un faux sentiment de sans-faute.
@@ -3075,14 +3125,19 @@ function renderTraductionQuizView(container) {
   if (!quizSession.submitted) {
     const input = $('#answerInputTraduction');
     input.focus();
+    // Saisie romaji -> hiragana comme dans les autres modes (oubli signale
+    // le 28/09/2026). Les kanji restent acceptes : un IME systeme actif
+    // n'est pas touche pendant la composition (voir activerSaisieKanaDirecte).
+    activerSaisieKanaDirecte(input, false);
     const submit = () => {
-      const val = input.value;
+      const val = finaliserKana(input.value, false);
       quizSession.warning = null;
       const result = scoreTraductionAnswer(val, v);
       quizSession.submitted = true;
       quizSession.lastAnswer = val;
       quizSession.lastResult = result;
       quizSession.totals.points += result.points;
+      noterActivite(quizSession.totals);
       quizSession.answers.push({ mot: v.mot, lecture: v.lecture, sens: v.sens, userAnswer: val, points: result.points, pct: result.pct });
       recordWordAttempt(v.id, result.pct);
       if (typeof gagnerXp === 'function') gagnerXp(result.points, quizSession.semesterId);
@@ -3202,8 +3257,8 @@ function clearDoubleInProgress(semesterId, week) {
 
 function renderDoubleQuizView(container) {
   if (quizSession.index >= quizSession.queue.length) {
-    const { points, maxPoints, startedAt } = quizSession.totals;
-    const dureeMs = Number.isFinite(startedAt) ? Date.now() - startedAt : null;
+    const { points, maxPoints } = quizSession.totals;
+    const dureeMs = dureeSessionMs(quizSession.totals);
     const pct = maxPoints > 0
       ? (points >= maxPoints ? 100 : Math.min(99, Math.round((points / maxPoints) * 100)))
       : 0;
@@ -3304,6 +3359,7 @@ function renderDoubleQuizView(container) {
       quizSession.lastAnswer = { lecture: valLecture, sens: valSens };
       quizSession.lastResult = result;
       quizSession.totals.points += result.points;
+      noterActivite(quizSession.totals);
       quizSession.answers.push({ mot: v.mot, lecture: v.lecture, sens: v.sens, userAnswerLecture: valLecture, userAnswerSens: valSens, points: result.points, pct: result.pct });
       recordWordAttempt(v.id, result.pct);
       if (typeof gagnerXp === 'function') gagnerXp(result.points, quizSession.semesterId);
@@ -3465,8 +3521,8 @@ function buildPratiqueCardsHtml(cardClass, restartClass) {
 
 function renderPratiqueQuizView(container) {
   if (quizSession.index >= quizSession.queue.length) {
-    const { points, maxPoints, startedAt } = quizSession.totals;
-    const dureeMs = Number.isFinite(startedAt) ? Date.now() - startedAt : null;
+    const { points, maxPoints } = quizSession.totals;
+    const dureeMs = dureeSessionMs(quizSession.totals);
     const pct = maxPoints > 0
       // Bug #19 (22/09/2026) : un score presque parfait (ex. 569/570)
       // arrondissait a 100%, ce qui donnait un faux sentiment de sans-faute.
@@ -3559,6 +3615,7 @@ function renderPratiqueQuizView(container) {
       quizSession.lastAnswer = val;
       quizSession.lastResult = result;
       quizSession.totals.points += result.points;
+      noterActivite(quizSession.totals);
       quizSession.answers.push({ mot: v.mot, lecture: v.lecture, sens: v.sens, userAnswer: val, points: result.points, pct: result.pct });
       if (typeof gagnerXp === 'function') gagnerXp(result.points, null);
       if (typeof gagnerPieces === 'function') gagnerPieces(result.points, null);
@@ -3947,8 +4004,8 @@ function renderReview() {
 
   // Session terminée
   if (quizSession.index >= quizSession.queue.length) {
-    const { points, maxPoints, startedAt } = quizSession.totals;
-    const dureeMs = Number.isFinite(startedAt) ? Date.now() - startedAt : null;
+    const { points, maxPoints } = quizSession.totals;
+    const dureeMs = dureeSessionMs(quizSession.totals);
     const pct = maxPoints > 0
       // Bug #19 (22/09/2026) : un score presque parfait (ex. 569/570)
       // arrondissait a 100%, ce qui donnait un faux sentiment de sans-faute.
@@ -4146,6 +4203,7 @@ function renderReview() {
       quizSession.lastAnswer = val;
       quizSession.lastResult = result;
       quizSession.totals.points += result.points;
+      noterActivite(quizSession.totals);
       quizSession.answers.push({
         mot: v.mot, lecture: v.lecture, sens: v.sens,
         userAnswer: val, points: result.points, pct: result.pct, spectral: quizSession.usedSpectral

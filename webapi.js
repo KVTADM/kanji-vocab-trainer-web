@@ -295,7 +295,11 @@ const JLPT_N4_SEED = {"kanjiGroups":[{"id":"kg-hu66go90952pa","semesterId":"jlpt
     // correctement lu "ちきゅう" sur ses deux autres occurrences dans le
     // cursus, confirmant que c'etait une coquille isolee sur cette entree.
     const LECTURES_A_CORRIGER_2 = {
-      'v-mrhvk4v0yhk90': { old: 'ちゅうきゅう が まわる', neuve: 'ちきゅう が まわる' } // 地球が回る
+      'v-mrhvk4v0yhk90': { old: 'ちゅうきゅう が まわる', neuve: 'ちきゅう が まわる' }, // 地球が回る
+      // Signale par Paul le 29/09/2026 (semestre 2, semaine 8) : le の
+      // affiche dans le mot manquait dans la lecture, donc toute reponse
+      // qui le tapait etait comptee fausse. Seule entree du seed dans ce cas.
+      'v-mrhvk4v7q1w2i': { old: 'だいがくにゅうがくしけん', neuve: 'だいがくのにゅうがくしけん' } // 大学の入学試験
     };
     if (Array.isArray(data.vocab)) {
       data.vocab.forEach(v => {
@@ -508,13 +512,16 @@ const JLPT_N4_SEED = {"kanjiGroups":[{"id":"kg-hu66go90952pa","semesterId":"jlpt
       return migrated;
     },
 
-    async saveData(data) {
+    async saveData(data, options) {
       const db = await openDB();
       await idbSet(db, KEY, data);
       // Pousse aussi vers le cloud si un compte est connecté (voir account.js).
       // Volontairement non-bloquant : l'app ne doit jamais attendre le réseau
       // pour une sauvegarde qui, de toute façon, vient déjà de réussir en local.
-      if (typeof window.kvtPushCloud === 'function') window.kvtPushCloud(data);
+      // `sansCloud` : copie locale d'une fusion deja envoyee par kvtPushCloud ;
+      // `forcer` : ecraser le cloud sans fusion (voir kvtPushCloud).
+      if (options && options.sansCloud) return { ok: true };
+      if (typeof window.kvtPushCloud === 'function') window.kvtPushCloud(data, options);
       return { ok: true };
     },
 
@@ -549,7 +556,7 @@ const JLPT_N4_SEED = {"kanjiGroups":[{"id":"kg-hu66go90952pa","semesterId":"jlpt
             parsed = migrate(parsed);
             const db = await openDB();
             await idbSet(db, KEY, parsed);
-            if (typeof window.kvtPushCloud === 'function') window.kvtPushCloud(parsed);
+            if (typeof window.kvtPushCloud === 'function') window.kvtPushCloud(parsed, { forcer: true });
             // Si la sauvegarde importée vient d'une app hors-ligne (Mac,
             // version amis), ses meilleurs scores par semaine n'ont jamais pu
             // être envoyés au classement de la classe — on le fait ici,
@@ -571,7 +578,7 @@ const JLPT_N4_SEED = {"kanjiGroups":[{"id":"kg-hu66go90952pa","semesterId":"jlpt
       fresh.settings.pointsPerWord = 10;
       const db = await openDB();
       await idbSet(db, KEY, fresh);
-      if (typeof window.kvtPushCloud === 'function') window.kvtPushCloud(fresh);
+      if (typeof window.kvtPushCloud === 'function') window.kvtPushCloud(fresh, { forcer: true });
       return fresh;
     }
   };

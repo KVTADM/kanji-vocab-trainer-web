@@ -50,3 +50,13 @@ essai('fonctionne encore normalement si /seed-data.json est injoignable (hors li
     global.fetch = fetchOriginal;
   }
 });
+
+essai('corrige la lecture de 大学の入学試験 (の manquant, S2 semaine 8) sur un compte existant', async () => {
+  fakeStockage.clear();
+  const base = donneeDeBase();
+  base.vocab.push({ id: 'v-mrhvk4v7q1w2i', kanjiGroupId: 'kg-test-s3-a', mot: '大学の入学試験', lecture: 'だいがくにゅうがくしけん', sens: 'x' });
+  fakeStockage.set('data', base);
+  const data = await window.api.loadData();
+  const mot = data.vocab.find(v => v.id === 'v-mrhvk4v7q1w2i');
+  if (mot.lecture !== 'だいがくのにゅうがくしけん') throw new Error('lecture non corrigee : ' + mot.lecture);
+});

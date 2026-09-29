@@ -490,18 +490,32 @@ function totalCadeauxEnAttente() {
   return cadeauxEnAttente.reduce((somme, c) => somme + (Number(c.pieces) || 0), 0);
 }
 
+// XP offerts (29/09/2026) : meme table, colonne `xp` -- premier usage, rendre
+// a lucienrosset36 l'XP perdue lors de l'ecrasement entre deux appareils.
+function totalXpCadeauxEnAttente() {
+  return cadeauxEnAttente.reduce((somme, c) => somme + (Number(c.xp) || 0), 0);
+}
+
+function detailCadeaux(total, totalXp) {
+  const parts = [];
+  if (total > 0) parts.push(`${iconePiece(14)} ${total} pièce${total > 1 ? 's' : ''} d'or`);
+  if (totalXp > 0) parts.push(`${totalXp} XP`);
+  return parts.join(' + ');
+}
+
 // Carte "cadeau" du tableau de bord : rien si aucun don en attente, sinon
 // tout en haut à côté du widget de niveau (voir renderDashboard() dans
 // app.js) pour être vue dès l'ouverture de l'app.
 function widgetCadeau() {
   if (!cadeauxEnAttente.length) return '';
   const total = totalCadeauxEnAttente();
+  const totalXp = totalXpCadeauxEnAttente();
   return `
     <div class="card gamif-cadeau" id="gamifCadeauCard">
       <div class="gamif-cadeau__emoji">🎁</div>
       <div class="gamif-cadeau__texte">
         <div class="gamif-cadeau__titre">Un cadeau t'attend !</div>
-        <div class="gamif-cadeau__detail">${iconePiece(14)} ${total} pièce${total > 1 ? 's' : ''} d'or à récupérer</div>
+        <div class="gamif-cadeau__detail">${detailCadeaux(total, totalXp)} à récupérer</div>
       </div>
       <button class="primary" id="btnReclamerCadeau">Récupérer</button>
     </div>`;
@@ -523,6 +537,7 @@ function wireWidgetCadeau() {
 async function reclamerCadeaux() {
   if (!cadeauxEnAttente.length) return;
   const total = totalCadeauxEnAttente();
+  const totalXp = totalXpCadeauxEnAttente();
   const ids = cadeauxEnAttente.map(c => c.id);
   const { error } = await window.sb
     .from('gamification_grants')
@@ -534,9 +549,10 @@ async function reclamerCadeaux() {
   }
   const g = assurerGamification();
   g.pieces = (g.pieces || 0) + total;
+  g.xp = (g.xp || 0) + totalXp;
   cadeauxEnAttente = [];
   await persist();
-  showToast(`+${total} pièce${total > 1 ? 's' : ''} d'or reçue${total > 1 ? 's' : ''} !`);
+  showToast(`+${detailCadeaux(total, totalXp).replace(/<[^>]*>/g, '').trim()} reçu !`);
   if (typeof renderCurrentView === 'function') renderCurrentView();
 }
 
