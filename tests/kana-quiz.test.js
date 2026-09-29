@@ -29,7 +29,11 @@ global.essai = (nom, fn) => { cas.push({ nom, fn }); };
 // pas (contrairement aux `function`, hoistées hors de l'eval). Même motif
 // que tests/gamification.test.js.
 const CAS = fs.readFileSync(__dirname + '/kana-quiz.cases.js', 'utf8');
-eval(source.slice(debut, fin) + '\n' + CAS);
+// Helpers de classement (enrichirRecord, comparerResultats...) utilises
+// par record*SessionResult depuis le 29/09/2026.
+const debutClassement = source.indexOf('// ---------- Classement : difficulte');
+const finClassement = source.indexOf('function pousserMeilleurScore(');
+eval(source.slice(debutClassement, finClassement) + '\n' + source.slice(debut, fin) + '\n' + CAS);
 
 (async () => {
   const resultats = [];

@@ -15,7 +15,30 @@ let apercuErreur = null;
 let apercuSemestre = 'tous';// filtre facultatif, jamais un préalable
 let globalLignes = null;    // scores bruts tous modes confondus (rang 5, #16)
 let globalErreur = null;
-let globalTri = 'points';   // 'points' | 'pct' | 'temps' | 'composite'
+let globalTri = 'classement'; // 'classement' | 'points' | 'temps'
+
+// Regle du classement (decision de Paul, 29/09/2026) : le % reussi d'abord,
+// puis a % egal la difficulte (Difficile > Normal > Facile), puis a
+// difficulte egale le temps le plus court. Meme regle que comparerResultats
+// (app.js), ici sur les lignes de la table `scores` (colonnes snake_case).
+// Les essais ne departagent plus personne : affiches a titre indicatif.
+const LB_RANG_DIFFICULTE = { facile: 0, normal: 1, difficile: 2 };
+function rangDifficulte(d) { return LB_RANG_DIFFICULTE[d || 'normal'] ?? 1; }
+function ordreLignes(a, b) {
+  const dp = (Number(b.pct) || 0) - (Number(a.pct) || 0);
+  if (dp) return dp;
+  const dd = rangDifficulte(b.difficulte) - rangDifficulte(a.difficulte);
+  if (dd) return dd;
+  const ta = Number.isFinite(Number(a.duree_ms)) && a.duree_ms != null ? Number(a.duree_ms) : Infinity;
+  const tb = Number.isFinite(Number(b.duree_ms)) && b.duree_ms != null ? Number(b.duree_ms) : Infinity;
+  return ta === tb ? 0 : (ta < tb ? -1 : 1);
+}
+function badgeDifficulte(d) {
+  if (d === 'difficile') return '<span class="lb-diff lb-diff--difficile">Difficile</span>';
+  if (d === 'facile') return '<span class="lb-diff lb-diff--facile">Facile</span>';
+  return '';
+}
+function tempsTexte(ms) { return ms == null || !Number.isFinite(Number(ms)) ? '—' : formatDuree(Number(ms)); }
 
 function renderLeaderboard() {
   const el = $('#view-leaderboard');
@@ -67,10 +90,9 @@ function renderLeaderboard() {
       <div class="lb-filtre">
         <label for="lbGlobalTri">Trier par</label>
         <select id="lbGlobalTri">
+          <option value="classement" ${globalTri === 'classement' ? 'selected' : ''}>Classement (%, puis difficulté, puis temps)</option>
           <option value="points" ${globalTri === 'points' ? 'selected' : ''}>Points cumulés</option>
-          <option value="pct" ${globalTri === 'pct' ? 'selected' : ''}>Meilleur % moyen</option>
           <option value="temps" ${globalTri === 'temps' ? 'selected' : ''}>Temps moyen (plus rapide)</option>
-          <option value="composite" ${globalTri === 'composite' ? 'selected' : ''}>Score composite (#5)</option>
         </select>
       </div>` : ''}
       <p class="lb-explain">${
@@ -79,8 +101,8 @@ function renderLeaderboard() {
         : leaderboardMode === 'apercu'
           ? 'Le meilleur score de chaque semaine, dans l\'ordre du programme. Le filtre est là si tu veux resserrer, pas pour commencer.'
         : leaderboardMode === 'global'
-          ? 'Tous les modes de quiz confondus (Vocabulaire, Kanji seul, Traduction, Double réponse) : le total de tes meilleurs points par semaine et par mode, ton % moyen, ton temps moyen par session, ton nombre d\'essais cumulé, et un score composite sur 100 qui combine précision, vitesse, assiduité et difficulté du contenu. Le Kana et la Pratique libre n\'ont pas de semaine fixe, ils ne comptent pas ici.'
-          : 'Meilleurs scores obtenus sur la semaine choisie.'}</p>
+          ? 'Tous les modes de quiz confondus (Vocabulaire, Kanji seul, Traduction, Double réponse). Classement : ton % moyen d\'abord, puis à % égal la difficulté (Difficile devant Normal devant Facile), puis le temps moyen le plus court. Seules les sessions « tous les mots » comptent. Les essais sont affichés à titre indicatif. Le Kana et la Pratique libre n\'ont pas de semaine fixe, ils ne comptent pas ici.'
+          : 'Meilleurs scores de la semaine choisie : le % d\'abord, puis la difficulté, puis le temps. Seules les sessions « tous les mots » comptent.'}</p>
       <div id="lbTableWrap"><p style="color:var(--muted);">Chargement…</p></div>
       <p style="font-size:12px; color:var(--muted); margin-top:14px;">
         Seuls les pseudos sont visibles — jamais les noms réels.
@@ -137,7 +159,7 @@ async function chargerApercu() {
         // avant ; le nouvel onglet "Classement global" ci-dessous est le seul
         // a agreger les 4 modes ensemble.
         const { data, error } = await window.sb
-      .from('scores').select('user_id,pseudo,semester_id,week,pct,points,max_points,created_at')
+      .from('scores').select('user_id,pseudo,semester_id,week,pct,points,max_points,duree_ms,difficulte,created_at')
       .eq('mode', 'vocab')
       .order('created_at', { ascending: false }).limit(2000);
     if (error) throw error;
@@ -192,9 +214,9 @@ function renderApercu() {
             ${window.kvtProfils ? window.kvtProfils.auteurHtml(premier.user_id, premier.pseudo, 34) : `<span class="auteur"><span class="auteur-pseudo">${escapeHtml(premier.pseudo)}</span></span>`}
             <div class="lb-case-infos">
               ${jeSuisPremier ? '<span class="com-marque">toi</span>' : ''}
-              <div class="lb-case-detail">${premier.points}/${premier.max_points} pts</div>
+              <div class="lb-case-detail">${premier.points}/${premier.max_points} pts · ${tempsTexte(premier.duree_ms)}</div>
             </div>
-            <div class="lb-case-pct">${Math.round(premier.pct)}%</div>
+            <div class="lb-case-pct">${formatPct(premier.pct)} ${badgeDifficulte(premier.difficulte)}</div>
           </div>
           ${suivants.length ? `
             <div class="lb-case-suite">
@@ -202,7 +224,7 @@ function renderApercu() {
                 <div class="lb-case-ligne ${r.user_id === moi ? 'lb-row-me' : ''}">
                   <span class="lb-case-rang">${i + 2}</span>
                   <span class="lb-case-nom">${window.kvtProfils ? window.kvtProfils.auteurHtml(r.user_id, r.pseudo, 16) : escapeHtml(r.pseudo)}</span>
-                  <span class="lb-case-mini">${Math.round(r.pct)}%</span>
+                  <span class="lb-case-mini">${formatPct(r.pct)}</span>
                 </div>`).join('')}
               ${s.lignes.length > 3 ? `<div class="lb-case-reste">et ${s.lignes.length - 3} autre${s.lignes.length - 3 > 1 ? 's' : ''}</div>` : ''}
             </div>`
@@ -229,7 +251,7 @@ function meilleursParSemaine(rows) {
   (rows || []).forEach(r => {
     const cle = `${r.semester_id}|${r.week}|${r.user_id}`;
     const actuel = parPersonne.get(cle);
-    if (!actuel || Number(r.pct) > Number(actuel.pct)) parPersonne.set(cle, r);
+    if (!actuel || ordreLignes(r, actuel) < 0) parPersonne.set(cle, r);
   });
 
   const parSemaine = new Map();
@@ -240,7 +262,7 @@ function meilleursParSemaine(rows) {
   });
 
   const liste = [...parSemaine.values()];
-  liste.forEach(s => s.lignes.sort((a, b) => Number(b.pct) - Number(a.pct) || b.points - a.points));
+  liste.forEach(s => s.lignes.sort(ordreLignes));
   // Ordre d'affichage : le semestre dans l'ordre du programme, puis la
   // semaine. On lit une progression, pas un palmarès mélangé.
   const ordre = DB.settings.semesters.map(s => s.id);
@@ -304,12 +326,12 @@ function computeProgression(rows) {
 async function loadLeaderboardRows(semesterId, week) {
   const { data, error } = await window.sb
     .from('scores')
-    .select('user_id, pseudo, pct, points, max_points')
+    .select('user_id, pseudo, pct, points, max_points, duree_ms, nb_essais, difficulte')
     .eq('semester_id', semesterId)
     .eq('week', week)
     .eq('mode', 'vocab') // rang 5, #16 : voir remarque dans chargerApercu()
-    .order('points', { ascending: false })
-    .limit(50);
+    .limit(200);
+  if (data) data.sort(ordreLignes);
 
   // La vue a pu changer pendant le chargement (autre semaine sélectionnée,
   // ou navigation ailleurs) — on n'écrit alors plus rien.
@@ -341,17 +363,18 @@ async function loadLeaderboardRows(semesterId, week) {
         <div class="lb-podium-item lb-rank-${i + 1} ${isMe(r) ? 'lb-me' : ''}">
           <div class="lb-medal">${medals[i]}</div>
           <div class="lb-podium-pseudo">${window.kvtProfils ? window.kvtProfils.auteurHtml(r.user_id, r.pseudo, 22) : escapeHtml(r.pseudo)}</div>
-          <div class="lb-podium-points">${r.points}<span>/${r.max_points}</span></div>
-          <div class="lb-podium-pct">${r.pct}% de similarité</div>
+          <div class="lb-podium-points">${formatPct(r.pct)} ${badgeDifficulte(r.difficulte)}</div>
+          <div class="lb-podium-pct">${r.points}/${r.max_points} pts · ${tempsTexte(r.duree_ms)}</div>
+          <div class="lb-podium-temps">${r.nb_essais != null ? r.nb_essais + ' essai' + (r.nb_essais > 1 ? 's' : '') : ''}</div>
         </div>`).join('')}
     </div>`;
 
   const restHtml = rest.length === 0 ? '' : `
     <table class="lb-table">
-      <thead><tr><th>#</th><th>Pseudo</th><th>Points</th><th>Similarité</th></tr></thead>
+      <thead><tr><th>#</th><th>Pseudo</th><th>Réussite</th><th>Difficulté</th><th>Temps</th><th>Points</th><th title="À titre indicatif, ne compte pas dans le classement">Essais</th></tr></thead>
       <tbody>${rest.map((r, i) => `
         <tr class="${isMe(r) ? 'lb-row-me' : ''}">
-          <td class="lb-rank">${i + 4}</td><td>${window.kvtProfils ? window.kvtProfils.auteurHtml(r.user_id, r.pseudo, 18) : escapeHtml(r.pseudo)}</td><td><strong>${r.points}</strong>/${r.max_points}</td><td>${r.pct}%</td>
+          <td class="lb-rank">${i + 4}</td><td>${window.kvtProfils ? window.kvtProfils.auteurHtml(r.user_id, r.pseudo, 18) : escapeHtml(r.pseudo)}</td><td><strong>${formatPct(r.pct)}</strong></td><td>${badgeDifficulte(r.difficulte) || 'Normal'}</td><td>${tempsTexte(r.duree_ms)}</td><td>${r.points}/${r.max_points}</td><td>${r.nb_essais ?? '—'}</td>
         </tr>`).join('')}</tbody>
     </table>`;
 
@@ -427,7 +450,7 @@ async function chargerGlobal() {
   try {
     const { data, error } = await window.sb
       .from('scores')
-      .select('user_id, pseudo, points, pct, duree_ms, nb_essais, semester_id, mode')
+      .select('user_id, pseudo, points, pct, duree_ms, nb_essais, semester_id, mode, difficulte')
       .limit(5000);
     if (error) throw error;
     globalLignes = data || [];
@@ -454,7 +477,7 @@ function computeGlobal(rows) {
     const u = parUser.get(r.user_id) || {
       user_id: r.user_id, pseudo: r.pseudo,
       points: 0, sommePct: 0, nbPct: 0, sommeDuree: 0, nbDuree: 0, essais: 0,
-      sommeComposite: 0, nbComposite: 0
+      sommeDiff: 0
     };
     u.pseudo = r.pseudo; // le pseudo le plus récent fait foi (comme ailleurs)
     u.points += Number(r.points) || 0;
@@ -464,15 +487,8 @@ function computeGlobal(rows) {
     if (Number.isFinite(duree) && duree > 0) { u.sommeDuree += duree; u.nbDuree += 1; }
     const essais = Number(r.nb_essais);
     if (Number.isFinite(essais)) u.essais += essais;
-    // Score composite (#5) : calculé ligne par ligne (une ligne = un
-    // semestre/semaine/mode) puis moyenné, comme scoreComposite() est déjà
-    // pensé pour être utilisé côté stats personnelles (app.js).
-    if (Number.isFinite(pct)) {
-      u.sommeComposite += scoreComposite({
-        pct, dureeMs: duree, essais, semesterId: r.semester_id, mode: r.mode
-      });
-      u.nbComposite += 1;
-    }
+    u.sommeDiff += rangDifficulte(r.difficulte);
+    u.nbLignes = (u.nbLignes || 0) + 1;
     parUser.set(r.user_id, u);
   });
 
@@ -483,14 +499,18 @@ function computeGlobal(rows) {
     pctMoyen: u.nbPct ? u.sommePct / u.nbPct : null,
     dureeMoyenne: u.nbDuree ? u.sommeDuree / u.nbDuree : null,
     essais: u.essais,
-    compositeMoyen: u.nbComposite ? u.sommeComposite / u.nbComposite : null
+    // Difficulte moyenne (0 = Facile, 1 = Normal, 2 = Difficile), ne sert
+    // qu'a departager deux % moyens egaux.
+    difficulteMoyenne: u.nbLignes ? u.sommeDiff / u.nbLignes : 1
   }));
 }
 
 function trierGlobal(rows, tri) {
   const copie = rows.slice();
-  if (tri === 'pct') {
-    copie.sort((a, b) => (b.pctMoyen ?? -1) - (a.pctMoyen ?? -1));
+  if (tri === 'classement') {
+    copie.sort((a, b) => ((b.pctMoyen ?? -1) - (a.pctMoyen ?? -1))
+      || (b.difficulteMoyenne - a.difficulteMoyenne)
+      || ((a.dureeMoyenne ?? Infinity) - (b.dureeMoyenne ?? Infinity) || 0));
   } else if (tri === 'temps') {
     // Sans temps enregistré (anciennes sessions) : en fin de liste, jamais
     // avantagé par une absence de donnée.
@@ -500,8 +520,6 @@ function trierGlobal(rows, tri) {
       if (b.dureeMoyenne == null) return -1;
       return a.dureeMoyenne - b.dureeMoyenne;
     });
-  } else if (tri === 'composite') {
-    copie.sort((a, b) => (b.compositeMoyen ?? -1) - (a.compositeMoyen ?? -1));
   } else {
     copie.sort((a, b) => b.points - a.points);
   }
@@ -534,9 +552,8 @@ function renderGlobal() {
   const rest = rows.slice(3);
 
   const critere = (r) => {
-    if (globalTri === 'pct') return r.pctMoyen == null ? '—' : `${Math.round(r.pctMoyen)}%`;
+    if (globalTri === 'classement') return r.pctMoyen == null ? '—' : formatPct(r.pctMoyen);
     if (globalTri === 'temps') return r.dureeMoyenne == null ? '—' : formatDuree(r.dureeMoyenne);
-    if (globalTri === 'composite') return r.compositeMoyen == null ? '—' : `${Math.round(r.compositeMoyen)}/100`;
     return `${r.points} pts`;
   };
 
@@ -547,23 +564,23 @@ function renderGlobal() {
           <div class="lb-medal">${medals[i]}</div>
           <div class="lb-podium-pseudo">${window.kvtProfils ? window.kvtProfils.auteurHtml(r.user_id, r.pseudo, 22) : escapeHtml(r.pseudo)}</div>
           <div class="lb-podium-points">${critere(r)}</div>
-          <div class="lb-podium-pct">${r.points} pts cumulés</div>
+          <div class="lb-podium-pct">${globalTri === 'points' ? (r.pctMoyen == null ? '—' : formatPct(r.pctMoyen) + ' de moyenne') : r.points + ' pts cumulés'}</div>
           ${globalTri === 'temps' ? '' : `<div class="lb-podium-temps">${r.dureeMoyenne == null ? 'Temps : —' : `Temps moyen : ${formatDuree(r.dureeMoyenne)}`}</div>`}
+          <div class="lb-podium-temps">${r.essais} essai${r.essais > 1 ? 's' : ''}</div>
         </div>`).join('')}
     </div>`;
 
   const restHtml = rest.length === 0 ? '' : `
     <table class="lb-table">
-      <thead><tr><th>#</th><th>Pseudo</th><th>Points</th><th>% moyen</th><th>Temps moyen</th><th>Essais</th><th>Score composite</th></tr></thead>
+      <thead><tr><th>#</th><th>Pseudo</th><th>% moyen</th><th>Temps moyen</th><th>Points</th><th title="À titre indicatif, ne compte pas dans le classement">Essais</th></tr></thead>
       <tbody>${rest.map((r, i) => `
         <tr class="${isMe(r) ? 'lb-row-me' : ''}">
           <td class="lb-rank">${i + 4}</td>
           <td>${window.kvtProfils ? window.kvtProfils.auteurHtml(r.user_id, r.pseudo, 18) : escapeHtml(r.pseudo)}</td>
-          <td><strong>${r.points}</strong></td>
-          <td>${r.pctMoyen == null ? '—' : Math.round(r.pctMoyen) + '%'}</td>
+          <td><strong>${r.pctMoyen == null ? '—' : formatPct(r.pctMoyen)}</strong></td>
           <td>${r.dureeMoyenne == null ? '—' : formatDuree(r.dureeMoyenne)}</td>
+          <td>${r.points}</td>
           <td>${r.essais}</td>
-          <td>${r.compositeMoyen == null ? '—' : Math.round(r.compositeMoyen) + '/100'}</td>
         </tr>`).join('')}</tbody>
     </table>`;
 
@@ -587,7 +604,7 @@ async function chargerClassementAccueil() {
     if (!window.sb) throw new Error('Connexion indisponible');
     const { data, error } = await window.sb
       .from('scores')
-      .select('user_id, pseudo, points, pct, duree_ms, nb_essais, semester_id, mode')
+      .select('user_id, pseudo, points, pct, duree_ms, nb_essais, semester_id, mode, difficulte')
       .limit(5000);
     if (error) throw error;
     accueilClassementLignes = data || [];
@@ -619,7 +636,7 @@ function renderClassementAccueilWidget() {
     return;
   }
 
-  const classes = trierGlobal(computeGlobal(accueilClassementLignes).filter((u) => u.points > 0), 'points');
+  const classes = trierGlobal(computeGlobal(accueilClassementLignes).filter((u) => u.points > 0), 'classement');
   if (!classes.length) {
     wrap.innerHTML = `<p style="font-size:13px; color:var(--muted);">Personne n'a encore de score. Termine une session : tu seras le premier.</p>`;
     return;
@@ -633,7 +650,7 @@ function renderClassementAccueilWidget() {
         <div class="accueil-classement-ligne ${r.user_id === moi ? 'lb-row-me' : ''}">
           <span>${medals[i]}</span>
           <span class="accueil-classement-pseudo">${window.kvtProfils ? window.kvtProfils.auteurHtml(r.user_id, r.pseudo, 20) : escapeHtml(r.pseudo)}</span>
-          <span class="accueil-classement-points">${r.points} pts</span>
+          <span class="accueil-classement-points">${r.pctMoyen == null ? '—' : formatPct(r.pctMoyen)}</span>
         </div>`).join('')}
     </div>
     <button class="lien-retour" id="btnVoirClassement" style="margin-top:10px;">Voir le classement complet →</button>`;

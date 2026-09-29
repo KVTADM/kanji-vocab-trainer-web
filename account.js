@@ -173,6 +173,7 @@ function rattraperScoresDepuisClassement(data, lignes) {
     if (data[champ][cle]) return;
     const record = { date: new Date(l.created_at).toISOString(), points: l.points, maxPoints: l.max_points, pct: Number(l.pct) };
     if (Number.isFinite(l.duree_ms)) record.dureeMs = l.duree_ms;
+    if (l.difficulte) record.difficulte = l.difficulte;
     data[champ][cle] = { best: record, history: [record] };
     ajouts++;
   });
@@ -315,7 +316,7 @@ async function kvtVerifierCloudAuChargement() {
   noterBaseSync(ligne.updated_at, ligne.data);
   const { data: lignesScores } = await window.sb
     .from('scores')
-    .select('semester_id, week, mode, points, max_points, pct, duree_ms, created_at')
+    .select('semester_id, week, mode, points, max_points, pct, duree_ms, difficulte, created_at')
     .eq('user_id', window.accountUser.id);
   rattraperScoresDepuisClassement(fusion, lignesScores);
   if (JSON.stringify(fusion) === avant && JSON.stringify(ligne.data) === avant) return;
@@ -427,7 +428,7 @@ window.kvtCompterHistorique = async function () {
 // dureeMs/nbEssais sont optionnels (undefined -> colonnes NULL) : certains
 // appelants (repoussee en masse depuis une sauvegarde importee, voir
 // kvtPushAllScores) n'ont pas forcement cette info sous la main.
-window.kvtPushScore = async function (semesterId, week, points, maxPoints, pct, mode, dureeMs, nbEssais) {
+window.kvtPushScore = async function (semesterId, week, points, maxPoints, pct, mode, dureeMs, nbEssais, difficulte) {
   if (!window.accountUser || !window.accountUser.pseudo) return;
   await window.sb.from('scores').upsert({
     user_id: window.accountUser.id,
@@ -439,7 +440,8 @@ window.kvtPushScore = async function (semesterId, week, points, maxPoints, pct, 
     pct,
     mode: mode || 'vocab',
     duree_ms: Number.isFinite(dureeMs) ? dureeMs : null,
-    nb_essais: Number.isFinite(nbEssais) ? nbEssais : null
+    nb_essais: Number.isFinite(nbEssais) ? nbEssais : null,
+    difficulte: difficulte || 'normal'
   }, { onConflict: 'user_id,semester_id,week,mode' });
 };
 
@@ -479,9 +481,9 @@ window.kvtPushAllScores = async function (data) {
   ];
   const { data: existing } = await window.sb
     .from('scores')
-    .select('semester_id, week, mode, points')
+    .select('semester_id, week, mode, points, pct, duree_ms, difficulte')
     .eq('user_id', window.accountUser.id);
-  const existingMap = new Map((existing || []).map(r => [`${r.mode}|${r.semester_id}-w${r.week}`, r.points]));
+  const existingMap = new Map((existing || []).map(r => [`${r.mode}|${r.semester_id}-w${r.week}`, { points: r.points, pct: Number(r.pct), dureeMs: r.duree_ms, difficulte: r.difficulte }]));
 
   for (const { champ, mode } of NAMESPACES) {
     const scoresNamespace = data[champ];
@@ -492,9 +494,13 @@ window.kvtPushAllScores = async function (data) {
       if (!m) continue;
       const semesterId = m[1];
       const week = parseInt(m[2], 10);
-      const currentPoints = existingMap.get(`${mode}|${key}`);
-      if (currentPoints !== undefined && currentPoints >= entry.best.points) continue;
-      await window.kvtPushScore(semesterId, week, entry.best.points, entry.best.maxPoints, entry.best.pct, mode, entry.best.dureeMs, undefined);
+      // Meme regle que pousserMeilleurScore (app.js) : seule une tentative
+      // "tous les mots" compte, departagee par %, difficulte puis temps.
+      const best = typeof meilleurPourClassement === 'function' ? meilleurPourClassement(entry.history) : entry.best;
+      if (!best) continue;
+      const enLigne = existingMap.get(`${mode}|${key}`);
+      if (enLigne && typeof comparerResultats === 'function' && comparerResultats(best, enLigne) <= 0) continue;
+      await window.kvtPushScore(semesterId, week, best.points, best.maxPoints, best.pct, mode, best.dureeMs, undefined, best.difficulte || 'normal');
     }
   }
 };

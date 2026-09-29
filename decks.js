@@ -283,7 +283,7 @@ function htmlRecord(deck) {
   const r = recordsDecks[deck.id];
   if (!r) return `<span class="deck-resultat-vide">Personne encore</span>`;
   const cestMoi = r.user_id === window.accountUser.id;
-  return `<span class="deck-resultat-score">${Math.round(r.pct)}%</span>
+  return `<span class="deck-resultat-score">${formatPct(r.pct)}</span>
           <span class="deck-resultat-detail">${cestMoi ? 'toi' : escapeHtml(r.pseudo)}</span>`;
 }
 
@@ -361,7 +361,7 @@ function renderDecks() {
       const resultat = !res
         ? `<span class="deck-resultat-vide">Aucun résultat</span>`
         : (res.best
-            ? `<span class="deck-resultat-score">${res.best.pct}%</span><span class="deck-resultat-detail">${res.best.points}/${res.best.maxPoints} pts</span>`
+            ? `<span class="deck-resultat-score">${formatPct(res.best.pct)}</span><span class="deck-resultat-detail">${res.best.points}/${res.best.maxPoints} pts</span>`
             : `<span class="deck-resultat-vide">Importé, jamais révisé</span>`);
       return `
       <article class="deck-carte" data-ouvrir="${d.id}" tabindex="0" role="link" aria-label="Ouvrir ${escapeHtml(d.titre)}">
@@ -873,7 +873,7 @@ function renderDeck() {
         <div class="deck-mesure">
           <span class="deck-mesure-titre">Ton meilleur résultat</span>
           <div class="deck-resultat">${res && res.best
-            ? `<span class="deck-resultat-score">${res.best.pct}%</span><span class="deck-resultat-detail">${res.best.points}/${res.best.maxPoints} pts</span>`
+            ? `<span class="deck-resultat-score">${formatPct(res.best.pct)}</span><span class="deck-resultat-detail">${res.best.points}/${res.best.maxPoints} pts</span>`
             : `<span class="deck-resultat-vide">${res ? 'Importé, jamais révisé' : 'Aucun résultat'}</span>`}</div>
         </div>
         <div class="deck-mesure">

@@ -46,6 +46,7 @@ global.$$ = (sel, racine) => {
 global.escapeHtml = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 global.uid = (p) => p + '-' + Math.random().toString(36).slice(2, 9);
 global.showToast = () => {};
+global.formatPct = (pct) => { const n = Math.round(Number(pct) * 10) / 10; return (Number.isInteger(n) ? String(n) : n.toFixed(1).replace('.', ',')) + ' %'; };
 global.switchView = () => {};
 global.persist = async () => {};
 global.confirm = () => true;

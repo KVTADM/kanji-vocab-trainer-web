@@ -95,6 +95,14 @@ const GAMIF_ORDRE_SEMESTRES = [
 ];
 const GAMIF_BONUS_PAR_PALIER = 0.08;
 
+// Mode Difficile (correction en fin de session) : x1,25 sur l'XP et les
+// pieces gagnees pendant la session (decision de Paul, 29/09/2026). Lu sur
+// la session en cours, fige a son demarrage comme le reste du mode.
+const GAMIF_BONUS_MODE_DIFFICILE = 1.25;
+function multiplicateurModeDifficile() {
+  return (typeof quizSession !== 'undefined' && quizSession && quizSession.hardcore) ? GAMIF_BONUS_MODE_DIFFICILE : 1;
+}
+
 function multiplicateurDifficulte(semesterId) {
   const idx = GAMIF_ORDRE_SEMESTRES.indexOf(semesterId);
   if (idx === -1) return 1;
@@ -168,6 +176,20 @@ const GAMIF_BOUTIQUE = [
   { id: 'banniere-or', type: 'banniere', classe: 'or', nom: 'Or', emoji: '🪙', prix: 500, pro: false, niveauRequis: 6, retireDeLaVente: true },
   { id: 'banniere-imperiale', type: 'banniere', classe: 'imperiale', nom: 'Impériale', emoji: '👑', prix: 700, pro: true, niveauRequis: 8, retireDeLaVente: true },
 
+  // --- Bordures de bannière de profil et pseudos stylisés (29/09/2026,
+  // demande de Paul) : visibles par les autres (profil public, classement,
+  // communauté), donc synchronisés vers Supabase (profiles.bordure_active /
+  // profiles.pseudo_style), comme le titre. `classe` = suffixe CSS. ---
+  { id: 'bordure-sakura', type: 'bordure', classe: 'sakura', nom: 'Bordure Sakura', emoji: '🌸', prix: 800, pro: false, niveauRequis: 5 },
+  { id: 'bordure-vague', type: 'bordure', classe: 'vague', nom: 'Bordure Vague', emoji: '🌊', prix: 1500, pro: false, niveauRequis: 10 },
+  { id: 'bordure-or', type: 'bordure', classe: 'or', nom: 'Bordure dorée', emoji: '✨', prix: 3000, pro: false, niveauRequis: 20 },
+  { id: 'bordure-dragon', type: 'bordure', classe: 'dragon', nom: 'Bordure du Dragon', emoji: '🐉', prix: 6000, pro: false, niveauRequis: 35 },
+  { id: 'pseudo-sakura', type: 'pseudo', classe: 'sakura', nom: 'Pseudo Sakura', emoji: '🌸', prix: 600, pro: false, niveauRequis: 5 },
+  { id: 'pseudo-jade', type: 'pseudo', classe: 'jade', nom: 'Pseudo Jade', emoji: '🍃', prix: 800, pro: false, niveauRequis: 8 },
+  { id: 'pseudo-neon', type: 'pseudo', classe: 'neon', nom: 'Pseudo Néon', emoji: '💡', prix: 1500, pro: false, niveauRequis: 12 },
+  { id: 'pseudo-arcenciel', type: 'pseudo', classe: 'arcenciel', nom: 'Pseudo Arc-en-ciel', emoji: '🌈', prix: 2000, pro: false, niveauRequis: 15 },
+  { id: 'pseudo-or', type: 'pseudo', classe: 'or', nom: 'Pseudo doré', emoji: '👑', prix: 4000, pro: false, niveauRequis: 25 },
+
   // --- Boosts : consommable, rachetable à volonté (25/08/2026) ---
   // Prix relevé de 30 à 400 le 23/09/2026 (demande de Paul, "bien bien
   // plus cher") : a 30 pieces, un boost se rachetait plusieurs fois par
@@ -188,7 +210,8 @@ function assurerGamification() {
       xp: 0, pieces: 0,
       streak: { compte: 0, record: 0, dernierJour: null },
       inventaire: [], titreActif: null,
-      collationActive: null, banniereActive: null, boostXpJusqua: null
+      collationActive: null, banniereActive: null, boostXpJusqua: null,
+      bordureActive: null, pseudoStyleActif: null
     };
   }
   return DB.gamification;
@@ -272,15 +295,57 @@ function gagnerXp(points, semesterId) {
   if (!points || points <= 0) return 0;
   const g = assurerGamification();
   const boost = boostXpActif() ? GAMIF_BOOST_XP_MULTIPLICATEUR : 1;
-  const gain = Math.round(points * multiplicateurDifficulte(semesterId) * boost * (gamifEstPro() ? GAMIF_BOOST_PRO : 1));
+  const gain = Math.round(points * multiplicateurDifficulte(semesterId) * multiplicateurModeDifficile() * boost * (gamifEstPro() ? GAMIF_BOOST_PRO : 1));
+  const niveauAvant = niveauDepuisXp(g.xp);
   g.xp += gain;
+  const niveauApres = niveauDepuisXp(g.xp);
+  if (niveauApres > niveauAvant) noterMonteeNiveau(niveauAvant, niveauApres);
   return gain;
+}
+
+// ---------- Celebration de niveau / de rang (29/09/2026) ----------
+// Les niveaux gagnes pendant un quiz sont mis de cote, puis montres une
+// seule fois a l'ecran de fin de session (celebrerProgressionSiBesoin,
+// appele par les 6 ecrans de fin dans app.js) : un bandeau "Niveau N" a
+// chaque niveau, une animation plus marquee quand le rang change.
+let celebrationEnAttente = null;
+
+function noterMonteeNiveau(avant, apres) {
+  if (!celebrationEnAttente) celebrationEnAttente = { depuis: avant, vers: apres };
+  else celebrationEnAttente.vers = apres;
+}
+
+// Pure : ce qu'il faut celebrer, ou null.
+function contenuCelebration(c) {
+  if (!c || !(c.vers > c.depuis)) return null;
+  const rangAvant = rangDepuisNiveau(c.depuis);
+  const rangApres = rangDepuisNiveau(c.vers);
+  return { niveau: c.vers, changeRang: rangAvant.nom !== rangApres.nom, rang: rangApres };
+}
+
+function celebrerProgressionSiBesoin() {
+  const contenu = contenuCelebration(celebrationEnAttente);
+  celebrationEnAttente = null;
+  if (!contenu || typeof document === 'undefined') return;
+  const el = document.createElement('div');
+  el.className = 'celebration' + (contenu.changeRang ? ' celebration--rang' : '');
+  el.setAttribute('role', 'status');
+  el.style.setProperty('--rang-couleur', contenu.rang.couleur);
+  el.innerHTML = contenu.changeRang
+    ? `<div class="celebration__emoji">${contenu.rang.emoji}</div>
+       <div class="celebration__titre">Nouveau rang : ${escapeHtml(contenu.rang.nom)} !</div>
+       <div class="celebration__detail">Niveau ${contenu.niveau}</div>`
+    : `<div class="celebration__titre">Niveau ${contenu.niveau} !</div>`;
+  document.body.appendChild(el);
+  const retirer = () => { el.classList.add('celebration--sortie'); setTimeout(() => el.remove(), 400); };
+  el.addEventListener('click', retirer);
+  setTimeout(retirer, contenu.changeRang ? 4200 : 2600);
 }
 
 function gagnerPieces(points, semesterId) {
   if (!points || points < GAMIF_SEUIL_PIECE) return 0;
   const g = assurerGamification();
-  const gain = Math.round(GAMIF_PIECES_PAR_MOT * multiplicateurDifficulte(semesterId) * (gamifEstPro() ? GAMIF_BOOST_PRO : 1));
+  const gain = Math.round(GAMIF_PIECES_PAR_MOT * multiplicateurDifficulte(semesterId) * multiplicateurModeDifficile() * (gamifEstPro() ? GAMIF_BOOST_PRO : 1));
   g.pieces += gain;
   return gain;
 }
@@ -288,7 +353,7 @@ function gagnerPieces(points, semesterId) {
 function bonusFinSession(pctSession, semesterId) {
   if (pctSession < GAMIF_SEUIL_BONUS_SESSION) return 0;
   const g = assurerGamification();
-  const gain = Math.round(GAMIF_BONUS_SESSION * multiplicateurDifficulte(semesterId) * (gamifEstPro() ? GAMIF_BOOST_PRO : 1));
+  const gain = Math.round(GAMIF_BONUS_SESSION * multiplicateurDifficulte(semesterId) * multiplicateurModeDifficile() * (gamifEstPro() ? GAMIF_BOOST_PRO : 1));
   g.pieces += gain;
   return gain;
 }
@@ -358,6 +423,17 @@ function classeBanniere(id) {
   return (objet && objet.type === 'banniere') ? `profil-banniere--${objet.classe}` : '';
 }
 
+// Classes CSS de la bordure et du style de pseudo equipes par un profil
+// (profiles.bordure_active / profiles.pseudo_style) ; '' si rien ou inconnu.
+function classeBordure(id) {
+  const objet = id ? objetBoutique(id) : null;
+  return (objet && objet.type === 'bordure') ? `profil-bordure profil-bordure--${objet.classe}` : '';
+}
+function classePseudo(id) {
+  const objet = id ? objetBoutique(id) : null;
+  return (objet && objet.type === 'pseudo') ? `pseudo-style pseudo-style--${objet.classe}` : '';
+}
+
 // Ordre des refus : introuvable, déjà possédé (sauf boost, rachetable),
 // niveau, Pro, puis les pièces — le niveau et le statut Pro sont des
 // conditions d'accès à l'objet lui-même, vérifiées avant de regarder si le
@@ -415,6 +491,32 @@ function equiperCollation(id) {
 // la garder dans DB.gamification. Mise à jour optimiste, annulée si
 // l'enregistrement distant échoue. Sans compte connecté (pas de profil
 // public du tout), on équipe seulement en local — rien à synchroniser.
+// Bordure / style de pseudo : meme principe que equiperTitre (mise a jour
+// optimiste, annulee si l'enregistrement distant echoue).
+const GAMIF_SLOTS_PROFIL = {
+  bordure: { slot: 'bordureActive', colonne: 'bordure_active' },
+  pseudo: { slot: 'pseudoStyleActif', colonne: 'pseudo_style' }
+};
+async function equiperCosmetiqueProfil(type, id) {
+  const cfg = GAMIF_SLOTS_PROFIL[type];
+  const g = assurerGamification();
+  if (!cfg) return { ok: false };
+  if (id !== null) {
+    const objet = objetBoutique(id);
+    if (!objet || objet.type !== type || !g.inventaire.includes(id)) return { ok: false };
+  }
+  const ancien = g[cfg.slot] || null;
+  g[cfg.slot] = id;
+  if (window.accountUser && window.kvtProfils && typeof window.kvtProfils.enregistrerProfil === 'function') {
+    const res = await window.kvtProfils.enregistrerProfil({ [cfg.colonne]: id });
+    if (!res.ok) {
+      g[cfg.slot] = ancien;
+      return { ok: false, motif: 'sync-echouee' };
+    }
+  }
+  return { ok: true };
+}
+
 async function equiperBanniere(id) {
   const g = assurerGamification();
   if (id !== null && !g.inventaire.includes(id)) return { ok: false };
@@ -609,6 +711,8 @@ let boutiqueApercuTheme = null;
 
 const GAMIF_SECTIONS_BOUTIQUE = [
   { type: 'titre', titre: 'Titres', aide: "Affichés à côté de ton niveau, sur le tableau de bord." },
+  { type: 'bordure', titre: 'Bordures de profil', aide: "Encadrent l'en-tête de ton profil public, visible par tout le monde." },
+  { type: 'pseudo', titre: 'Pseudos stylisés', aide: "Ton pseudo change d'allure partout où il apparaît : classement, communauté, profil." },
   { type: 'theme', titre: 'Thèmes du site', aide: "Débloque une palette normalement réservée au Pro, sans toucher à l'abonnement. Le choix du thème se fait ensuite dans Réglages." },
   { type: 'boost', titre: 'Boosts', aide: "Consommable : s'active tout de suite pour 20 minutes. En racheter un pendant qu'il tourne encore prolonge la durée." }
 ];
@@ -632,6 +736,10 @@ function boutiqueBouton(o, g, pro, niveauActuel) {
     return `<span class="boutique-item__debloque">Débloqué — dans Réglages</span>`;
   }
 
+  if (GAMIF_SLOTS_PROFIL[o.type]) {
+    const actifProfil = g[GAMIF_SLOTS_PROFIL[o.type].slot] === o.id;
+    return `<button class="secondary" data-equiper-profil="${o.type}|${o.id}" ${actifProfil ? 'disabled' : ''}>${actifProfil ? 'Équipé' : 'Équiper'}</button>`;
+  }
   const slot = o.type === 'banniere' ? 'banniereActive' : (o.type === 'collation' ? 'collationActive' : 'titreActif');
   const actif = g[slot] === o.id;
   const attrEquiper = o.type === 'banniere' ? 'data-equiper-banniere' : (o.type === 'collation' ? 'data-equiper-collation' : 'data-equiper');
@@ -657,6 +765,8 @@ function renderBoutique() {
             <div class="boutique-item__nom">${escapeHtml(o.nom)}</div>
             ${o.pro ? '<div class="boutique-item__pro">Pro</div>' : ''}
             ${o.type === 'theme' ? `<button class="secondary small boutique-item__apercu" data-apercu-theme="${o.themeId}">Aperçu</button>` : ''}
+            ${o.type === 'bordure' ? `<div class="boutique-apercu-bordure ${classeBordure(o.id)}"></div>` : ''}
+            ${o.type === 'pseudo' ? `<div class="boutique-apercu-pseudo"><span class="${classePseudo(o.id)}">${escapeHtml((window.accountUser && window.accountUser.pseudo) || 'Ton pseudo')}</span></div>` : ''}
             ${boutiqueBouton(o, g, pro, niveauActuel)}
           </div>`).join('')}
       </div>`;
@@ -678,6 +788,8 @@ function renderBoutique() {
       ${g.titreActif ? `<button class="lien-retour" data-retirer-titre>Ne plus afficher de titre</button>` : ''}
       ${g.collationActive ? `<button class="lien-retour" data-retirer-collation>Ne plus afficher de collation</button>` : ''}
       ${g.banniereActive ? `<button class="lien-retour" data-retirer-banniere>Ne plus afficher de bannière</button>` : ''}
+      ${g.bordureActive ? `<button class="lien-retour" data-retirer-profil="bordure">Ne plus afficher de bordure</button>` : ''}
+      ${g.pseudoStyleActif ? `<button class="lien-retour" data-retirer-profil="pseudo">Revenir au pseudo normal</button>` : ''}
     </div>
   `;
 
@@ -719,6 +831,19 @@ function renderBoutique() {
       persist();
       renderBoutique();
     };
+  });
+  $$('[data-equiper-profil]', container).forEach(b => {
+    b.onclick = async () => {
+      b.disabled = true;
+      const [type, id] = b.dataset.equiperProfil.split('|');
+      const res = await equiperCosmetiqueProfil(type, id);
+      if (!res.ok) showToast("Impossible d'équiper cet objet pour l'instant.");
+      persist();
+      renderBoutique();
+    };
+  });
+  $$('[data-retirer-profil]', container).forEach(b => {
+    b.onclick = async () => { await equiperCosmetiqueProfil(b.dataset.retirerProfil, null); persist(); renderBoutique(); };
   });
   const btnRetirerTitre = $('[data-retirer-titre]', container);
   if (btnRetirerTitre) btnRetirerTitre.onclick = async () => { await equiperTitre(null); persist(); renderBoutique(); };

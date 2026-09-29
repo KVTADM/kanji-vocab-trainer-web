@@ -29,6 +29,13 @@ global.$$ = (sel, racine) => {
 global.escapeHtml = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 global.showToast = () => {};
 global.switchView = () => {};
+// Copie fidele de formatPct (app.js).
+global.formatPct = (pct) => {
+  const n = Number(pct);
+  if (!Number.isFinite(n)) return '—';
+  const arrondi = Math.round(n * 10) / 10;
+  return (Number.isInteger(arrondi) ? String(arrondi) : arrondi.toFixed(1).replace('.', ',')) + ' %';
+};
 global.formatDuree = (ms) => {
   if (!Number.isFinite(ms) || ms < 0) return null;
   const totalSec = Math.round(ms / 1000);

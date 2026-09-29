@@ -249,3 +249,48 @@ essai('durée de session : une pause (session reprise le lendemain) ne compte pa
   if (d > 30000 + DUREE_PLAFOND_ENTRE_REPONSES_MS + 1000 || d < 30000) throw new Error('durée=' + d);
   if (dureeSessionMs({ startedAt: Date.now() - 5000 }) < 5000) throw new Error('repli sur startedAt cassé');
 });
+
+// ---------- Classement et % (29/09/2026) ----------
+
+essai('calculerPct / formatPct : 1 décimale si pas rond, 100 % réservé au sans-faute', () => {
+  if (calculerPct(390, 400) !== 97.5) throw new Error('390/400 = ' + calculerPct(390, 400));
+  if (calculerPct(569, 570) !== 99.8) throw new Error('569/570 = ' + calculerPct(569, 570));
+  if (calculerPct(5699, 5700) !== 99.9) throw new Error('presque parfait doit plafonner à 99,9 : ' + calculerPct(5699, 5700));
+  if (calculerPct(10, 10) !== 100 || calculerPct(0, 0) !== 0) throw new Error('bornes');
+  if (formatPct(97.5) !== '97,5 %' || formatPct(100) !== '100 %' || formatPct(84) !== '84 %') throw new Error(formatPct(97.5) + '|' + formatPct(100));
+});
+
+essai('comparerResultats : %, puis difficulté, puis temps', () => {
+  const r = (pct, difficulte, dureeMs) => ({ pct, difficulte, dureeMs });
+  if (!(comparerResultats(r(100, 'difficile', 90000), r(100, 'normal', 30000)) > 0)) throw new Error('Difficile devrait battre Normal à % égal');
+  if (!(comparerResultats(r(100, 'facile', 10000), r(100, 'normal', 60000)) < 0)) throw new Error('Facile devrait perdre même plus rapide');
+  if (!(comparerResultats(r(100, 'normal', 60000), r(80, 'difficile', 1000)) > 0)) throw new Error('le % passe avant la difficulté');
+  if (!(comparerResultats(r(90, 'normal', 40000), r(90, 'normal', 50000)) > 0)) throw new Error('le plus rapide gagne');
+});
+
+essai('meilleurPourClassement ignore les sessions filtrées ; nbEssais compte les recommencements', () => {
+  DB = baseDB();
+  const hist = [
+    { pct: 100, verbeFilter: 'simple', difficulte: 'normal' },
+    { pct: 80, verbeFilter: 'tous', difficulte: 'normal' },
+    { pct: 70 } // ancienne tentative sans filtre enregistre = "tous"
+  ];
+  if (meilleurPourClassement(hist).pct !== 80) throw new Error('la session filtrée à 100 % ne doit pas compter');
+  if (meilleurPourClassement([{ pct: 100, verbeFilter: 'simple' }]) !== null) throw new Error('rien d\'éligible -> null');
+  noterRecommencement('vocab', 's1', 3); noterRecommencement('vocab', 's1', 3);
+  if (nbEssais({ history: hist }, 'vocab', 's1', 3) !== 5) throw new Error('3 terminées + 2 recommencées = 5, obtenu ' + nbEssais({ history: hist }, 'vocab', 's1', 3));
+});
+
+essai('rechercherVocab : kanji, kana, romaji et français (sans accents) ; mots masqués exclus', () => {
+  DB = baseDB();
+  DB.kanjiGroups.push({ id: 'g9', semesterId: 's1', week: 2, kanji: '験' });
+  DB.vocab.push({ id: 'v9', kanjiGroupId: 'g9', mot: '試験', lecture: 'しけん', sens: 'Examen, épreuve' });
+  const ids = (q) => rechercherVocab(q).map(r => r.v.id);
+  if (!ids('試験').includes('v9')) throw new Error('kanji');
+  if (!ids('しけん').includes('v9')) throw new Error('kana');
+  if (!ids('shiken').includes('v9')) throw new Error('romaji');
+  if (!ids('EPREUVE').includes('v9')) throw new Error('français sans accent');
+  if (ids('').length) throw new Error('requête vide');
+  DB.motsMasques = ['v9'];
+  if (ids('試験').includes('v9')) throw new Error('mot masqué trouvé');
+});

@@ -181,7 +181,7 @@ async function chargerStatsJoueurs() {
             <td>${escapeHtml(r.class_code || '—')}</td>
             ${LIB_MODES_STATS.map(l => {
               const m = r.modes[l];
-              return `<td>${m ? `${m.avgPct}% <span style="color:var(--muted);font-size:11px;">(${m.n})</span>` : '—'}</td>`;
+              return `<td>${m ? `${formatPct(m.avgPct)} <span style="color:var(--muted);font-size:11px;">(${m.n})</span>` : '—'}</td>`;
             }).join('')}
             <td><strong>${moyenne !== null ? moyenne + '%' : '—'}</strong></td>
             <td>${formatDateRelative(r.derniere_activite)}</td>

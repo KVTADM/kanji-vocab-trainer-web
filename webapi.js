@@ -261,6 +261,8 @@ const JLPT_N4_SEED = {"kanjiGroups":[{"id":"kg-hu66go90952pa","semesterId":"jlpt
     if (typeof data.gamification.collationActive === 'undefined') data.gamification.collationActive = null;
     if (typeof data.gamification.banniereActive === 'undefined') data.gamification.banniereActive = null;
     if (typeof data.gamification.boostXpJusqua === 'undefined') data.gamification.boostXpJusqua = null;
+    if (typeof data.gamification.bordureActive === 'undefined') data.gamification.bordureActive = null;
+    if (typeof data.gamification.pseudoStyleActif === 'undefined') data.gamification.pseudoStyleActif = null;
     if (!data.settings.theme) data.settings.theme = 'dark';
     // Barème universel et fixe (voir Réglages) : identique pour l'app Mac,
     // la version amis et le web, pour que le classement de la classe reste
@@ -299,7 +301,11 @@ const JLPT_N4_SEED = {"kanjiGroups":[{"id":"kg-hu66go90952pa","semesterId":"jlpt
       // Signale par Paul le 29/09/2026 (semestre 2, semaine 8) : le の
       // affiche dans le mot manquait dans la lecture, donc toute reponse
       // qui le tapait etait comptee fausse. Seule entree du seed dans ce cas.
-      'v-mrhvk4v7q1w2i': { old: 'だいがくにゅうがくしけん', neuve: 'だいがくのにゅうがくしけん' } // 大学の入学試験
+      'v-mrhvk4v7q1w2i': { old: 'だいがくにゅうがくしけん', neuve: 'だいがくのにゅうがくしけん' }, // 大学の入学試験
+      // Signales dans le PDF de retours de Paul, verifies sur Jisho le
+      // 29/09/2026 (己 = おのれ, 試験 = しけん).
+      'v-mrhvk4uuo7iw5': { old: 'こじしん', neuve: 'おのれじしん' },           // 己自身 (S1 sem. 1)
+      'v-mrhvk4v76n0qf': { old: 'しけいにおちる', neuve: 'しけんにおちる' }     // 試験に落ちる (S2 sem. 8)
     };
     if (Array.isArray(data.vocab)) {
       data.vocab.forEach(v => {

@@ -648,3 +648,28 @@ essai('cadeau en XP (29/09/2026) : affiché, puis crédité sur l\'XP sans touch
     if (DB.gamification.pieces !== 100) throw new Error('pieces=' + DB.gamification.pieces);
   });
 });
+
+essai('célébration : niveau gagné pendant un quiz, changement de rang détecté (29/09/2026)', () => {
+  DB = { gamification: { ...baseGamif(), xp: 0 } };
+  celebrationEnAttente = null;
+  gagnerXp(100, null); // 0 -> >= 50 XP : niveau 1 -> 2
+  const c1 = contenuCelebration(celebrationEnAttente);
+  if (!c1 || c1.niveau !== niveauDepuisXp(DB.gamification.xp)) throw new Error('niveau non noté : ' + JSON.stringify(c1));
+  if (contenuCelebration({ depuis: 9, vers: 10 }).changeRang !== true) throw new Error('9 -> 10 = Bronze -> Argent');
+  if (contenuCelebration({ depuis: 11, vers: 12 }).changeRang !== false) throw new Error('11 -> 12 reste Argent');
+  if (contenuCelebration({ depuis: 5, vers: 5 }) !== null) throw new Error('pas de montée = rien');
+  celebrationEnAttente = null;
+});
+
+essai('bordure / pseudo stylisé (29/09/2026) : achat, équipement, classes CSS', async () => {
+  DB = { gamification: { ...baseGamif(), pieces: 10000, xp: 200000 } };
+  window.accountUser = null;
+  if (!acheterObjet('bordure-sakura').ok || !acheterObjet('pseudo-neon').ok) throw new Error('achat refusé');
+  if (!(await equiperCosmetiqueProfil('bordure', 'bordure-sakura')).ok) throw new Error('équipement bordure');
+  if (!(await equiperCosmetiqueProfil('pseudo', 'pseudo-neon')).ok) throw new Error('équipement pseudo');
+  if ((await equiperCosmetiqueProfil('pseudo', 'bordure-sakura')).ok) throw new Error('mauvais type accepté');
+  if ((await equiperCosmetiqueProfil('pseudo', 'pseudo-or')).ok) throw new Error('objet non possédé accepté');
+  if (DB.gamification.bordureActive !== 'bordure-sakura' || DB.gamification.pseudoStyleActif !== 'pseudo-neon') throw new Error(JSON.stringify(DB.gamification));
+  if (classeBordure('bordure-sakura') !== 'profil-bordure profil-bordure--sakura') throw new Error(classeBordure('bordure-sakura'));
+  if (classePseudo('pseudo-neon') !== 'pseudo-style pseudo-style--neon' || classePseudo('inconnu') !== '' || classePseudo(null) !== '') throw new Error('classePseudo');
+});

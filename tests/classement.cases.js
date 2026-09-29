@@ -136,8 +136,8 @@ essai('trier par points cumulés met Hana devant malgré son % plus bas', () => 
   if (ordre !== 'Hana,Polus,Ken') throw new Error('ordre = ' + ordre);
 });
 
-essai('trier par % moyen met Polus devant malgré moins de points', () => {
-  const ordre = trierGlobal(computeGlobal(LIGNES_GLOBAL), 'pct').map(u => u.pseudo).join(',');
+essai('le classement global (règle %) met Polus devant malgré moins de points', () => {
+  const ordre = trierGlobal(computeGlobal(LIGNES_GLOBAL), 'classement').map(u => u.pseudo).join(',');
   if (ordre[0] !== 'P') throw new Error('Polus devrait être en tête : ' + ordre);
 });
 
@@ -168,40 +168,9 @@ essai('une erreur de chargement est montrée sur l\'onglet global', () => {
   globalErreur = null;
 });
 
-essai('le score composite moyenne chaque ligne (semestre/semaine/mode)', () => {
-  const agrege = computeGlobal(LIGNES_GLOBAL);
-  const moi = agrege.find(u => u.user_id === 'moi');
-  const attendu = Math.round((
-    scoreComposite({ pct: 90, dureeMs: 60000, essais: 3, semesterId: 's1', mode: 'vocab' }) +
-    scoreComposite({ pct: 70, dureeMs: null, essais: 2, semesterId: 's1', mode: 'traduction' })
-  ) / 2);
-  if (moi.compositeMoyen !== attendu) throw new Error('score composite de Polus = ' + moi.compositeMoyen + ', attendu ' + attendu);
-});
 
-essai('un contenu plus difficile et plus rapide augmente le score composite', () => {
-  const facile = scoreComposite({ pct: 80, dureeMs: 300000, essais: 3, semesterId: 's1', mode: 'vocab' });
-  const dur = scoreComposite({ pct: 80, dureeMs: 100000, essais: 3, semesterId: 's2', mode: 'kanji' });
-  if (dur <= facile) throw new Error('un contenu plus dur et plus rapide devrait scorer plus haut : ' + dur + ' vs ' + facile);
-});
 
-essai('trier par score composite propose un ordre différent de trier par points', () => {
-  const parPoints = trierGlobal(computeGlobal(LIGNES_GLOBAL), 'points').map(u => u.pseudo);
-  const parComposite = trierGlobal(computeGlobal(LIGNES_GLOBAL), 'composite').map(u => u.pseudo);
-  if (parPoints.join(',') === parComposite.join(',') && parPoints[0] !== 'Hana') {
-    // Pas une erreur en soi si les deux classements coïncident sur ce jeu de
-    // données ; on vérifie juste que le tri composite s'applique bien (pas
-    // un simple alias du tri points).
-  }
-  if (parComposite.length !== 3) throw new Error('le tri composite a perdu des lignes');
-});
 
-essai('la colonne Score composite apparaît dans le tableau du classement global', () => {
-  globalLignes = LIGNES_GLOBAL; globalErreur = null; globalTri = 'composite';
-  renderGlobal();
-  const html = trouve('#lbTableWrap').innerHTML;
-  if (!html.includes('/100')) throw new Error('le score composite (sur 100) ne s\'affiche pas');
-  globalTri = 'points';
-});
 
 // ---------- Widget "Classement" sur l'accueil (#21, rang 5) ----------
 
@@ -218,7 +187,7 @@ essai('le widget accueil affiche le top 3 du classement global', () => {
   accueilClassementLignes = LIGNES_GLOBAL; accueilClassementErreur = null;
   renderClassementAccueilWidget();
   const html = trouve('#accueilClassementWrap').innerHTML;
-  if (!html.includes('Hana')) throw new Error('Hana (en tête) devrait apparaître');
+  if (!html.includes('Polus')) throw new Error('Polus (en tête au %) devrait apparaître');
   if (!html.includes('Voir le classement complet')) throw new Error('le lien vers la page complète manque');
 });
 
@@ -233,4 +202,37 @@ essai('une erreur de chargement est montrée dans le widget accueil', () => {
   renderClassementAccueilWidget();
   if (!trouve('#accueilClassementWrap').innerHTML.includes('indisponible')) throw new Error('erreur avalée');
   accueilClassementErreur = null;
+});
+
+
+// ---------- Règle du classement (29/09/2026) : %, puis difficulté, puis temps ----------
+
+essai('à % égal, Difficile passe devant Normal même plus lent, et Facile derrière même plus rapide', () => {
+  const lignes = [
+    { user_id: 'a', pseudo: 'Rapide-Facile', semester_id: 's1', week: 2, pct: 100, points: 100, max_points: 100, duree_ms: 30000, difficulte: 'facile' },
+    { user_id: 'b', pseudo: 'Lent-Difficile', semester_id: 's1', week: 2, pct: 100, points: 100, max_points: 100, duree_ms: 90000, difficulte: 'difficile' },
+    { user_id: 'c', pseudo: 'Normal', semester_id: 's1', week: 2, pct: 100, points: 100, max_points: 100, duree_ms: 60000, difficulte: 'normal' },
+    { user_id: 'd', pseudo: 'Difficile-80', semester_id: 's1', week: 2, pct: 80, points: 80, max_points: 100, duree_ms: 10000, difficulte: 'difficile' }
+  ];
+  const ordre = meilleursParSemaine(lignes)[0].lignes.map(r => r.pseudo).join(',');
+  if (ordre !== 'Lent-Difficile,Normal,Rapide-Facile,Difficile-80') throw new Error('ordre = ' + ordre);
+});
+
+essai('à % et difficulté égaux, le plus rapide gagne ; sans temps enregistré en dernier', () => {
+  const lignes = [
+    { user_id: 'a', pseudo: 'SansTemps', semester_id: 's1', week: 4, pct: 90, points: 90, max_points: 100, duree_ms: null },
+    { user_id: 'b', pseudo: 'Lent', semester_id: 's1', week: 4, pct: 90, points: 90, max_points: 100, duree_ms: 90000 },
+    { user_id: 'c', pseudo: 'Vite', semester_id: 's1', week: 4, pct: 90, points: 90, max_points: 100, duree_ms: 40000 }
+  ];
+  const ordre = meilleursParSemaine(lignes)[0].lignes.map(r => r.pseudo).join(',');
+  if (ordre !== 'Vite,Lent,SansTemps') throw new Error('ordre = ' + ordre);
+});
+
+essai('classement global : à % moyen égal, la difficulté moyenne départage', () => {
+  const lignes = [
+    { user_id: 'a', pseudo: 'A', points: 90, pct: 90, duree_ms: 30000, nb_essais: 9, semester_id: 's1', mode: 'vocab', difficulte: 'normal' },
+    { user_id: 'b', pseudo: 'B', points: 90, pct: 90, duree_ms: 99000, nb_essais: 1, semester_id: 's1', mode: 'vocab', difficulte: 'difficile' }
+  ];
+  const ordre = trierGlobal(computeGlobal(lignes), 'classement').map(u => u.pseudo).join(',');
+  if (ordre !== 'B,A') throw new Error('ordre = ' + ordre);
 });

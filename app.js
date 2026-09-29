@@ -9,6 +9,7 @@ let DB = null;
 let currentView = 'communaute';
 let quizSession = null;     // { semesterId, week, queue, index, submitted, lastAnswer, lastResult, totals }
 let importPreview = null;   // { rows, errors } — résultat de l'analyse avant import
+let rechercheVocabTexte = '';
 let browsingWeek = null;    // { semesterId, week } — semaine affichée dans l'onglet Vocabulaire (fusionné : mots + fiches)
 let learnImportPreview = null; // { rows, errors } — résultat de l'analyse avant import des fiches (anciennement onglet Apprendre, fusionné dans Vocabulaire)
 let reviewPickerMode = 'vocab'; // 'vocab' | 'kanji' | 'kana' — mode choisi sur l'écran de démarrage de Réviser (kanji seul et kana ajoutés le 09/09/2026)
@@ -343,6 +344,129 @@ function positionSemestre(semesterId) {
   return i / (ordre.length - 1);
 }
 
+// ---------- Classement : difficulte, pourcentage, meilleur resultat (29/09/2026) ----------
+// Decisions de Paul : au classement, un resultat passe devant un autre par
+// son % reussi, puis a % egal par sa difficulte (Difficile > Normal >
+// Facile), puis a difficulte egale par le temps le plus court. Seules les
+// sessions "tous les mots" comptent pour le classement (les filtres
+// reduisent le nombre de points possibles) ; les essais n'y sont plus
+// qu'une indication. Les % gardent une decimale quand ils ne sont pas ronds.
+const KVT_RANG_DIFFICULTE = { facile: 0, normal: 1, difficile: 2 };
+
+// 100 % reserve au sans-faute (bug #19 du 22/09/2026) : sinon plafonne a
+// 99,9 %, arrondi au dixieme.
+function calculerPct(points, maxPoints) {
+  if (!(maxPoints > 0)) return 0;
+  if (points >= maxPoints) return 100;
+  return Math.min(99.9, Math.round((points / maxPoints) * 1000) / 10);
+}
+
+// "97,5 %" mais "100 %" : une decimale seulement quand le % n'est pas rond.
+function formatPct(pct) {
+  const n = Number(pct);
+  if (!Number.isFinite(n)) return '—';
+  const arrondi = Math.round(n * 10) / 10;
+  return (Number.isInteger(arrondi) ? String(arrondi) : arrondi.toFixed(1).replace('.', ',')) + ' %';
+}
+
+function difficulteDeSession(session) {
+  if (session && session.hardcore) return 'difficile';
+  if (DB && DB.settings && DB.settings.spectralMode) return 'facile';
+  return 'normal';
+}
+
+// Complete un enregistrement de fin de session avec la difficulte et le
+// filtre de mots de la session en cours (lus sur quizSession, pour ne pas
+// changer la signature des 6 fonctions record*SessionResult).
+function enrichirRecord(record) {
+  if (typeof quizSession !== 'undefined' && quizSession) {
+    record.difficulte = difficulteDeSession(quizSession);
+    if (!record.verbeFilter) record.verbeFilter = quizSession.verbeFilter || 'tous';
+  }
+  return record;
+}
+
+// > 0 si a est meilleur que b selon la regle du classement.
+function comparerResultats(a, b) {
+  const pa = Number(a && a.pct) || 0, pb = Number(b && b.pct) || 0;
+  if (pa !== pb) return pa - pb;
+  const da = KVT_RANG_DIFFICULTE[(a && a.difficulte) || 'normal'], db = KVT_RANG_DIFFICULTE[(b && b.difficulte) || 'normal'];
+  if (da !== db) return da - db;
+  const ta = Number.isFinite(a && a.dureeMs) ? a.dureeMs : Infinity;
+  const tb = Number.isFinite(b && b.dureeMs) ? b.dureeMs : Infinity;
+  if (ta !== tb) return tb - ta;
+  return 0;
+}
+
+// Meilleure tentative eligible au classement ("tous les mots" uniquement ;
+// une tentative sans filtre enregistre est d'avant le 09/09/2026, donc
+// forcement "tous").
+function meilleurPourClassement(history) {
+  let best = null;
+  (history || []).forEach(r => {
+    if ((r.verbeFilter || 'tous') !== 'tous') return;
+    if (!best || comparerResultats(r, best) > 0) best = r;
+  });
+  return best;
+}
+
+// Recommencer une session en cours compte un essai (29/09/2026) : les
+// essais affiches au classement = sessions terminees + sessions recommencees.
+function cleRecommencements(mode, semesterId, week) { return `${mode}|${weekKey(semesterId, week)}`; }
+function noterRecommencement(mode, semesterId, week) {
+  if (!DB.recommencements) DB.recommencements = {};
+  const cle = cleRecommencements(mode, semesterId, week);
+  DB.recommencements[cle] = (DB.recommencements[cle] || 0) + 1;
+}
+function nbEssais(entry, mode, semesterId, week) {
+  const termines = entry && entry.history ? entry.history.length : 0;
+  return termines + ((DB.recommencements && DB.recommencements[cleRecommencements(mode, semesterId, week)]) || 0);
+}
+
+// Bouton "Recommencer" pendant une session (29/09/2026, demande de Paul) :
+// repart de zero sur le meme contenu, dans le meme mode, avec le meme filtre
+// et la meme difficulte courante. Deux clics (le premier arme le bouton
+// 4 s) pour ne jamais perdre une session sur un clic malheureux. Compte un
+// essai au classement (voir nbEssais).
+function recommencerSessionEnCours() {
+  const q = quizSession;
+  if (!q) return;
+  const filtre = q.verbeFilter || 'tous';
+  if (q.mode === 'kanji') { noterRecommencement('kanji', q.semesterId, q.week); startKanjiQuiz(q.semesterId, q.week, true); }
+  else if (q.mode === 'traduction') { noterRecommencement('traduction', q.semesterId, q.week); startTraductionQuiz(q.semesterId, q.week, true, filtre); }
+  else if (q.mode === 'double') { noterRecommencement('double', q.semesterId, q.week); startDoubleQuiz(q.semesterId, q.week, true, filtre); }
+  else if (q.mode === 'kana') startKanaQuiz(q.kanaType, q.groupId, true);
+  else if (q.mode === 'pratique') startPratiqueQuiz(q.theme, true);
+  else if (!q.mode) { noterRecommencement('vocab', q.semesterId, q.week); startQuiz(q.semesterId, q.week, true, filtre); }
+  else return;
+  persist();
+  renderReview();
+  showToast('Session recommencée');
+}
+
+function brancherBoutonRecommencer() {
+  document.addEventListener('click', (e) => {
+    const btn = e.target && e.target.closest ? e.target.closest('.btn-recommencer-session') : null;
+    if (!btn) return;
+    if (btn.dataset.arme !== '1') {
+      btn.dataset.arme = '1';
+      btn.textContent = 'Confirmer : repartir de zéro ?';
+      setTimeout(() => { if (btn.isConnected) { btn.dataset.arme = '0'; btn.textContent = 'Recommencer'; } }, 4000);
+      return;
+    }
+    recommencerSessionEnCours();
+  });
+}
+
+// Pousse vers le classement le meilleur resultat eligible d'une semaine
+// (rien si seules des sessions filtrees existent).
+function pousserMeilleurScore(entry, semesterId, week, mode) {
+  if (typeof window === 'undefined' || typeof window.kvtPushScore !== 'function' || !entry) return;
+  const best = meilleurPourClassement(entry.history);
+  if (!best) return;
+  window.kvtPushScore(semesterId, week, best.points, best.maxPoints, best.pct, mode, best.dureeMs, nbEssais(entry, mode, semesterId, week), best.difficulte || 'normal');
+}
+
 // { pct, dureeMs, essais, semesterId, mode } -> score composite entre 0 et 100.
 function scoreComposite({ pct, dureeMs, essais, semesterId, mode }) {
   const precision = Math.max(0, Math.min(1, (Number(pct) || 0) / 100));
@@ -525,9 +649,9 @@ function recordKanjiSessionResult(semesterId, week, points, maxPoints, pct, dure
   const key = weekKey(semesterId, week);
   if (!DB.scoresKanji[key]) DB.scoresKanji[key] = { best: null, history: [] };
   const entry = DB.scoresKanji[key];
-  const record = { date: new Date().toISOString(), points, maxPoints, pct, dureeMs };
+  const record = enrichirRecord({ date: new Date().toISOString(), points, maxPoints, pct, dureeMs });
   entry.history.push(record);
-  if (!entry.best || pct > entry.best.pct) entry.best = record;
+  if (!entry.best || comparerResultats(record, entry.best) > 0) entry.best = record;
 }
 // Un item par lecture existante (onyomi et/ou kunyomi) de chaque kanji de la
 // semaine — un kanji qui n'a qu'un seul type de lecture ne génère qu'un
@@ -621,9 +745,9 @@ function recordSessionResult(semesterId, week, points, maxPoints, pct, verbeFilt
   // le Tableau de bord -- Paul veut savoir quel type de test a ete fait,
   // pas seulement le score. Absent sur les tentatives enregistrees avant
   // ce changement (undefined, gere a l'affichage).
-  const record = { date: new Date().toISOString(), points, maxPoints, pct, dureeMs, verbeFilter: verbeFilter || 'tous' };
+  const record = enrichirRecord({ date: new Date().toISOString(), points, maxPoints, pct, dureeMs, verbeFilter: verbeFilter || 'tous' });
   entry.history.push(record);
-  if (!entry.best || pct > entry.best.pct) {
+  if (!entry.best || comparerResultats(record, entry.best) > 0) {
     entry.best = record;
   }
 }
@@ -1632,7 +1756,7 @@ function renderDashboard() {
         <div>
           <strong>Recommandé pour toi</strong>
           <div style="font-size:13px; color:var(--muted); margin-top:4px;">
-            ${escapeHtml(weakSem.label)} — Semaine ${weakWeek.week} : ${weakWeek.pct}% la dernière fois, ça vaut le coup de la retravailler.
+            ${escapeHtml(weakSem.label)} — Semaine ${weakWeek.week} : ${formatPct(weakWeek.pct)} la dernière fois, ça vaut le coup de la retravailler.
           </div>
         </div>
         <button class="primary" id="btnReco">Réviser</button>
@@ -1702,7 +1826,7 @@ function renderDashboard() {
         <div class="week-card ${vocabList.length === 0 ? 'empty' : ''}" data-sem="${sem.id}" data-week="${w}">
           <div class="week-num">${unitPrefix}${w}</div>
           <div class="week-meta">${groups.length} kanji · ${vocabList.length} mots</div>
-          ${entry ? `<div class="week-score">${entry.best.points}/${entry.best.maxPoints} pts <span class="week-score-pct">(${entry.best.pct}%)</span> ${typeTagScore}</div>` : '<div class="week-score muted">—</div>'}
+          ${entry ? `<div class="week-score">${entry.best.points}/${entry.best.maxPoints} pts <span class="week-score-pct">(${formatPct(entry.best.pct)})</span> ${typeTagScore}</div>` : '<div class="week-score muted">—</div>'}
           ${saved ? `
             <div class="week-progress-bar"><div class="week-progress-fill" style="width:${Math.round((saved.index / saved.queue.length) * 100)}%"></div></div>
             <div class="week-progress-label">
@@ -1751,7 +1875,7 @@ function renderDashboard() {
             <div class="modal-separateur">Ou recommencer avec d'autres réglages :</div>
           ` : entryModal ? `
             <div style="font-size:13px; color:var(--muted); margin-bottom:10px;">
-              Meilleur score : ${entryModal.best.points}/${entryModal.best.maxPoints} pts (${entryModal.best.pct}%)${entryModal.best.verbeFilter ? ' · ' + escapeHtml(libelleFiltreMots(entryModal.best.verbeFilter)) : ''}
+              Meilleur score : ${entryModal.best.points}/${entryModal.best.maxPoints} pts (${formatPct(entryModal.best.pct)})${entryModal.best.verbeFilter ? ' · ' + escapeHtml(libelleFiltreMots(entryModal.best.verbeFilter)) : ''}
             </div>
           ` : ''}
           <div class="filtre-mode">
@@ -1988,6 +2112,53 @@ function jishoLienHtml(mot) {
   return `<a class="lien-jisho" href="https://jisho.org/search/${encodeURIComponent(mot)}" target="_blank" rel="noopener" title="Voir « ${escapeHtml(mot)} » sur Jisho">Jisho ↗</a>`;
 }
 
+// Recherche dans tout le cursus (29/09/2026, demande de Paul) : un kanji,
+// une lecture (kana, ou romaji converti en hiragana), ou un mot francais
+// (sans tenir compte des majuscules ni des accents). Mots masques exclus.
+// Pure (hors lecture de DB) : testee dans tests/nouveaux-modes.cases.js.
+function rechercherVocab(requete, limite) {
+  const brute = (requete || '').trim();
+  if (!brute) return [];
+  const francais = normaliserSens(brute);
+  const kana = toHiragana(sansEspaces(/[a-z]/i.test(brute) ? finaliserKana(romajiVersHiragana(brute.toLowerCase()), false) : brute));
+  const groupes = new Map((DB.kanjiGroups || []).map(g => [g.id, g]));
+  const resultats = [];
+  (DB.vocab || []).forEach(v => {
+    if (estMotMasque(v.id)) return;
+    const g = groupes.get(v.kanjiGroupId);
+    if (!g) return;
+    const lecture = toHiragana(sansEspaces(v.lecture));
+    let pertinence = 0;
+    if (v.mot === brute || lecture === kana || normaliserSens(v.sens) === francais) pertinence = 3;
+    else if ((v.mot || '').includes(brute) || g.kanji === brute) pertinence = 2;
+    else if ((kana && /[ぁ-ゖ]/.test(kana) && lecture.includes(kana)) || (francais.length >= 2 && normaliserSens(v.sens).includes(francais))) pertinence = 1;
+    if (pertinence) resultats.push({ v, g, pertinence });
+  });
+  resultats.sort((a, b) => b.pertinence - a.pertinence);
+  return resultats.slice(0, limite || 50);
+}
+
+function resultatsRechercheHtml(requete) {
+  const res = rechercherVocab(requete, 50);
+  if (!res.length) return '<div class="empty-state">Aucun mot trouvé dans le cursus.</div>';
+  return `
+    <table>
+      <thead><tr><th>Mot</th><th>Lecture</th><th>Sens</th><th>Où</th></tr></thead>
+      <tbody>
+        ${res.map(({ v, g }) => {
+          const sem = getSemester(g.semesterId);
+          return `
+          <tr>
+            <td>${escapeHtml(v.mot)}</td>
+            <td>${escapeHtml(v.lecture)}</td>
+            <td>${escapeHtml(v.sens)}</td>
+            <td><button class="lien-retour btn-aller-semaine" data-aller="${escapeHtml(g.semesterId)}|${g.week}">${escapeHtml(sem ? sem.label : g.semesterId)} — sem. ${g.week}</button></td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>`;
+}
+
 function renderVocab() {
   const semesters = DB.settings.semesters;
   if (!browsingWeek) browsingWeek = { semesterId: semesters[0].id, week: 1 };
@@ -2065,8 +2236,12 @@ function renderVocab() {
         <h3>Parcourir le vocabulaire et les fiches</h3>
         <button class="lien-retour" id="btnVoirMotsMasques">Mots masqués (${motsMasquesDetails().length})</button>
       </div>
-      <select id="browseWeekPicker" style="margin-bottom:14px;">${selectHtml}</select>
-      ${browseHtml}
+      <input type="search" id="vocabRecherche" class="vocab-recherche" placeholder="Rechercher dans tout le cursus : kanji, lecture (kana ou romaji) ou mot en français" value="${escapeHtml(rechercheVocabTexte)}">
+      <div id="vocabRechercheResultats">${rechercheVocabTexte.trim() ? resultatsRechercheHtml(rechercheVocabTexte) : ''}</div>
+      <div id="vocabParcours" ${rechercheVocabTexte.trim() ? 'hidden' : ''}>
+        <select id="browseWeekPicker" style="margin-bottom:14px;">${selectHtml}</select>
+        ${browseHtml}
+      </div>
     </div>
     ${modalMotsMasquesOuvert ? `
       <div class="modal-backdrop" id="modalMotsMasquesBackdrop">
@@ -2101,6 +2276,28 @@ function renderVocab() {
     browsingWeek = { semesterId: sem, week: parseInt(w, 10) };
     renderVocab();
   });
+
+  // Recherche : seuls les resultats sont redessines a la frappe (redessiner
+  // toute la vue ferait perdre le focus du champ).
+  const brancherResultats = () => {
+    $$('.btn-aller-semaine').forEach(b => {
+      b.addEventListener('click', () => {
+        const [sem, w] = b.dataset.aller.split('|');
+        browsingWeek = { semesterId: sem, week: parseInt(w, 10) };
+        rechercheVocabTexte = '';
+        renderVocab();
+      });
+    });
+  };
+  const champRecherche = $('#vocabRecherche');
+  champRecherche.addEventListener('input', () => {
+    rechercheVocabTexte = champRecherche.value;
+    const actif = !!rechercheVocabTexte.trim();
+    $('#vocabRechercheResultats').innerHTML = actif ? resultatsRechercheHtml(rechercheVocabTexte) : '';
+    $('#vocabParcours').hidden = actif;
+    brancherResultats();
+  });
+  brancherResultats();
 
   $$('.btn-voir-trace-groupe').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -2452,11 +2649,12 @@ function renderKanjiQuizView(container) {
       // arrondissait a 100%, ce qui donnait un faux sentiment de sans-faute.
       // 100% est reserve au score reellement parfait ; sinon on plafonne a 99%
       // meme si l'''arrondi mathematique donnerait 100.
-      ? (points >= maxPoints ? 100 : Math.min(99, Math.round((points / maxPoints) * 100)))
+      ? calculerPct(points, maxPoints)
       : 0;
     const prevEntry = getKanjiScoreEntry(quizSession.semesterId, quizSession.week);
     const prevBest = prevEntry ? prevEntry.best.pct : null;
     const improved = prevBest === null || pct > prevBest;
+    if (typeof celebrerProgressionSiBesoin === 'function') setTimeout(celebrerProgressionSiBesoin, 300);
     recordKanjiSessionResult(quizSession.semesterId, quizSession.week, points, maxPoints, pct, dureeMs);
     clearKanjiInProgress(quizSession.semesterId, quizSession.week);
     persist();
@@ -2464,8 +2662,7 @@ function renderKanjiQuizView(container) {
     // le mode Vocabulaire de base -- toujours le record, jamais chaque
     // tentative.
     if (typeof window.kvtPushScore === 'function') {
-      const histEntry = getKanjiScoreEntry(quizSession.semesterId, quizSession.week);
-      window.kvtPushScore(quizSession.semesterId, quizSession.week, histEntry.best.points, histEntry.best.maxPoints, histEntry.best.pct, 'kanji', histEntry.best.dureeMs, histEntry.history.length);
+      pousserMeilleurScore(getKanjiScoreEntry(quizSession.semesterId, quizSession.week), quizSession.semesterId, quizSession.week, 'kanji');
     }    // Synchronise aussi l'instantane du graphique hexagonal (deplace vers
     // le Profil public, demande de Paul le 23/09/2026) : ce mode vient de
     // faire bouger au moins un des 6 axes, autant le repousser tout de
@@ -2478,12 +2675,12 @@ function renderKanjiQuizView(container) {
     const etat = pct >= 100 ? 'perfect' : (pct >= 70 ? 'good' : 'low');
     const badge = improved
       ? `<div class="kvt-result__badge">Record — nouveau meilleur score</div>`
-      : (prevBest !== null ? `<div class="kvt-result__badge">Meilleur score : ${prevBest}&nbsp;%</div>` : '');
+      : (prevBest !== null ? `<div class="kvt-result__badge">Meilleur score : ${formatPct(prevBest)}</div>` : '');
     container.innerHTML = `
       <h2>Kanji seul — ${escapeHtml(semLabel)} Semaine ${quizSession.week}</h2>
       <div class="kvt-result kvt-result--${etat}">
         ${badge}
-        <div class="kvt-result__pct">${pct}&nbsp;%</div>
+        <div class="kvt-result__pct">${formatPct(pct)}</div>
         <div class="kvt-result__points">${points} / ${maxPoints} points</div>
         ${dureeMs !== null ? `<div class="kvt-result__duree">Termine en ${formatDuree(dureeMs)}</div>` : ''}
         <button class="kvt-result__btn" type="button" id="btnBackKanjiReview">Retour</button>
@@ -2530,7 +2727,7 @@ function renderKanjiQuizView(container) {
       ` : `
         <button class="primary" id="btnNextKanji" style="margin-top:18px;">Suivant</button>
       `}
-      <button class="secondary" id="btnQuitKanjiQuiz" style="margin-top:12px;">Quitter la session</button>
+      <div class="quiz-actions-bas"><button class="secondary btn-recommencer-session" type="button">Recommencer</button><button class="secondary" id="btnQuitKanjiQuiz">Quitter la session</button></div>
     </div>
     ${htmlModalTraceKanji()}
   `;
@@ -2618,9 +2815,9 @@ function recordKanaSessionResult(kanaType, groupId, points, maxPoints, pct, dure
   const key = kanaScoreKey(kanaType, groupId);
   if (!DB.scoresKana[key]) DB.scoresKana[key] = { best: null, history: [] };
   const entry = DB.scoresKana[key];
-  const record = { date: new Date().toISOString(), points, maxPoints, pct, dureeMs };
+  const record = enrichirRecord({ date: new Date().toISOString(), points, maxPoints, pct, dureeMs });
   entry.history.push(record);
-  if (!entry.best || pct > entry.best.pct) entry.best = record;
+  if (!entry.best || comparerResultats(record, entry.best) > 0) entry.best = record;
 }
 function getValidKanaInProgress(kanaType, groupId) {
   if (!DB.inProgressKana) return null;
@@ -2663,11 +2860,12 @@ function renderKanaQuizView(container) {
       // arrondissait a 100%, ce qui donnait un faux sentiment de sans-faute.
       // 100% est reserve au score reellement parfait ; sinon on plafonne a 99%
       // meme si l'''arrondi mathematique donnerait 100.
-      ? (points >= maxPoints ? 100 : Math.min(99, Math.round((points / maxPoints) * 100)))
+      ? calculerPct(points, maxPoints)
       : 0;
     const prevEntry = getKanaScoreEntry(quizSession.kanaType, quizSession.groupId);
     const prevBest = prevEntry ? prevEntry.best.pct : null;
     const improved = prevBest === null || pct > prevBest;
+    if (typeof celebrerProgressionSiBesoin === 'function') setTimeout(celebrerProgressionSiBesoin, 300);
     recordKanaSessionResult(quizSession.kanaType, quizSession.groupId, points, maxPoints, pct, dureeMs);
     clearKanaInProgress(quizSession.kanaType, quizSession.groupId);
     persist();
@@ -2677,12 +2875,12 @@ function renderKanaQuizView(container) {
     const etat = pct >= 100 ? 'perfect' : (pct >= 70 ? 'good' : 'low');
     const badge = improved
       ? `<div class="kvt-result__badge">Record — nouveau meilleur score</div>`
-      : (prevBest !== null ? `<div class="kvt-result__badge">Meilleur score : ${prevBest}&nbsp;%</div>` : '');
+      : (prevBest !== null ? `<div class="kvt-result__badge">Meilleur score : ${formatPct(prevBest)}</div>` : '');
     container.innerHTML = `
       <h2>${typeLabel} — ${escapeHtml(groupLabel)}</h2>
       <div class="kvt-result kvt-result--${etat}">
         ${badge}
-        <div class="kvt-result__pct">${pct}&nbsp;%</div>
+        <div class="kvt-result__pct">${formatPct(pct)}</div>
         <div class="kvt-result__points">${points} / ${maxPoints} points</div>
         ${dureeMs !== null ? `<div class="kvt-result__duree">Termine en ${formatDuree(dureeMs)}</div>` : ''}
         <button class="kvt-result__btn" type="button" id="btnBackKanaReview">Retour</button>
@@ -2729,7 +2927,7 @@ function renderKanaQuizView(container) {
       ` : `
         <button class="primary" id="btnNextKana" style="margin-top:18px;">Suivant</button>
       `}
-      <button class="secondary" id="btnQuitKanaQuiz" style="margin-top:12px;">Quitter la session</button>
+      <div class="quiz-actions-bas"><button class="secondary btn-recommencer-session" type="button">Recommencer</button><button class="secondary" id="btnQuitKanaQuiz">Quitter la session</button></div>
     </div>
   `;
 
@@ -3001,9 +3199,9 @@ function recordTraductionSessionResult(semesterId, week, points, maxPoints, pct,
   const key = weekKey(semesterId, week);
   if (!DB.scoresTraduction[key]) DB.scoresTraduction[key] = { best: null, history: [] };
   const entry = DB.scoresTraduction[key];
-  const record = { date: new Date().toISOString(), points, maxPoints, pct, dureeMs };
+  const record = enrichirRecord({ date: new Date().toISOString(), points, maxPoints, pct, dureeMs });
   entry.history.push(record);
-  if (!entry.best || pct > entry.best.pct) entry.best = record;
+  if (!entry.best || comparerResultats(record, entry.best) > 0) entry.best = record;
 }
 function getValidTraductionInProgress(semesterId, week) {
   if (!DB.inProgressTraduction) return null;
@@ -3042,18 +3240,18 @@ function renderTraductionQuizView(container) {
       // arrondissait a 100%, ce qui donnait un faux sentiment de sans-faute.
       // 100% est reserve au score reellement parfait ; sinon on plafonne a 99%
       // meme si l'''arrondi mathematique donnerait 100.
-      ? (points >= maxPoints ? 100 : Math.min(99, Math.round((points / maxPoints) * 100)))
+      ? calculerPct(points, maxPoints)
       : 0;
     const prevEntry = getTraductionScoreEntry(quizSession.semesterId, quizSession.week);
     const prevBest = prevEntry ? prevEntry.best.pct : null;
     const improved = prevBest === null || pct > prevBest;
+    if (typeof celebrerProgressionSiBesoin === 'function') setTimeout(celebrerProgressionSiBesoin, 300);
     recordTraductionSessionResult(quizSession.semesterId, quizSession.week, points, maxPoints, pct, dureeMs);
     clearTraductionInProgress(quizSession.semesterId, quizSession.week);
     persist();
     // Classement de classe, mode 'traduction' (rang 5, #16).
     if (typeof window.kvtPushScore === 'function') {
-      const histEntry = getTraductionScoreEntry(quizSession.semesterId, quizSession.week);
-      window.kvtPushScore(quizSession.semesterId, quizSession.week, histEntry.best.points, histEntry.best.maxPoints, histEntry.best.pct, 'traduction', histEntry.best.dureeMs, histEntry.history.length);
+      pousserMeilleurScore(getTraductionScoreEntry(quizSession.semesterId, quizSession.week), quizSession.semesterId, quizSession.week, 'traduction');
     }    // Synchronise aussi l'instantane du graphique hexagonal (deplace vers
     // le Profil public, demande de Paul le 23/09/2026) : ce mode vient de
     // faire bouger au moins un des 6 axes, autant le repousser tout de
@@ -3066,12 +3264,12 @@ function renderTraductionQuizView(container) {
     const etat = pct >= 100 ? 'perfect' : (pct >= 70 ? 'good' : 'low');
     const badge = improved
       ? `<div class="kvt-result__badge">Record -- nouveau meilleur score</div>`
-      : (prevBest !== null ? `<div class="kvt-result__badge">Meilleur score : ${prevBest}&nbsp;%</div>` : '');
+      : (prevBest !== null ? `<div class="kvt-result__badge">Meilleur score : ${formatPct(prevBest)}</div>` : '');
     container.innerHTML = `
       <h2>Traduction -- ${escapeHtml(semLabel)} Semaine ${quizSession.week}</h2>
       <div class="kvt-result kvt-result--${etat}">
         ${badge}
-        <div class="kvt-result__pct">${pct}&nbsp;%</div>
+        <div class="kvt-result__pct">${formatPct(pct)}</div>
         <div class="kvt-result__points">${points} / ${maxPoints} points</div>
         ${dureeMs !== null ? `<div class="kvt-result__duree">Termine en ${formatDuree(dureeMs)}</div>` : ''}
         <button class="kvt-result__btn" type="button" id="btnBackTraductionReview">Retour</button>
@@ -3118,7 +3316,7 @@ function renderTraductionQuizView(container) {
       ` : `
         <button class="primary" id="btnNextTraduction" style="margin-top:18px;">Mot suivant</button>
       `}
-      <button class="secondary" id="btnQuitTraductionQuiz" style="margin-top:12px;">Quitter la session</button>
+      <div class="quiz-actions-bas"><button class="secondary btn-recommencer-session" type="button">Recommencer</button><button class="secondary" id="btnQuitTraductionQuiz">Quitter la session</button></div>
     </div>
   `;
 
@@ -3223,9 +3421,9 @@ function recordDoubleSessionResult(semesterId, week, points, maxPoints, pct, dur
   const key = weekKey(semesterId, week);
   if (!DB.scoresDouble[key]) DB.scoresDouble[key] = { best: null, history: [] };
   const entry = DB.scoresDouble[key];
-  const record = { date: new Date().toISOString(), points, maxPoints, pct, dureeMs };
+  const record = enrichirRecord({ date: new Date().toISOString(), points, maxPoints, pct, dureeMs });
   entry.history.push(record);
-  if (!entry.best || pct > entry.best.pct) entry.best = record;
+  if (!entry.best || comparerResultats(record, entry.best) > 0) entry.best = record;
 }
 function getValidDoubleInProgress(semesterId, week) {
   if (!DB.inProgressDouble) return null;
@@ -3260,18 +3458,18 @@ function renderDoubleQuizView(container) {
     const { points, maxPoints } = quizSession.totals;
     const dureeMs = dureeSessionMs(quizSession.totals);
     const pct = maxPoints > 0
-      ? (points >= maxPoints ? 100 : Math.min(99, Math.round((points / maxPoints) * 100)))
+      ? calculerPct(points, maxPoints)
       : 0;
     const prevEntry = getDoubleScoreEntry(quizSession.semesterId, quizSession.week);
     const prevBest = prevEntry ? prevEntry.best.pct : null;
     const improved = prevBest === null || pct > prevBest;
+    if (typeof celebrerProgressionSiBesoin === 'function') setTimeout(celebrerProgressionSiBesoin, 300);
     recordDoubleSessionResult(quizSession.semesterId, quizSession.week, points, maxPoints, pct, dureeMs);
     clearDoubleInProgress(quizSession.semesterId, quizSession.week);
     persist();
     // Classement de classe, mode 'double' (rang 5, #16).
     if (typeof window.kvtPushScore === 'function') {
-      const histEntry = getDoubleScoreEntry(quizSession.semesterId, quizSession.week);
-      window.kvtPushScore(quizSession.semesterId, quizSession.week, histEntry.best.points, histEntry.best.maxPoints, histEntry.best.pct, 'double', histEntry.best.dureeMs, histEntry.history.length);
+      pousserMeilleurScore(getDoubleScoreEntry(quizSession.semesterId, quizSession.week), quizSession.semesterId, quizSession.week, 'double');
     }    // Synchronise aussi l'instantane du graphique hexagonal (deplace vers
     // le Profil public, demande de Paul le 23/09/2026) : ce mode vient de
     // faire bouger au moins un des 6 axes, autant le repousser tout de
@@ -3284,12 +3482,12 @@ function renderDoubleQuizView(container) {
     const etat = pct >= 100 ? 'perfect' : (pct >= 70 ? 'good' : 'low');
     const badge = improved
       ? `<div class="kvt-result__badge">Record -- nouveau meilleur score</div>`
-      : (prevBest !== null ? `<div class="kvt-result__badge">Meilleur score : ${prevBest}&nbsp;%</div>` : '');
+      : (prevBest !== null ? `<div class="kvt-result__badge">Meilleur score : ${formatPct(prevBest)}</div>` : '');
     container.innerHTML = `
       <h2>Double réponse -- ${escapeHtml(semLabel)} Semaine ${quizSession.week}</h2>
       <div class="kvt-result kvt-result--${etat}">
         ${badge}
-        <div class="kvt-result__pct">${pct}&nbsp;%</div>
+        <div class="kvt-result__pct">${formatPct(pct)}</div>
         <div class="kvt-result__points">${points} / ${maxPoints} points</div>
         ${dureeMs !== null ? `<div class="kvt-result__duree">Termine en ${formatDuree(dureeMs)}</div>` : ''}
         <button class="kvt-result__btn" type="button" id="btnBackDoubleReview">Retour</button>
@@ -3341,7 +3539,7 @@ function renderDoubleQuizView(container) {
       ` : `
         <button class="primary" id="btnNextDouble" style="margin-top:18px;">Mot suivant</button>
       `}
-      <button class="secondary" id="btnQuitDoubleQuiz" style="margin-top:12px;">Quitter la session</button>
+      <div class="quiz-actions-bas"><button class="secondary btn-recommencer-session" type="button">Recommencer</button><button class="secondary" id="btnQuitDoubleQuiz">Quitter la session</button></div>
     </div>
   `;
 
@@ -3465,9 +3663,9 @@ function recordPratiqueSessionResult(theme, points, maxPoints, pct, dureeMs) {
   if (!DB.scoresPratique) DB.scoresPratique = {};
   if (!DB.scoresPratique[theme]) DB.scoresPratique[theme] = { best: null, history: [] };
   const entry = DB.scoresPratique[theme];
-  const record = { date: new Date().toISOString(), points, maxPoints, pct, dureeMs };
+  const record = enrichirRecord({ date: new Date().toISOString(), points, maxPoints, pct, dureeMs });
   entry.history.push(record);
-  if (!entry.best || pct > entry.best.pct) entry.best = record;
+  if (!entry.best || comparerResultats(record, entry.best) > 0) entry.best = record;
 }
 function getValidPratiqueInProgress(theme) {
   if (!DB.inProgressPratique) return null;
@@ -3505,7 +3703,7 @@ function buildPratiqueCardsHtml(cardClass, restartClass) {
       <div class="${cardClass}${count === 0 ? ' empty' : ''}" data-theme="${t.id}">
         <div class="week-num">${escapeHtml(t.label)}</div>
         <div class="week-meta">${count} mots</div>
-        ${entry ? `<div class="week-score">${entry.best.points}/${entry.best.maxPoints} pts <span class="week-score-pct">(${entry.best.pct}%)</span></div>` : '<div class="week-score muted">—</div>'}
+        ${entry ? `<div class="week-score">${entry.best.points}/${entry.best.maxPoints} pts <span class="week-score-pct">(${formatPct(entry.best.pct)})</span></div>` : '<div class="week-score muted">—</div>'}
         ${saved ? `
           <div class="week-progress-bar"><div class="week-progress-fill" style="width:${Math.round((saved.index / saved.queue.length) * 100)}%"></div></div>
           <div class="week-progress-label">
@@ -3528,11 +3726,12 @@ function renderPratiqueQuizView(container) {
       // arrondissait a 100%, ce qui donnait un faux sentiment de sans-faute.
       // 100% est reserve au score reellement parfait ; sinon on plafonne a 99%
       // meme si l'''arrondi mathematique donnerait 100.
-      ? (points >= maxPoints ? 100 : Math.min(99, Math.round((points / maxPoints) * 100)))
+      ? calculerPct(points, maxPoints)
       : 0;
     const prevEntry = getPratiqueScoreEntry(quizSession.theme);
     const prevBest = prevEntry ? prevEntry.best.pct : null;
     const improved = prevBest === null || pct > prevBest;
+    if (typeof celebrerProgressionSiBesoin === 'function') setTimeout(celebrerProgressionSiBesoin, 300);
     recordPratiqueSessionResult(quizSession.theme, points, maxPoints, pct, dureeMs);
     clearPratiqueInProgress(quizSession.theme);
     persist();
@@ -3541,12 +3740,12 @@ function renderPratiqueQuizView(container) {
     const etat = pct >= 100 ? 'perfect' : (pct >= 70 ? 'good' : 'low');
     const badge = improved
       ? `<div class="kvt-result__badge">Record -- nouveau meilleur score</div>`
-      : (prevBest !== null ? `<div class="kvt-result__badge">Meilleur score : ${prevBest}&nbsp;%</div>` : '');
+      : (prevBest !== null ? `<div class="kvt-result__badge">Meilleur score : ${formatPct(prevBest)}</div>` : '');
     container.innerHTML = `
       <h2>Vocabulaire pratique -- ${escapeHtml(themeLabel)}</h2>
       <div class="kvt-result kvt-result--${etat}">
         ${badge}
-        <div class="kvt-result__pct">${pct}&nbsp;%</div>
+        <div class="kvt-result__pct">${formatPct(pct)}</div>
         <div class="kvt-result__points">${points} / ${maxPoints} points</div>
         ${dureeMs !== null ? `<div class="kvt-result__duree">Termine en ${formatDuree(dureeMs)}</div>` : ''}
         <button class="kvt-result__btn" type="button" id="btnBackPratiqueReview">Retour</button>
@@ -3594,7 +3793,7 @@ function renderPratiqueQuizView(container) {
       ` : `
         <button class="primary" id="btnNextPratique" style="margin-top:18px;">Mot suivant</button>
       `}
-      <button class="secondary" id="btnQuitPratiqueQuiz" style="margin-top:12px;">Quitter la session</button>
+      <div class="quiz-actions-bas"><button class="secondary btn-recommencer-session" type="button">Recommencer</button><button class="secondary" id="btnQuitPratiqueQuiz">Quitter la session</button></div>
     </div>
   `;
 
@@ -3767,7 +3966,7 @@ function renderReview() {
             <div class="review-week-card ${count === 0 ? 'empty' : ''}" data-kana-type="${type.id}" data-group="${g.id}">
               <div class="week-num">${escapeHtml(g.label)}</div>
               <div class="week-meta">${count} kana</div>
-              ${entry ? `<div class="week-score">${entry.best.points}/${entry.best.maxPoints} pts <span class="week-score-pct">(${entry.best.pct}%)</span></div>` : '<div class="week-score muted">—</div>'}
+              ${entry ? `<div class="week-score">${entry.best.points}/${entry.best.maxPoints} pts <span class="week-score-pct">(${formatPct(entry.best.pct)})</span></div>` : '<div class="week-score muted">—</div>'}
               ${saved ? `
                 <div class="week-progress-bar"><div class="week-progress-fill" style="width:${Math.round((saved.index / saved.queue.length) * 100)}%"></div></div>
                 <div class="week-progress-label">
@@ -3913,7 +4112,7 @@ function renderReview() {
               <div class="review-week-card ${count === 0 ? 'empty' : ''}" data-sem="${sem.id}" data-week="${w}">
                 <div class="week-num">${unitPrefix}${w}</div>
                 <div class="week-meta">${count} mots</div>
-                ${entry ? `<div class="week-score">${entry.best.points}/${entry.best.maxPoints} pts <span class="week-score-pct">(${entry.best.pct}%)</span> ${typeTagScore}</div>` : '<div class="week-score muted">—</div>'}
+                ${entry ? `<div class="week-score">${entry.best.points}/${entry.best.maxPoints} pts <span class="week-score-pct">(${formatPct(entry.best.pct)})</span> ${typeTagScore}</div>` : '<div class="week-score muted">—</div>'}
                 ${saved ? `
                   <div class="week-progress-bar"><div class="week-progress-fill" style="width:${Math.round((saved.index / saved.queue.length) * 100)}%"></div></div>
                   <div class="week-progress-label">
@@ -4011,11 +4210,12 @@ function renderReview() {
       // arrondissait a 100%, ce qui donnait un faux sentiment de sans-faute.
       // 100% est reserve au score reellement parfait ; sinon on plafonne a 99%
       // meme si l'''arrondi mathematique donnerait 100.
-      ? (points >= maxPoints ? 100 : Math.min(99, Math.round((points / maxPoints) * 100)))
+      ? calculerPct(points, maxPoints)
       : 0;
     const key = weekKey(quizSession.semesterId, quizSession.week);
     const prevBest = DB.scores[key] ? DB.scores[key].best.pct : null;
     const improved = prevBest === null || pct > prevBest;
+    if (typeof celebrerProgressionSiBesoin === 'function') setTimeout(celebrerProgressionSiBesoin, 300);
     recordSessionResult(quizSession.semesterId, quizSession.week, points, maxPoints, pct, quizSession.verbeFilter, dureeMs);
     // Gamification : bonus de pièces si la session est réussie (>= 80%).
     if (typeof bonusFinSession === 'function') bonusFinSession(pct, quizSession.semesterId);
@@ -4029,8 +4229,7 @@ function renderReview() {
     // record personnel, pas chaque tentative individuelle. mode 'vocab' +
     // duree/essais (rang 5, #16) : voir account.js kvtPushScore().
     if (typeof window.kvtPushScore === 'function') {
-      const bestEntry = DB.scores[key].best;
-      window.kvtPushScore(quizSession.semesterId, quizSession.week, bestEntry.points, bestEntry.maxPoints, bestEntry.pct, 'vocab', bestEntry.dureeMs, DB.scores[key].history.length);
+      pousserMeilleurScore(DB.scores[key], quizSession.semesterId, quizSession.week, 'vocab');
     }    // Synchronise aussi l'instantane du graphique hexagonal (deplace vers
     // le Profil public, demande de Paul le 23/09/2026) : ce mode vient de
     // faire bouger au moins un des 6 axes, autant le repousser tout de
@@ -4083,14 +4282,14 @@ function renderReview() {
 
     const badge = improved
       ? `<div class="kvt-result__badge">Record — nouveau meilleur score</div>`
-      : (prevBest !== null ? `<div class="kvt-result__badge">Meilleur score : ${prevBest}&nbsp;%</div>` : '');
+      : (prevBest !== null ? `<div class="kvt-result__badge">Meilleur score : ${formatPct(prevBest)}</div>` : '');
 
     container.innerHTML = `
       <h2>Session terminée — ${escapeHtml(semLabel)} Semaine ${quizSession.week}</h2>
       <div class="kvt-result kvt-result--${etat}">
         ${burst}
         ${badge}
-        <div class="kvt-result__pct">${pct}&nbsp;%</div>
+        <div class="kvt-result__pct">${formatPct(pct)}</div>
         <div class="kvt-result__points">${points} / ${maxPoints} points</div>
         ${dureeMs !== null ? `<div class="kvt-result__duree">Termine en ${formatDuree(dureeMs)}</div>` : ''}
         <div class="kvt-result__title">${textes.titre}</div>
@@ -4160,7 +4359,7 @@ function renderReview() {
       ` : `
         <button class="primary" id="btnNextWord" style="margin-top:18px;">Mot suivant</button>
       `}
-      <button class="secondary" id="btnQuitQuiz" style="margin-top:12px;">Quitter la session</button>
+      <div class="quiz-actions-bas"><button class="secondary btn-recommencer-session" type="button">Recommencer</button><button class="secondary" id="btnQuitQuiz">Quitter la session</button></div>
     </div>
   `;
 
@@ -4592,6 +4791,7 @@ function traiterErreurAuthDansUrl() {
 async function init() {
   DB = await window.api.loadData();
   applyTheme();
+  brancherBoutonRecommencer();
   // [data-view] uniquement : la barre latérale contient aussi un vrai lien
   // (« L'idée du projet ») qui n'est pas une vue de l'app. Sans ce filtre, il
   // recevrait ce gestionnaire et appellerait switchView(undefined).

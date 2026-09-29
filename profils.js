@@ -33,7 +33,7 @@ async function chargerProfils(ids) {
   if (!manquants.length || !window.sb) return;
   try {
     const { data, error } = await window.sb
-      .from('profiles').select('id,pseudo,avatar_url,niveau,bio,banniere_active').in('id', manquants);
+      .from('profiles').select('id,pseudo,avatar_url,niveau,bio,banniere_active,pseudo_style,bordure_active').in('id', manquants);
     if (error) throw error;
     (data || []).forEach(p => profilsCache.set(p.id, p));
     // Un identifiant sans profil est mis en cache vide, sinon on le
@@ -83,13 +83,15 @@ function avatarHtml(userId, pseudo, taille) {
 // chacun a chaque fois finirait par en empiler des centaines.
 function auteurHtml(userId, pseudo, taille) {
   const nom = escapeHtml((profilDe(userId) || {}).pseudo || pseudo || '');
+  // Pseudo stylise achete en boutique (29/09/2026), visible partout.
+  const style = typeof classePseudo === 'function' ? classePseudo((profilDe(userId) || {}).pseudo_style) : '';
   if (!userId) {
-    return `<span class="auteur">${avatarHtml(userId, pseudo, taille || 24)}<span class="auteur-pseudo">${nom}</span></span>`;
+    return `<span class="auteur">${avatarHtml(userId, pseudo, taille || 24)}<span class="auteur-pseudo ${style}">${nom}</span></span>`;
   }
   return `
     <button type="button" class="auteur auteur--lien" data-voir-profil="${escapeHtml(userId)}" title="Voir le profil de ${nom}">
       ${avatarHtml(userId, pseudo, taille || 24)}
-      <span class="auteur-pseudo">${nom}</span>
+      <span class="auteur-pseudo ${style}">${nom}</span>
     </button>`;
 }
 

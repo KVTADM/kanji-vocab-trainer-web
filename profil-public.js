@@ -30,7 +30,7 @@ async function chargerProfilPublic(userId) {
   const res = { profil: null, decks: [], avis: [], amis: null };
   try {
     const requetes = [
-      window.sb.from('profiles').select('id,pseudo,avatar_url,niveau,bio,created_at,banniere_active,hexagone_stats,titre_actif')
+      window.sb.from('profiles').select('id,pseudo,avatar_url,niveau,bio,created_at,banniere_active,hexagone_stats,titre_actif,bordure_active,pseudo_style')
         .eq('id', userId).maybeSingle()
         .then(r => { res.profil = r.data || null; }),
 
@@ -236,12 +236,12 @@ function renderProfilPublic() {
 
   el.innerHTML = `
     ${retour}
-    <header class="profil-entete card">
+    <header class="profil-entete card ${typeof classeBordure === 'function' ? classeBordure(profil.bordure_active) : ''}">
       ${typeof classeBanniere === 'function' && classeBanniere(profil.banniere_active) ? `<div class="profil-banniere ${classeBanniere(profil.banniere_active)}"></div>` : ''}
       <div class="profil-entete__haut">
         ${window.kvtProfils ? window.kvtProfils.avatarHtml(profil.id, profil.pseudo, 72) : ''}
         <div class="profil-entete__ident">
-          <h2 class="profil-entete__pseudo">${escapeHtml(profil.pseudo || 'quelqu’un')}</h2>
+          <h2 class="profil-entete__pseudo"><span class="${typeof classePseudo === 'function' ? classePseudo(profil.pseudo_style) : ''}">${escapeHtml(profil.pseudo || 'quelqu’un')}</span></h2>
           <div class="profil-badges">
             ${badges.map(([lib, titre]) => `<span class="profil-badge" title="${escapeHtml(titre)}">${escapeHtml(lib)}</span>`).join('')}
           </div>
