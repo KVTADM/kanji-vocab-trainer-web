@@ -268,7 +268,6 @@ function kvtChangerEtatSync(etat) {
 }
 
 window.kvtPushCloud = function (data, options) {
-  if (window.accountUser) kvtChangerEtatSync('envoi');
   const tache = kvtFilePush.then(() => kvtPushCloudMaintenant(data, options || {}));
   kvtFilePush = tache.catch(() => {});
   tache.then(
@@ -676,8 +675,13 @@ window.sb.auth.onAuthStateChange((event, session) => {
   })();
 });
 
-function renderAccount() {
-  const el = $('#view-account');
+// cible : élément où dessiner (onglet « Compte » du profil). renderAccount(null)
+// revient à la vue autonome ; sans argument on garde la cible courante tant
+// qu'elle est encore dans la page.
+let accountCible = null;
+function renderAccount(cible) {
+  if (cible !== undefined) accountCible = cible;
+  const el = (accountCible && accountCible.isConnected) ? accountCible : $('#view-account');
   if (!el) return;
 
   // Réinitialisation en cours : cet écran passe avant tout le reste, y compris

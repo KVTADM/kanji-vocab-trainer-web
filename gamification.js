@@ -732,6 +732,17 @@ const GAMIF_SECTIONS_BOUTIQUE = [
   { type: 'boost', titre: 'Boosts', aide: "Consommable : s'active tout de suite pour 20 minutes. En racheter un pendant qu'il tourne encore prolonge la durée." }
 ];
 
+// Vrai si cet objet est celui actuellement porte (retour de Lucien,
+// 30/09/2026 : "faut choisir chef" -- on ne voyait pas lequel est equipe).
+function objetEstEquipe(o, g) {
+  if (!o || !g) return false;
+  if (GAMIF_SLOTS_PROFIL[o.type]) return g[GAMIF_SLOTS_PROFIL[o.type].slot] === o.id;
+  if (o.type === 'banniere') return g.banniereActive === o.id;
+  if (o.type === 'collation') return g.collationActive === o.id;
+  if (o.type === 'titre') return g.titreActif === o.id;
+  return false;
+}
+
 function boutiqueBouton(o, g, pro, niveauActuel) {
   const niveauBloque = niveauActuel < o.niveauRequis;
   const proBloque = o.pro && !pro;
@@ -754,15 +765,15 @@ function boutiqueBouton(o, g, pro, niveauActuel) {
   if (GAMIF_SLOTS_PROFIL[o.type]) {
     const actifProfil = g[GAMIF_SLOTS_PROFIL[o.type].slot] === o.id;
     return actifProfil
-      ? `<button class="secondary boutique-equipe" data-desequiper="${o.type}" title="Cliquer pour déséquiper">✓ Équipé — Retirer</button>`
-      : `<button class="secondary" data-equiper-profil="${o.type}|${o.id}">Équiper</button>`;
+      ? `<button class="boutique-btn-retirer" data-desequiper="${o.type}" title="Enlever cet objet">Retirer</button>`
+      : `<button class="boutique-btn-equiper" data-equiper-profil="${o.type}|${o.id}">Équiper</button>`;
   }
   const slot = o.type === 'banniere' ? 'banniereActive' : (o.type === 'collation' ? 'collationActive' : 'titreActif');
   const actif = g[slot] === o.id;
   const attrEquiper = o.type === 'banniere' ? 'data-equiper-banniere' : (o.type === 'collation' ? 'data-equiper-collation' : 'data-equiper');
   return actif
-    ? `<button class="secondary boutique-equipe" data-desequiper="${o.type}" title="Cliquer pour déséquiper">✓ Équipé — Retirer</button>`
-    : `<button class="secondary" ${attrEquiper}="${o.id}">Équiper</button>`;
+    ? `<button class="boutique-btn-retirer" data-desequiper="${o.type}" title="Enlever cet objet">Retirer</button>`
+    : `<button class="boutique-btn-equiper" ${attrEquiper}="${o.id}">Équiper</button>`;
 }
 
 // Equipe l'objet qui vient d'etre achete, quel que soit son type (30/09/2026,
@@ -790,9 +801,9 @@ function renderBoutique() {
       <p class="boutique-section__aide">${escapeHtml(section.aide)}</p>
       <div class="boutique-grid">
         ${objets.map(o => `
-          <div class="card boutique-item ${g.inventaire.includes(o.id) ? 'boutique-item--possede' : ''}">
+          <div class="card boutique-item ${g.inventaire.includes(o.id) ? 'boutique-item--possede' : ''} ${objetEstEquipe(o, g) ? 'boutique-item--equipe' : ''}">
             <div class="boutique-item__emoji">${o.emoji}</div>
-            <div class="boutique-item__nom">${escapeHtml(o.nom)}</div>
+            <div class="boutique-item__nom">${escapeHtml(o.nom)}${objetEstEquipe(o, g) ? ' <span class="boutique-item__coche" title="Équipé" aria-label="Équipé">✓</span>' : ''}</div>
             ${o.pro ? '<div class="boutique-item__pro">Pro</div>' : ''}
             ${o.type === 'theme' ? `<button class="secondary small boutique-item__apercu" data-apercu-theme="${o.themeId}">Aperçu</button>` : ''}
             ${o.type === 'bordure' ? `<div class="boutique-apercu-bordure ${classeBordure(o.id)}"></div>` : ''}

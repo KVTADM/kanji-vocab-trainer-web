@@ -173,11 +173,17 @@ async function chargerActiviteAmis() {
   }
 }
 
-function renderHistorique() {
-  const el = document.getElementById('view-historique');
+// cible : élément où dessiner (onglet du profil). Sans argument, on garde la
+// dernière cible tant qu'elle est encore dans la page ; renderHistorique(null)
+// revient à la vue autonome.
+let historiqueCible = null;
+function renderHistorique(cible) {
+  if (cible !== undefined) historiqueCible = cible;
+  const dansProfil = !!(historiqueCible && historiqueCible.isConnected);
+  const el = dansProfil ? historiqueCible : document.getElementById('view-historique');
   if (!el) return;
   el.innerHTML = `
-    <h2>Historique</h2>
+    ${dansProfil ? '' : '<h2>Historique</h2>'}
     <div class="hist-onglets" role="tablist">
       <button type="button" class="hist-onglet ${historiqueOnglet === 'sessions' ? 'is-active' : ''}" data-hist-onglet="sessions" role="tab" aria-selected="${historiqueOnglet === 'sessions'}">Mes sessions</button>
       <button type="button" class="hist-onglet ${historiqueOnglet === 'amis' ? 'is-active' : ''}" data-hist-onglet="amis" role="tab" aria-selected="${historiqueOnglet === 'amis'}">Activité des amis</button>

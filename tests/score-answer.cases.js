@@ -100,3 +100,15 @@ essai('身体 accepte しんたい ET からだ (lectures multiples)', () => {
   if (scoreAnswer('しんたい', 'からだ / しんたい').pct !== 1) throw new Error('しんたい refuse');
   if (scoreAnswer('からだ', 'からだ / しんたい').pct !== 1) throw new Error('からだ refuse');
 });
+
+// Retour de Lucien (30/09/2026) : "じんかｋ" (ｋ pleine chasse) etait valide.
+essai('une lettre latine pleine chasse en attente (ｋ) est refusee comme une lettre normale', () => {
+  if (!verifierSaisieJp('じんかｋ')) throw new Error('ｋ pleine chasse accepte');
+  if (!verifierSaisieJp('ｊ')) throw new Error('ｊ seul accepte');
+  if (!verifierSaisieJp('jinka')) throw new Error('latin normal accepte');
+  if (verifierSaisieJp('じんか')) throw new Error('kana valide refuse');
+});
+essai('une reponse vide ou faite d\'espaces est refusee', () => {
+  if (!verifierSaisieJp('')) throw new Error('vide accepte');
+  if (!verifierSaisieJp('   ')) throw new Error('espaces acceptes');
+});

@@ -104,6 +104,8 @@ essai('pose les precisions "compteur" et "lecture particuliere" sans ecraser un 
   const data = await window.api.loadData();
   const i = id => data.vocab.find(v => v.id === id).indice;
   if (i('v-l0s2-w2-10-03') !== 'compteur') throw new Error('一台 : ' + i('v-l0s2-w2-10-03'));
+  if (i('v-v1eyb2f0swc4y') !== 'chiffre') throw new Error('十 : ' + i('v-v1eyb2f0swc4y'));
+  if (i('v-l0s1-w5-05-05') !== 'compteur') throw new Error('とお : ' + i('v-l0s1-w5-05-05'));
   if (i('v-l0s1-w2-01-06') !== 'lecture-speciale') throw new Error('一人 : ' + i('v-l0s1-w2-01-06'));
   if (i('v-mrhvk4uye3rji') !== 'lecture-speciale') throw new Error('indice existant ecrase');
   if (i('v-autre-mot') !== undefined) throw new Error('un mot non liste ne doit pas avoir d\'indice');

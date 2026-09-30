@@ -208,13 +208,41 @@ function brancherBlocAmis() {
 // le bloc profil juste au-dessus.
 function renderAccountAmis() {
   const carte = $('#carteAmis');
-  if (!carte) return;
-  carte.outerHTML = htmlBlocAmis();
-  brancherBlocAmis();
+  if (carte) {
+    carte.outerHTML = htmlBlocAmis();
+    brancherBlocAmis();
+  }
+  if (typeof window.kvtMajPastilleAmis === 'function') window.kvtMajPastilleAmis();
+}
+
+function nbDemandesRecues() {
+  return window.accountUser && amitiesCache ? classerAmities().recues.length : 0;
+}
+function estChargee() { return amitiesCache !== null; }
+
+// Etat de la relation avec une personne (retour de Lucien, 30/09/2026 : le
+// bouton "Ajouter en ami" restait cliquable sur le profil d'un ami) :
+// 'ami' | 'envoyee' (j'ai demande) | 'recue' (elle m'a demande) | 'aucune'.
+function etatAvec(userId) {
+  const moi = window.accountUser ? window.accountUser.id : null;
+  const ligne = (amitiesCache || []).find(l => (l.a === userId || l.b === userId));
+  if (!ligne) return 'aucune';
+  if (ligne.etat === 'acceptee') return 'ami';
+  return ligne.demandeur === moi ? 'envoyee' : 'recue';
+}
+
+async function assurerAmitiesChargees() {
+  if (amitiesCache === null) await chargerAmities();
+}
+
+async function rechargerAmities() {
+  amitiesCache = null;
+  await chargerAmities();
 }
 
 window.kvtAmis = {
   chargerAmities, htmlBlocAmis, brancherBlocAmis, renderAccountAmis,
+  etatAvec, assurerAmitiesChargees, rechargerAmities, nbDemandesRecues, estChargee,
   classerAmities, autreQueMoi,
   reinitialiser() { amitiesCache = null; amisErreur = null; amiRecherche = ''; }
 };

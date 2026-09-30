@@ -3471,12 +3471,23 @@ code {
 @keyframes voyant-pulse { 50% { opacity: .3; } }
 @media (prefers-reduced-motion: reduce) { .voyant-sync--envoi .voyant-sync__point { animation: none; } }
 .recherche-globale {
-  width: 150px; padding: 5px 10px; font-size: 12px;
-  background: var(--panel-alt); color: var(--ink);
+  /* Ferme : une simple loupe de 34 px, pour ne rien chevaucher dans la barre
+     (retour de Lucien, 30/09/2026 : "tout colle, donne moi de la place").
+     Ouvert (au focus) : le champ se deploie SOUS la barre, a droite. */
+  width: 34px; height: 34px; padding: 0; cursor: pointer;
+  background: var(--panel-alt) url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%239aa4c0' stroke-width='2.2' stroke-linecap='round'><circle cx='11' cy='11' r='7'/><path d='m20 20-3.5-3.5'/></svg>") center / 16px no-repeat;
+  color: transparent; caret-color: var(--ink);
   border: 1px solid var(--border); border-radius: 999px;
+  -webkit-appearance: none; appearance: none; flex-shrink: 0;
 }
-.recherche-globale:focus { outline: none; border-color: var(--accent); }
-@media (max-width: 700px) { .recherche-globale { width: 110px; } }
+.recherche-globale::-webkit-search-cancel-button { display: none; }
+.recherche-globale:focus {
+  position: absolute; right: 20px; top: calc(100% + 4px); z-index: 60;
+  width: 280px; height: auto; padding: 8px 14px; cursor: text;
+  background-image: none; color: var(--ink); font-size: 14px;
+  outline: none; border-color: var(--accent); box-shadow: 0 10px 30px rgba(0,0,0,.4);
+}
+.kvt-topbar__inner { position: relative; }
 
 /* ---------- Bordure autour de la photo, titre et rang a cote du pseudo (30/09/2026) ---------- */
 .avatar-cadre {
@@ -3539,3 +3550,70 @@ code {
 .hist-rep--moyen td:nth-child(3), .hist-rep--moyen .hist-rep__pct { color: var(--warn-bright); }
 .hist-rep--faux td:nth-child(3), .hist-rep--faux .hist-rep__pct { color: var(--bad-bright); }
 @media (max-width: 700px) { .hist-session__tete { grid-template-columns: 1fr 1fr; } }
+
+/* ---------- Boutique : objet equipe bien visible (30/09/2026) ---------- */
+.boutique-item--equipe { border-color: #3fbf6f; box-shadow: 0 0 0 2px color-mix(in srgb, #3fbf6f 35%, transparent); background: color-mix(in srgb, #3fbf6f 8%, var(--panel)); }
+.boutique-item__coche { color: #3fbf6f; font-weight: 800; margin-left: 4px; }
+.boutique-btn-equiper, .boutique-btn-retirer { width: 100%; padding: 8px 12px; border-radius: 10px; font-weight: 700; cursor: pointer; border: 1px solid transparent; }
+.boutique-btn-equiper { background: #2f9e5b; color: #fff; }
+.boutique-btn-equiper:hover { background: #3fbf6f; }
+.boutique-btn-retirer { background: transparent; color: #e0506a; border-color: #e0506a; }
+.boutique-btn-retirer:hover { background: #e0506a; color: #fff; }
+.indice-badge.indice-chiffre { border-color: #4aa3d8; color: #4aa3d8; }
+
+/* Carte "vue d'ensemble" : le pseudo a sa propre ligne (plus tronqué), le % passe dessous */
+.lb-case-premier { flex-wrap: wrap; row-gap: 4px; }
+.lb-case-premier > .auteur { flex: 1 1 100%; min-width: 0; }
+.lb-case-premier .auteur-pseudo { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lb-case-premier .lb-case-infos { flex: 0 0 auto; }
+.lb-case-premier .lb-case-pct { margin-left: auto; }
+
+/* Paliers de couleur des cartes de semaine (selon le meilleur %) */
+.week-card.palier-faible { border-top-color: var(--bad-bright); background: rgba(192, 64, 96, 0.10); }
+.week-card.palier-moyen { border-top-color: var(--warn-bright); background: rgba(224, 160, 80, 0.10); }
+.week-card.palier-bon { border-top-color: var(--good-bright); background: rgba(95, 174, 95, 0.08); }
+.week-card.palier-parfait { border-color: var(--good-bright); border-top-color: var(--good-bright); background: rgba(95, 174, 95, 0.22); box-shadow: 0 0 0 1px var(--good-bright) inset; }
+.week-card--hardcore { border-color: var(--bad); box-shadow: 0 0 0 1px var(--bad) inset; }
+
+/* Fenêtre « semaine » : plus grande, titre mis en avant, aperçu, aide des modes */
+.modal-box.modal-box--semaine { max-width: 560px; padding: 0 0 22px; }
+.modal-box--semaine > *:not(.modal-tete) { margin-left: 22px; margin-right: 22px; }
+.modal-tete--semaine {
+  background: linear-gradient(135deg, var(--accent), var(--panel-alt));
+  padding: 16px 22px; border-radius: 12px 12px 0 0; margin-bottom: 16px;
+}
+.modal-tete--semaine h3 { display: flex; flex-direction: column; gap: 2px; }
+.modal-semestre { font-size: 12.5px; opacity: 0.85; font-weight: 500; }
+.modal-semaine-titre { font-size: 26px; font-weight: 800; color: var(--cream); line-height: 1.1; }
+.modal-apercu { display: flex; flex-wrap: wrap; gap: 8px 14px; margin-bottom: 12px; align-items: baseline; }
+.modal-apercu__mot { font-size: 24px; line-height: 1.25; }
+.modal-apercu__reste { font-size: 14px; color: var(--muted); }
+.filtre-mode--aide { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 14px; }
+.mode-choix { display: flex; align-items: center; gap: 6px; }
+.aide-bulle {
+  position: relative; display: inline-flex; align-items: center; justify-content: center;
+  width: 18px; height: 18px; border-radius: 50%; border: 1px solid var(--muted);
+  color: var(--muted); font-size: 11px; font-weight: 700; cursor: help; flex: none;
+}
+.aide-bulle:hover, .aide-bulle:focus { color: var(--ink); border-color: var(--accent-bright); outline: none; }
+.aide-bulle::after {
+  content: attr(data-aide); position: absolute; left: 50%; bottom: calc(100% + 8px);
+  transform: translateX(-50%); width: 230px; padding: 8px 10px; border-radius: 8px;
+  background: var(--panel-alt); border: 1px solid var(--border); color: var(--ink);
+  font-size: 12px; font-weight: 400; line-height: 1.45; text-align: left;
+  box-shadow: 0 4px 14px rgba(0,0,0,.35); opacity: 0; pointer-events: none; z-index: 5;
+  transition: opacity .12s;
+}
+.aide-bulle:hover::after, .aide-bulle:focus::after { opacity: 1; }
+@media (max-width: 520px) { .filtre-mode--aide { grid-template-columns: 1fr; } .aide-bulle::after { left: 0; transform: none; } }
+
+/* Notifications d'amis */
+.notif-pastille {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px;
+  background: var(--bad); color: #fff; font-size: 11px; font-weight: 700; line-height: 1;
+  border: none; vertical-align: middle; margin-left: 4px;
+}
+.notif-pastille--topbar { cursor: pointer; animation: notif-pouls 2.4s ease-in-out infinite; }
+@keyframes notif-pouls { 0%,100% { box-shadow: 0 0 0 0 rgba(192,64,96,.55); } 50% { box-shadow: 0 0 0 5px rgba(192,64,96,0); } }
+@media (prefers-reduced-motion: reduce) { .notif-pastille--topbar { animation: none; } }

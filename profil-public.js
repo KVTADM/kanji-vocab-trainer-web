@@ -30,6 +30,9 @@ async function chargerProfilPublic(userId) {
   const res = { profil: null, decks: [], avis: [], amis: null };
   try {
     const requetes = [
+      // Etat de l'amitie connu avant l'affichage du bouton.
+      (window.kvtAmis && window.accountUser ? window.kvtAmis.assurerAmitiesChargees() : Promise.resolve()).catch(() => {}),
+
       window.sb.from('profiles').select('id,pseudo,avatar_url,niveau,bio,created_at,banniere_active,hexagone_stats,titre_actif,bordure_active,pseudo_style,niveau_jeu')
         .eq('id', userId).maybeSingle()
         .then(r => { res.profil = r.data || null; }),
@@ -78,12 +81,12 @@ async function chargerProfilPublic(userId) {
   }
 }
 
-async function ouvrirProfilPublic(userId) {
+async function ouvrirProfilPublic(userId, onglet) {
   if (!userId) return;
   profilVu = userId;
   profilData = null;
   profilErreur = null;
-  profilOnglet = 'decks';
+  profilOnglet = onglet || 'decks';
   switchView('profil');
   await chargerProfilPublic(userId);
   if (currentView === 'profil') renderProfilPublic();
@@ -113,10 +116,21 @@ function badgesDe(profil, decks, avis) {
   return liste;
 }
 
+// Le bouton suit la relation : plus de clic en boucle sur quelqu'un qui est
+// deja ami, ni sur une demande deja envoyee (retour de Lucien, 30/09/2026).
+function boutonAmiHtml(userId) {
+  const etat = window.kvtAmis && window.accountUser ? window.kvtAmis.etatAvec(userId) : 'aucune';
+  if (etat === 'ami') return `<button class="secondary profil-ajout" disabled>✓ Ami</button>`;
+  if (etat === 'envoyee') return `<button class="secondary profil-ajout" disabled>Demande envoyée</button>`;
+  if (etat === 'recue') return `<button class="primary profil-ajout" id="btnProfilAmi">Accepter sa demande</button>`;
+  return `<button class="primary profil-ajout" id="btnProfilAmi">Ajouter en ami</button>`;
+}
+
 function profilVide(message) {
   return `<p class="comm-etat-vide">${message}</p>`;
 }
 
+let amisEnAttente = false;
 function renderProfilPublic() {
   const el = $('#view-profil');
   if (!el) return;
@@ -143,7 +157,13 @@ function renderProfilPublic() {
   const avisRecus = decks.reduce((s, d) => s + (d.nb_notes || 0), 0);
 
   const onglets = [['decks', 'Decks publiés', decks.length], ['avis', 'Avis écrits', avis.length]];
-  if (cestMoi) onglets.push(['amis', 'Amis', amis ? amis.length : 0]);
+  if (cestMoi) {
+    // Demandes d'amis à traiter : pastille sur l'onglet (retour Lucien 30/09).
+    const nbRecues = window.kvtAmis && window.accountUser ? window.kvtAmis.classerAmities().recues.length : 0;
+    onglets.push(['amis', 'Amis', amis ? amis.length : 0, nbRecues]);
+    onglets.push(['historique', 'Historique', '']);
+    onglets.push(['compte', 'Compte', '']);
+  }
   if (!onglets.some(o => o[0] === profilOnglet)) profilOnglet = 'decks';
 
   // Graphique hexagonal de performance (deplace des Statistiques vers le
@@ -174,6 +194,10 @@ function renderProfilPublic() {
       <span><strong>${typeof getTotalSessionsJouees === 'function' ? getTotalSessionsJouees() : 0}</strong> sessions jouées</span>
       <span><strong>${(typeof DB !== 'undefined' && DB.kanjiGroups) ? DB.kanjiGroups.length : 0}</strong> kanji importés</span>
       <span><strong>${(() => { const c = getScoreCompositePersonnel(); return c === null ? '—' : c; })()}</strong> score composite</span>
+      ${(() => {
+        const t = typeof meilleurTempsParfait === 'function' ? meilleurTempsParfait(DB.scores) : null;
+        return `<span title="Session la plus rapide terminée à 100 %"><strong>${t && typeof formatDuree === 'function' ? formatDuree(t.dureeMs) : '—'}</strong> meilleur temps (100 %)</span>`;
+      })()}
     </div>`;
 
   const hexaHtml = (typeof renderHexagoneSvg !== 'function') ? '' : `
@@ -225,18 +249,9 @@ function renderProfilPublic() {
         ? "Tu n'as encore écrit aucun avis. C'est ce qui aide les autres à choisir."
         : "Cette personne n'a pas encore écrit d'avis.");
 
-  const contenuAmis = !cestMoi ? '' : (amis && amis.length ? `
-    <div class="profil-amis">
-      ${amis.map(l => {
-        const autre = l.a === profil.id ? l.b : l.a;
-        const p = window.kvtProfils ? window.kvtProfils.profilDe(autre) : null;
-        return `<button class="profil-ami" data-profil-voir="${escapeHtml(autre)}">
-          ${window.kvtProfils ? window.kvtProfils.avatarHtml(autre, p && p.pseudo, 32) : ''}
-          <span>${escapeHtml((p && p.pseudo) || 'quelqu’un')}</span>
-        </button>`;
-      }).join('')}
-    </div>`
-    : profilVide("Aucun ami pour l'instant. Ajoute quelqu'un depuis l'onglet Compte."));
+  // Le bloc complet (demander, accepter, refuser, retirer) vit ici, dans le
+  // profil ; il est branché après le rendu.
+  const contenuAmis = !cestMoi ? '' : (window.kvtAmis ? window.kvtAmis.htmlBlocAmis() : '');
 
   el.innerHTML = `
     ${retour}
@@ -250,7 +265,7 @@ function renderProfilPublic() {
             ${badges.map(([lib, titre]) => `<span class="profil-badge" title="${escapeHtml(titre)}">${escapeHtml(lib)}</span>`).join('')}
           </div>
         </div>
-        ${cestMoi ? '' : `<button class="primary profil-ajout" id="btnProfilAmi">Ajouter en ami</button>`}
+        ${cestMoi ? '' : boutonAmiHtml(profil.id)}
       </div>
 
       ${profil.bio ? `<p class="profil-bio">${escapeHtml(profil.bio)}</p>` : ''}
@@ -265,10 +280,10 @@ function renderProfilPublic() {
     ${hexaHtml}
 
     <div class="profil-onglets" role="tablist">
-      ${onglets.map(([cle, lib, n]) => `
+      ${onglets.map(([cle, lib, n, alerte]) => `
         <button class="profil-onglet ${profilOnglet === cle ? 'is-active' : ''}" role="tab"
                 aria-selected="${profilOnglet === cle}" data-profil-onglet="${cle}">
-          ${lib} <span class="profil-onglet__n">${n}</span>
+          ${lib}${n !== '' ? ` <span class="profil-onglet__n">${n}</span>` : ''}${alerte ? ` <span class="notif-pastille" title="${alerte} demande${alerte > 1 ? 's' : ''} d'ami à traiter">${alerte}</span>` : ''}
         </button>`).join('')}
     </div>
 
@@ -276,6 +291,7 @@ function renderProfilPublic() {
       ${profilOnglet === 'decks' ? contenuDecks : ''}
       ${profilOnglet === 'avis' ? contenuAvis : ''}
       ${profilOnglet === 'amis' ? contenuAmis : ''}
+      ${(profilOnglet === 'historique' || profilOnglet === 'compte') ? '<div id="profilSousVue"></div>' : ''}
     </div>
 
     ${cestMoi ? '' : `<p class="profil-note-vie-privee">
@@ -283,6 +299,23 @@ function renderProfilPublic() {
     </p>`}`;
 
   brancherRetour();
+
+  // Onglets qui réutilisent les écrans existants (Historique, Compte), et
+  // bloc des amis. On détache les cibles quand l'onglet n'est pas actif pour
+  // que les vues autonomes ne dessinent jamais dans le profil.
+  const sousVue = $('#profilSousVue');
+  if (typeof renderHistorique === 'function') renderHistorique(profilOnglet === 'historique' ? sousVue : null);
+  if (typeof renderAccount === 'function') renderAccount(profilOnglet === 'compte' ? sousVue : null);
+  if (cestMoi && profilOnglet === 'amis' && window.kvtAmis) {
+    window.kvtAmis.brancherBlocAmis();
+    if (!window.kvtAmis.estChargee() && !amisEnAttente) {
+      amisEnAttente = true;
+      window.kvtAmis.assurerAmitiesChargees().then(() => {
+        amisEnAttente = false;
+        if (currentView === 'profil' && profilOnglet === 'amis') window.kvtAmis.renderAccountAmis();
+      });
+    }
+  }
 
   $$('[data-profil-onglet]', el).forEach(b => {
     b.onclick = () => { profilOnglet = b.dataset.profilOnglet; renderProfilPublic(); };
@@ -302,9 +335,16 @@ function renderProfilPublic() {
       try {
         // La demande passe par le pseudo, comme dans l'onglet Compte : c'est
         // la fonction en base qui décide, pas le client.
-        const { error } = await window.sb.rpc('demander_ami', { p_pseudo: profil.pseudo });
+        const { data: reponse, error } = await window.sb.rpc('demander_ami', { p_pseudo: profil.pseudo });
         if (error) throw error;
-        showToast('Demande envoyée à ' + profil.pseudo);
+        const messages = {
+          demandee: 'Demande envoyée à ' + profil.pseudo,
+          acceptee: 'Vous êtes maintenant amis.',
+          deja_ami: 'Tu es déjà ami avec ' + profil.pseudo + '.',
+          deja_demande: 'Demande déjà envoyée, en attente de réponse.'
+        };
+        showToast(messages[reponse] || 'Demande envoyée à ' + profil.pseudo);
+        if (window.kvtAmis) { await window.kvtAmis.rechargerAmities(); renderProfilPublic(); }
       } catch (e) {
         showToast('Demande impossible : ' + (e.message || e));
         btnAmi.disabled = false;
@@ -323,6 +363,7 @@ function brancherRetour() {
 let profilRetourVers = 'decks';
 
 window.kvtProfilPublic = {
+  ouvrirMonProfil(onglet) { if (window.accountUser) ouvrirProfilPublic(window.accountUser.id, onglet); },
   ouvrirProfilPublic,
   renderProfilPublic,
   depuis(vue) { profilRetourVers = vue; },

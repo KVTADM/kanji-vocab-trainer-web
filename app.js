@@ -73,10 +73,10 @@ const REGISTRE_LABELS = { poli: 'poli', humble: 'humble', familier: 'familier', 
 // particuliere" (ex. 一人 = ひとり, 二十歳 = はたち : la lecture n'est pas
 // celle qu'on deduirait des kanji). Champ vocab.indice, pose par la migration
 // INDICES_A_PRECISER de webapi.js.
-const INDICE_LABELS = { 'compteur': 'compteur', 'lecture-speciale': 'lecture particulière' };
+const INDICE_LABELS = { 'compteur': 'compteur', 'chiffre': 'chiffre', 'lecture-speciale': 'lecture particulière' };
 function indiceBadge(v) {
   if (!v || !v.indice || !INDICE_LABELS[v.indice]) return '';
-  return `<span class="registre-badge indice-badge indice-${escapeHtml(v.indice)}" title="${v.indice === 'compteur' ? 'Ce mot est un compteur : pense à la lecture propre à ce compteur.' : 'La lecture de ce mot est particulière : elle ne se déduit pas des kanji.'}">${INDICE_LABELS[v.indice]}</span>`;
+  return `<span class="registre-badge indice-badge indice-${escapeHtml(v.indice)}" title="${v.indice === 'compteur' ? 'Ce mot est un compteur : pense à la lecture propre à ce compteur.' : (v.indice === 'chiffre' ? 'Ce mot est un chiffre (nombre), pas un compteur.' : 'La lecture de ce mot est particulière : elle ne se déduit pas des kanji.')}">${INDICE_LABELS[v.indice]}</span>`;
 }
 function registreBadge(v) {
   const registre = (!v || !v.registre || !REGISTRE_LABELS[v.registre]) ? ''
@@ -386,6 +386,17 @@ function formatPct(pct) {
   return (Number.isInteger(arrondi) ? String(arrondi) : arrondi.toFixed(1).replace('.', ',')) + ' %';
 }
 
+// Palier de couleur d'une carte de semaine d'apres le meilleur %
+// (retour Lucien 30/09 : 100 % vert, ~60 % orange, ~30 % rouge).
+function classePalierPct(pct) {
+  const n = Number(pct);
+  if (!Number.isFinite(n)) return '';
+  if (n >= 100) return 'palier-parfait';
+  if (n >= 80) return 'palier-bon';
+  if (n >= 40) return 'palier-moyen';
+  return 'palier-faible';
+}
+
 function difficulteDeSession(session) {
   if (session && session.hardcore) return 'difficile';
   if (DB && DB.settings && DB.settings.spectralMode) return 'facile';
@@ -534,6 +545,21 @@ function getScoreCompositePersonnel() {
 // jouees" sur la page Statistiques) -- extrait pour etre reutilisable
 // depuis le resume compact du Profil (demande de Paul, 23/09/2026 :
 // statistiques aussi sur le profil perso, en resume).
+// Meilleur temps personnel : la session la plus rapide terminée à 100 %
+// (un temps sans score parfait ne dit rien). Parcourt l'historique de chaque
+// semaine du mode Vocabulaire. Renvoie { dureeMs, semesterId, week } ou null.
+function meilleurTempsParfait(scores) {
+  let meilleur = null;
+  Object.keys(scores || {}).forEach(cle => {
+    const entry = scores[cle];
+    ((entry && entry.history) || []).forEach(r => {
+      if (!r || Number(r.pct) < 100 || !Number.isFinite(r.dureeMs) || r.dureeMs <= 0) return;
+      if (!meilleur || r.dureeMs < meilleur.dureeMs) meilleur = { dureeMs: r.dureeMs, cle };
+    });
+  });
+  return meilleur;
+}
+
 function getTotalSessionsJouees() {
   let total = 0;
   DB.settings.semesters.forEach(sem => {
@@ -1011,10 +1037,17 @@ function containsKanji(str) {
 // lettres normales"). Appelee apres finaliserKana() : les lettres latines qui
 // restent sont du romaji que la conversion n'a pas pu lire ("l", "x seul"...).
 // Renvoie le message a afficher, ou null si la saisie peut etre notee.
+// Lettres latines, y compris pleines chasse (ｋ, ｊ) : le clavier japonais en
+// mode romaji laisse une consonne pleine chasse en attente ("じんかｋ"), qui
+// passait le controle (retour de Lucien, 30/09/2026). NFKC les ramene en k, j.
+function aDesLettresLatines(str) {
+  return /[A-Za-z]/.test(String(str || '').normalize('NFKC'));
+}
+
 function verifierSaisieJp(val) {
   const t = (val || '').trim();
   if (!t) return 'Écris une réponse avant de valider.';
-  if (/[A-Za-z]/.test(t)) return "Ta réponse contient des lettres latines qui n'ont pas pu être converties en kana. Corrige-la (romaji accepté : ka, shi, tsu…).";
+  if (aDesLettresLatines(t)) return "Ta réponse contient des lettres latines qui n'ont pas pu être converties en kana. Corrige-la (romaji accepté : ka, shi, tsu…).";
   return null;
 }
 
@@ -1550,7 +1583,7 @@ function renderCurrentView() {
   else if (currentView === 'review') renderReview();
   else if (currentView === 'download') renderDownload();
   else if (currentView === 'settings') renderSettings();
-  else if (currentView === 'account' && typeof renderAccount === 'function') renderAccount();
+  else if (currentView === 'account' && typeof renderAccount === 'function') renderAccount(null);
   else if (currentView === 'leaderboard' && typeof renderLeaderboard === 'function') renderLeaderboard();
   else if (currentView === 'decks' && typeof renderDecks === 'function') renderDecks();
   else if (currentView === 'publier' && typeof renderPublier === 'function') renderPublier();
@@ -1562,18 +1595,21 @@ function renderCurrentView() {
   else if (currentView === 'boutique' && typeof renderBoutique === 'function') renderBoutique();
   else if (currentView === 'parties' && typeof renderParties === 'function') renderParties();
   else if (currentView === 'aide' && typeof renderAide === 'function') renderAide();
-  else if (currentView === 'historique' && typeof renderHistorique === 'function') renderHistorique();
+  else if (currentView === 'historique' && typeof renderHistorique === 'function') renderHistorique(null);
   renderSidebarFooter();
   renderTopbarProfil();
   brancherRechercheGlobale();
 }
 
 // Voyant de synchronisation a la place du compteur de mots (30/09/2026).
+// Retour de Lucien (30/09/2026) : le voyant changeait a chaque reponse
+// ("Envoi…" orange puis "Synchronise"), c'etait agacant. Il reste donc VERT et
+// discret ("Sync") tant que tout va bien, y compris pendant un envoi (rapide);
+// il ne passe au rouge que si la synchronisation echoue.
 function voyantSyncInfos(etat, connecte) {
   if (!connecte) return { classe: 'local', texte: 'Local', titre: 'Non connecté : tes données restent sur cet appareil.' };
-  if (etat === 'envoi') return { classe: 'envoi', texte: 'Envoi…', titre: 'Synchronisation en cours.' };
-  if (etat === 'erreur') return { classe: 'erreur', texte: 'Non synchronisé', titre: 'La dernière synchronisation a échoué. Elle sera retentée à ta prochaine action.' };
-  return { classe: 'ok', texte: 'Synchronisé', titre: 'Ta progression est sauvegardée en ligne.' };
+  if (etat === 'erreur') return { classe: 'erreur', texte: 'Non synchronisé', titre: 'La dernière synchronisation a échoué (serveur ou connexion). Elle sera retentée à ta prochaine action.' };
+  return { classe: 'ok', texte: 'Sync', titre: 'En ligne : ta progression est sauvegardée.' };
 }
 
 function renderSidebarFooter() {
@@ -1605,6 +1641,39 @@ function brancherRechercheGlobale() {
 // bouton cliquable pose a cote de chaque deck/avis (voir profils.js) : meme
 // avatar, meme pseudo, meme clic delegue au document qui ouvre la page de
 // profil -- aucun nouveau mecanisme de clic a brancher ici.
+// Pastille « demandes d'amis à traiter » à côté du pseudo (retour Lucien
+// 30/09 : aucune notification). Clic = onglet Amis de son profil.
+function majPastilleAmis() {
+  const zone = $('#topbarProfil');
+  if (!zone) return;
+  const ancienne = zone.querySelector('.notif-pastille');
+  if (ancienne) ancienne.remove();
+  const n = window.kvtAmis && window.kvtAmis.nbDemandesRecues ? window.kvtAmis.nbDemandesRecues() : 0;
+  // Pastille de l'onglet Amis du profil, si elle est affichée.
+  document.querySelectorAll('.profil-onglet .notif-pastille').forEach(p => { if (n) p.textContent = String(n); else p.remove(); });
+  if (!n || !window.accountUser) return;
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'notif-pastille notif-pastille--topbar';
+  b.textContent = n > 9 ? '9+' : String(n);
+  b.title = n + ' demande' + (n > 1 ? 's' : '') + " d'ami à traiter";
+  b.addEventListener('click', () => { if (window.kvtProfilPublic) window.kvtProfilPublic.ouvrirMonProfil('amis'); });
+  zone.appendChild(b);
+}
+if (typeof window !== "undefined") window.kvtMajPastilleAmis = majPastilleAmis;
+
+// Vérifie de temps en temps s'il y a de nouvelles demandes (toutes les 2 min,
+// seulement onglet visible et connecté).
+let minuterieAmis = null;
+function demarrerVeilleAmis() {
+  if (minuterieAmis) return;
+  minuterieAmis = setInterval(async () => {
+    if (!window.accountUser || !window.kvtAmis || document.hidden) return;
+    await window.kvtAmis.rechargerAmities();
+    majPastilleAmis();
+  }, 120000);
+}
+
 async function renderTopbarProfil() {
   const zone = $('#topbarProfil');
   if (!zone || !window.kvtProfils) return;
@@ -1620,6 +1689,11 @@ async function renderTopbarProfil() {
   if (!window.kvtProfils.profilDe(u.id)) {
     await window.kvtProfils.chargerProfils([u.id]);
     if (window.accountUser === u) zone.innerHTML = window.kvtProfils.auteurHtml(u.id, u.pseudo, 26);
+  }
+  majPastilleAmis();
+  demarrerVeilleAmis();
+  if (window.kvtAmis && !window.kvtAmis.estChargee()) {
+    window.kvtAmis.assurerAmitiesChargees().then(() => { if (window.accountUser === u) majPastilleAmis(); });
   }
 }
 
@@ -1912,7 +1986,7 @@ function renderDashboard() {
       const typeTagProgress = saved
         ? `<span class="week-type-tag">${escapeHtml(libelleFiltreMots(saved.verbeFilter))}</span>` : '';
       html += `
-        <div class="week-card ${vocabList.length === 0 ? 'empty' : ''}" data-sem="${sem.id}" data-week="${w}">
+        <div class="week-card ${vocabList.length === 0 ? 'empty' : ''} ${entry ? classePalierPct(entry.best.pct) : ''} ${entry && entry.best.difficulte === 'difficile' ? 'week-card--hardcore' : ''}" data-sem="${sem.id}" data-week="${w}">
           <div class="week-num">${unitPrefix}${w}</div>
           <div class="week-meta">${groups.length} kanji · ${vocabList.length} mots</div>
           ${entry ? `<div class="week-score">${entry.best.points}/${entry.best.maxPoints} pts <span class="week-score-pct">(${formatPct(entry.best.pct)})</span> ${typeTagScore}</div>` : '<div class="week-score muted">—</div>'}
@@ -1947,13 +2021,17 @@ function renderDashboard() {
     const countModal = filtrerVocabParVerbe(vocabModalTous, reviewVerbeFilter).length;
     html += `
       <div class="modal-backdrop" id="modalSemaineBackdrop">
-        <div class="modal-box">
-          <div class="modal-tete">
-            <h3>${escapeHtml(semModal.label)} — Semaine ${weekModal}</h3>
+        <div class="modal-box modal-box--semaine">
+          <div class="modal-tete modal-tete--semaine">
+            <h3><span class="modal-semestre">${escapeHtml(semModal.label)}</span><span class="modal-semaine-titre">Semaine ${weekModal}</span></h3>
             <button class="modal-fermer" id="btnFermerModalSemaine" title="Fermer" aria-label="Fermer">✕</button>
           </div>
           ${vocabModalTous.length > 0 ? `
-            <button type="button" class="secondary small" id="btnVoirVocabModalSemaine" style="margin-bottom:10px;">Voir le vocabulaire de cette semaine</button>
+            <div class="modal-apercu" aria-label="Aperçu du vocabulaire">
+              ${vocabModalTous.slice(0, 8).map(v => `<span class="modal-apercu__mot" title="${escapeHtml(v.lecture || '')}">${escapeHtml(v.mot)}</span>`).join('')}
+              ${vocabModalTous.length > 8 ? `<span class="modal-apercu__reste">+${vocabModalTous.length - 8}</span>` : ''}
+            </div>
+            <button type="button" class="secondary small" id="btnVoirVocabModalSemaine" style="margin-bottom:12px;">Voir tout le vocabulaire de cette semaine</button>
           ` : ''}
           ${savedModal ? `
             <div class="modal-reprise">
@@ -1967,11 +2045,16 @@ function renderDashboard() {
               Meilleur score : ${entryModal.best.points}/${entryModal.best.maxPoints} pts (${formatPct(entryModal.best.pct)})${entryModal.best.verbeFilter ? ' · ' + escapeHtml(libelleFiltreMots(entryModal.best.verbeFilter)) : ''}
             </div>
           ` : ''}
-          <div class="filtre-mode">
-            <label><input type="radio" name="modalMode" value="vocab" checked> Vocabulaire</label>
-            <label><input type="radio" name="modalMode" value="ecriture"> Écriture</label>
-            <label><input type="radio" name="modalMode" value="traduction"> Traduction</label>
-            <label><input type="radio" name="modalMode" value="double"> Double réponse</label>
+          <div class="filtre-mode filtre-mode--aide">
+            ${[
+              ['vocab', 'Vocabulaire', "On te montre le mot japonais : tu écris sa lecture en kana. Noté, avec un temps et un classement."],
+              ['ecriture', 'Écriture', "On te montre la lecture : tu écris le kanji sur papier, puis tu révèles la réponse et tu te corriges toi-même. Pas de note."],
+              ['traduction', 'Traduction', "On te donne le sens en français : tu réponds en kanji ou en kana. Noté."],
+              ['double', 'Double réponse', "Pour chaque mot, tu donnes à la fois la lecture (kana) et le sens (français). Noté."]
+            ].map(([val, lib, aide], i) => `
+              <label class="mode-choix"><input type="radio" name="modalMode" value="${val}" ${i === 0 ? 'checked' : ''}> ${lib}
+                <span class="aide-bulle" tabindex="0" role="note" aria-label="${escapeHtml(aide)}" data-aide="${escapeHtml(aide)}">?</span>
+              </label>`).join('')}
           </div>
           <div class="filtre-mots">
             <label><input type="checkbox" id="chkModalMotsGroupe" ${filtreGroupeCocheModal ? 'checked' : ''}> Mots à kanji groupés</label>
@@ -2126,6 +2209,9 @@ function renderDashboard() {
     // la meme semaine dans le menu deroulant -- 3 etapes pour revoir des
     // mots qu'on a justement la semaine sous les yeux ici. N'apparait que
     // s'il y a du vocabulaire pour cette semaine (voir le rendu plus haut).
+    // Le « ? » est dans le label du bouton radio : sans ça, le consulter
+    // changerait le mode choisi.
+    $$('.aide-bulle').forEach(b => b.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); }));
     const btnVoirVocabModal = $('#btnVoirVocabModalSemaine');
     if (btnVoirVocabModal) {
       btnVoirVocabModal.addEventListener('click', () => {
@@ -3651,7 +3737,7 @@ function renderDoubleQuizView(container) {
       const valLecture = finaliserKana(inputLecture.value, false);
       const valSens = inputSens.value;
       if (!valLecture.trim() && !valSens.trim()) { quizSession.warning = 'Écris une réponse avant de valider.'; renderReview(); return; }
-      if (/[A-Za-z]/.test(valLecture)) { quizSession.warning = "Ta lecture contient des lettres latines qui n'ont pas pu être converties en kana. Corrige-la."; renderReview(); return; }
+      if (aDesLettresLatines(valLecture)) { quizSession.warning = "Ta lecture contient des lettres latines qui n'ont pas pu être converties en kana. Corrige-la."; renderReview(); return; }
       quizSession.warning = null;
       const result = scoreDoubleAnswer(valLecture, valSens, v);
       quizSession.submitted = true;
