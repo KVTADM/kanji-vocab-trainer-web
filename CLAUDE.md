@@ -101,6 +101,7 @@ Toute session non triviale se termine par une entrée dans `00 - Notes projet/03
 - `admin.js` : vue Admin (probablement réservée à Paul).
 - `leaderboard.js` : classement de classe (Supabase).
 - `ads.js` : Google AdSense + bandeau de consentement cookies RGPD maison — aucune requête pub tant que le consentement n'est pas donné, aucune pub si compte Pro.
+- `historique.js` : vue Historique (30/09/2026) — tes 30 dernières sessions avec le détail des réponses (`DB.historiqueReponses`, privé, fusionné entre appareils) et l'activité des amis (leurs records du classement).
 - `manifest.json` / `service-worker.js` : PWA installable.
 - `outils/generer-pages-deck.js` : génère `/deck/<slug>/` et `sitemap.xml` depuis Supabase, lancé par `deploy.sh` avant la publication. Ces pages sont les seules du site dont le texte existe dans le HTML servi — tout le reste est fabriqué dans le navigateur. `/deck/` et `sitemap.xml` sont gitignorés (régénérés à chaque déploiement).
 - `mesure.js` : comptage d'audience anonyme (page, provenance `?ref=`, cinq paliers) vers la table `visites`. Aucune donnée personnelle, donc aucun consentement à demander — ne jamais y ajouter d'identifiant de compte ni de stockage persistant.

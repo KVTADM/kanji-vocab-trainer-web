@@ -30,7 +30,7 @@ async function chargerProfilPublic(userId) {
   const res = { profil: null, decks: [], avis: [], amis: null };
   try {
     const requetes = [
-      window.sb.from('profiles').select('id,pseudo,avatar_url,niveau,bio,created_at,banniere_active,hexagone_stats,titre_actif,bordure_active,pseudo_style')
+      window.sb.from('profiles').select('id,pseudo,avatar_url,niveau,bio,created_at,banniere_active,hexagone_stats,titre_actif,bordure_active,pseudo_style,niveau_jeu')
         .eq('id', userId).maybeSingle()
         .then(r => { res.profil = r.data || null; }),
 
@@ -101,6 +101,10 @@ function badgesDe(profil, decks, avis) {
   if (profil && profil.niveau && window.kvtProfils) {
     const lib = window.kvtProfils.libelleNiveau(profil.niveau);
     if (lib && lib !== 'Non précisé') liste.push([lib, 'niveau déclaré']);
+  }
+  if (profil && profil.niveau_jeu >= 1 && typeof rangDepuisNiveau === 'function') {
+    const r = rangDepuisNiveau(profil.niveau_jeu);
+    liste.unshift([`${r.emoji} ${r.nom} · niv. ${profil.niveau_jeu}`, 'Niveau de jeu et rang']);
   }
   if (profil && profil.titre_actif && typeof objetBoutique === 'function') {
     const t = objetBoutique(profil.titre_actif);
@@ -236,7 +240,7 @@ function renderProfilPublic() {
 
   el.innerHTML = `
     ${retour}
-    <header class="profil-entete card ${typeof classeBordure === 'function' ? classeBordure(profil.bordure_active) : ''}">
+    <header class="profil-entete card">
       ${typeof classeBanniere === 'function' && classeBanniere(profil.banniere_active) ? `<div class="profil-banniere ${classeBanniere(profil.banniere_active)}"></div>` : ''}
       <div class="profil-entete__haut">
         ${window.kvtProfils ? window.kvtProfils.avatarHtml(profil.id, profil.pseudo, 72) : ''}

@@ -694,3 +694,61 @@ function renderClassementAccueilWidget() {
   const btn = $('#btnVoirClassement');
   if (btn) btn.addEventListener('click', () => switchView('leaderboard'));
 }
+
+
+// ============================================================
+// Classement de la semaine sur l'ecran de fin de session (liste de Paul,
+// 30/09/2026 : "classement visible au resultat du quiz"). Le resultat garde
+// sa carte, le classement de cette semaine (meme mode) s'affiche a droite :
+// meme regle que partout (% > difficulte > temps, sessions completes).
+// ============================================================
+function ajouterClassementResultat(container, mode, semesterId, week) {
+  if (!window.accountUser || !container || typeof document === 'undefined') return;
+  const boite = container.querySelector('.kvt-result');
+  if (!boite || (boite.parentElement && boite.parentElement.classList.contains('kvt-result-page'))) return;
+  const page = document.createElement('div');
+  page.className = 'kvt-result-page';
+  boite.replaceWith(page);
+  page.appendChild(boite);
+  const aside = document.createElement('aside');
+  aside.className = 'kvt-result-classement';
+  aside.innerHTML = '<h3>Classement de la semaine</h3><p class="kvt-result-classement__vide">Chargement…</p>';
+  page.appendChild(aside);
+  // Petit delai : le score de la session vient d'etre envoye, on lui laisse
+  // le temps d'arriver pour que le joueur se voie dans la liste.
+  setTimeout(() => remplirClassementResultat(aside, mode, semesterId, week), 1400);
+}
+
+function htmlClassementResultat(lignes, monId) {
+  const tri = lignesCompletes(lignes).slice().sort(ordreLignes);
+  if (!tri.length) return '<p class="kvt-result-classement__vide">Personne n\'est encore classé cette semaine.</p>';
+  const monIndex = tri.findIndex(r => r.user_id === monId);
+  const visibles = tri.slice(0, 5).map((r, i) => ({ r, rang: i + 1 }));
+  if (monIndex >= 5) visibles.push({ r: tri[monIndex], rang: monIndex + 1, apres: true });
+  const ligne = ({ r, rang, apres }) => `
+    ${apres ? '<li class="kvt-result-classement__sep">…</li>' : ''}
+    <li class="kvt-result-classement__ligne${r.user_id === monId ? ' est-moi' : ''}">
+      <span class="kvt-result-classement__rang">${rang}</span>
+      <span class="kvt-result-classement__nom">${window.kvtProfils ? window.kvtProfils.auteurHtml(r.user_id, r.pseudo, 22) : escapeHtml(r.pseudo || '?')}</span>
+      <span class="kvt-result-classement__score">${formatPct(r.pct)}${badgeDifficulte(r.difficulte)}<small>${tempsTexte(r.duree_ms)}</small></span>
+    </li>`;
+  const place = monIndex >= 0 ? `<p class="kvt-result-classement__place">Tu es <strong>${monIndex + 1}<sup>${monIndex === 0 ? 'er' : 'e'}</sup></strong> sur ${tri.length}.</p>` : '';
+  return `${place}<ol class="kvt-result-classement__liste">${visibles.map(ligne).join('')}</ol>`;
+}
+
+async function remplirClassementResultat(aside, mode, semesterId, week) {
+  try {
+    const { data, error } = await window.sb
+      .from('scores')
+      .select('user_id,pseudo,mode,semester_id,week,pct,max_points,duree_ms,difficulte,verbe_filter')
+      .eq('mode', mode).eq('semester_id', semesterId).eq('week', week)
+      .limit(500);
+    if (error) throw error;
+    const lignes = data || [];
+    if (window.kvtProfils) await window.kvtProfils.chargerProfils(lignes.map(r => r.user_id));
+    if (!aside.isConnected) return;
+    aside.innerHTML = '<h3>Classement de la semaine</h3>' + htmlClassementResultat(lignes, window.accountUser && window.accountUser.id);
+  } catch (e) {
+    if (aside.isConnected) aside.innerHTML = '<h3>Classement de la semaine</h3><p class="kvt-result-classement__vide">Classement indisponible pour le moment.</p>';
+  }
+}

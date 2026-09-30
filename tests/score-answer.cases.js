@@ -62,3 +62,41 @@ essai('virgule et "/" peuvent se combiner dans le meme champ sans casser les alt
   const r = scoreAnswer('かど', 'もん / かど, porte');
   if (r.pct !== 1) throw new Error('attendu 100%, obtenu ' + JSON.stringify(r));
 });
+
+// Signale par Lucien le 29/09/2026 (boite a problemes).
+essai('la ponctuation attendue (！) n\'a pas a etre tapee : あぶない = 危ない！ a 100%', () => {
+  const r = scoreAnswer('あぶない', 'あぶない！');
+  if (r.pct !== 1) throw new Error('attendu 100%, obtenu ' + JSON.stringify(r));
+});
+
+essai('la ponctuation tapee en trop est ignoree aussi (symetrique)', () => {
+  const r = scoreAnswer('あぶない!', 'あぶない');
+  if (r.pct !== 1) throw new Error('attendu 100%, obtenu ' + JSON.stringify(r));
+});
+
+essai('chiffres normaux tapes pour des chiffres pleine chasse : とうきょうの23く = とうきょうの２３く', () => {
+  const r = scoreAnswer('とうきょうの23く', 'とうきょうの２３く');
+  if (r.pct !== 1) throw new Error('attendu 100%, obtenu ' + JSON.stringify(r));
+});
+
+essai('le ー des katakana n\'est pas pris pour de la ponctuation', () => {
+  const r = scoreAnswer('すーぱー', 'スーパー');
+  if (r.pct !== 1) throw new Error('attendu 100% (ー conserve), obtenu ' + JSON.stringify(r));
+  const r2 = scoreAnswer('すぱ', 'スーパー');
+  if (r2.pct >= 1) throw new Error('un ー manquant ne doit pas donner 100%');
+});
+
+essai('une vraie faute reste penalisee malgre la ponctuation retiree', () => {
+  const r = scoreAnswer('あぶなし', 'あぶない！');
+  if (r.pct >= 1) throw new Error('faute non detectee : ' + JSON.stringify(r));
+});
+
+essai('une lecture faite uniquement de symboles garde sa version brute', () => {
+  const r = scoreAnswer('！', '！');
+  if (r.pct !== 1) throw new Error('attendu 100%, obtenu ' + JSON.stringify(r));
+});
+
+essai('身体 accepte しんたい ET からだ (lectures multiples)', () => {
+  if (scoreAnswer('しんたい', 'からだ / しんたい').pct !== 1) throw new Error('しんたい refuse');
+  if (scoreAnswer('からだ', 'からだ / しんたい').pct !== 1) throw new Error('からだ refuse');
+});

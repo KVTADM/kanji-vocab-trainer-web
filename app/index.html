@@ -71,6 +71,7 @@
                    28/09/2026) juste apres l'ajout en position visible -- a
                    remonter dans la barre plus tard seulement en retirant autre
                    chose a la place, pas en ajoutant tel quel. -->
+              <button class="nav-btn" data-view="historique">Historique</button>
               <button class="nav-btn" data-view="parties">Parties</button>
               <button class="nav-btn" data-view="aide">Aide &amp; problèmes</button>
               <button class="nav-btn" data-view="download">Applications</button>
@@ -81,6 +82,7 @@
           </div>
         </nav>
         <div class="kvt-topbar__end">
+          <input type="search" id="rechercheGlobale" class="recherche-globale" placeholder="Rechercher un mot" aria-label="Rechercher un mot dans tout le cursus" autocomplete="off">
           <span class="sidebar-footer" id="weekBadge"></span>
           <!-- Acces rapide a son propre profil (23/09/2026, demande de Paul) :
                rempli par renderTopbarProfil() dans app.js, avec le meme
@@ -126,6 +128,7 @@
       <section id="view-leaderboard" class="view"></section>
       <section id="view-aide" class="view"></section>
       <section id="view-parties" class="view"></section>
+      <section id="view-historique" class="view"></section>
       <section id="view-decks" class="view"></section>
       <section id="view-publier" class="view"></section>
       <section id="view-deck" class="view"></section>
@@ -167,6 +170,7 @@
   <script src="/leaderboard.js"></script>
   <script src="/parties.js"></script>
   <script src="/aide.js"></script>
+  <script src="/historique.js"></script>
   <script src="/decks.js"></script>
   <script src="/maj.js"></script>
   <script src="/communaute.js"></script>

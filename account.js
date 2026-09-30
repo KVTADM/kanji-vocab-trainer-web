@@ -135,6 +135,11 @@ function fusionnerSauvegardes(local, cloud, base) {
     });
     res.wordStats = ws;
   }
+  if (local.historiqueReponses || cloud.historiqueReponses) {
+    res.historiqueReponses = window.kvtHistorique
+      ? window.kvtHistorique.fusionnerHistoriques(local.historiqueReponses, cloud.historiqueReponses)
+      : (local.historiqueReponses || cloud.historiqueReponses);
+  }
   const gl = local.gamification, gc = cloud.gamification;
   if (gl && gc) {
     const g = Object.assign({}, gl);
@@ -253,9 +258,23 @@ function rerendreSiSansRisque() {
   if (['dashboard', 'manage', 'account', 'settings', 'admin', 'communaute'].includes(currentView)) renderCurrentView();
 }
 
+// Voyant de synchro (30/09/2026, demande de Paul : remplacer "4930 mots au
+// total / sauvegarde locale active" par un voyant vert/rouge) :
+// 'local' (pas connecte), 'envoi', 'ok', 'erreur'.
+window.kvtEtatSync = 'local';
+function kvtChangerEtatSync(etat) {
+  window.kvtEtatSync = etat;
+  if (typeof renderSidebarFooter === 'function') renderSidebarFooter();
+}
+
 window.kvtPushCloud = function (data, options) {
+  if (window.accountUser) kvtChangerEtatSync('envoi');
   const tache = kvtFilePush.then(() => kvtPushCloudMaintenant(data, options || {}));
   kvtFilePush = tache.catch(() => {});
+  tache.then(
+    res => { if (window.accountUser) kvtChangerEtatSync(res && res.ok ? 'ok' : (res && res.motif === 'non-connecte' ? 'local' : 'erreur')); },
+    () => kvtChangerEtatSync('erreur')
+  );
   return tache;
 };
 
@@ -310,7 +329,9 @@ async function kvtVerifierCloudAuChargement() {
     .select('data, updated_at')
     .eq('user_id', window.accountUser.id)
     .maybeSingle();
-  if (error || !ligne || !ligne.data) return;
+  if (error) { kvtChangerEtatSync('erreur'); return; }
+  if (!ligne || !ligne.data) return;
+  kvtChangerEtatSync('ok');
   const avant = JSON.stringify(DB);
   const fusion = fusionnerSauvegardes(DB, ligne.data, kvtBaseSync);
   noterBaseSync(ligne.updated_at, ligne.data);
@@ -327,6 +348,7 @@ async function kvtVerifierCloudAuChargement() {
   // Remet au classement la meilleure session complete de chaque semaine
   // (remplace les lignes issues de sessions filtrees, voir kvtPushAllScores).
   if (typeof window.kvtPushAllScores === 'function') window.kvtPushAllScores(DB);
+  if (typeof synchroniserNiveauJeu === 'function') synchroniserNiveauJeu();
 }
 
 // --- Sauvegardes automatiques horodatées (user_backups_history, table

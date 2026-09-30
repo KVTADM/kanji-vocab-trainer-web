@@ -299,8 +299,23 @@ function gagnerXp(points, semesterId) {
   const niveauAvant = niveauDepuisXp(g.xp);
   g.xp += gain;
   const niveauApres = niveauDepuisXp(g.xp);
-  if (niveauApres > niveauAvant) noterMonteeNiveau(niveauAvant, niveauApres);
+  if (niveauApres > niveauAvant) {
+    noterMonteeNiveau(niveauAvant, niveauApres);
+    synchroniserNiveauJeu();
+  }
   return gain;
+}
+
+// Niveau de jeu visible par les autres (profiles.niveau_jeu), pour le rang
+// affiche a cote du pseudo (30/09/2026). Silencieux : un echec n'empeche rien,
+// la prochaine montee de niveau ou le prochain chargement reessaiera.
+async function synchroniserNiveauJeu() {
+  try {
+    if (!window.accountUser || !window.kvtProfils || typeof window.kvtProfils.enregistrerProfil !== 'function') return;
+    const niveau = niveauDepuisXp(assurerGamification().xp);
+    if (!(niveau >= 1) || window.accountUser.niveau_jeu === niveau) return;
+    await window.kvtProfils.enregistrerProfil({ niveau_jeu: niveau });
+  } catch (e) { /* voir ci-dessus */ }
 }
 
 // ---------- Celebration de niveau / de rang (29/09/2026) ----------
@@ -339,7 +354,7 @@ function celebrerProgressionSiBesoin() {
   document.body.appendChild(el);
   const retirer = () => { el.classList.add('celebration--sortie'); setTimeout(() => el.remove(), 400); };
   el.addEventListener('click', retirer);
-  setTimeout(retirer, contenu.changeRang ? 4200 : 2600);
+  setTimeout(retirer, contenu.changeRang ? 6500 : 4500);
 }
 
 function gagnerPieces(points, semesterId) {
@@ -738,12 +753,27 @@ function boutiqueBouton(o, g, pro, niveauActuel) {
 
   if (GAMIF_SLOTS_PROFIL[o.type]) {
     const actifProfil = g[GAMIF_SLOTS_PROFIL[o.type].slot] === o.id;
-    return `<button class="secondary" data-equiper-profil="${o.type}|${o.id}" ${actifProfil ? 'disabled' : ''}>${actifProfil ? 'Équipé' : 'Équiper'}</button>`;
+    return actifProfil
+      ? `<button class="secondary boutique-equipe" data-desequiper="${o.type}" title="Cliquer pour déséquiper">✓ Équipé — Retirer</button>`
+      : `<button class="secondary" data-equiper-profil="${o.type}|${o.id}">Équiper</button>`;
   }
   const slot = o.type === 'banniere' ? 'banniereActive' : (o.type === 'collation' ? 'collationActive' : 'titreActif');
   const actif = g[slot] === o.id;
   const attrEquiper = o.type === 'banniere' ? 'data-equiper-banniere' : (o.type === 'collation' ? 'data-equiper-collation' : 'data-equiper');
-  return `<button class="secondary" ${attrEquiper}="${o.id}" ${actif ? 'disabled' : ''}>${actif ? 'Équipé' : 'Équiper'}</button>`;
+  return actif
+    ? `<button class="secondary boutique-equipe" data-desequiper="${o.type}" title="Cliquer pour déséquiper">✓ Équipé — Retirer</button>`
+    : `<button class="secondary" ${attrEquiper}="${o.id}">Équiper</button>`;
+}
+
+// Equipe l'objet qui vient d'etre achete, quel que soit son type (30/09/2026,
+// liste de Paul : "quand tu achete ca equipe pas automatiquement, faut
+// cliquer plusieurs fois"). Et son inverse pour le bouton "Retirer".
+async function equiperObjetParType(type, id) {
+  if (GAMIF_SLOTS_PROFIL[type]) return equiperCosmetiqueProfil(type, id);
+  if (type === 'banniere') return equiperBanniere(id);
+  if (type === 'collation') return equiperCollation(id);
+  if (type === 'titre') return equiperTitre(id);
+  return { ok: false };
 }
 
 function renderBoutique() {
@@ -809,12 +839,20 @@ function renderBoutique() {
     };
   }
   $$('[data-acheter]', container).forEach(b => {
-    b.onclick = () => {
+    b.onclick = async () => {
       const res = acheterObjet(b.dataset.acheter);
       if (!res.ok) { showToast('Achat impossible.'); return; }
-      showToast('Objet acheté !');
+      const objet = objetBoutique(b.dataset.acheter);
+      const equipable = objet && ['bordure', 'pseudo', 'banniere', 'collation', 'titre'].includes(objet.type);
+      if (equipable) {
+        const eq = await equiperObjetParType(objet.type, objet.id);
+        showToast(eq.ok ? 'Objet acheté et équipé !' : 'Objet acheté (à équiper depuis la boutique).');
+      } else {
+        showToast('Objet acheté !');
+      }
       persist();
       renderBoutique();
+      if (typeof renderTopbarProfil === 'function') renderTopbarProfil();
     };
   });
   $$('[data-equiper]', container).forEach(b => {
@@ -840,10 +878,22 @@ function renderBoutique() {
       if (!res.ok) showToast("Impossible d'équiper cet objet pour l'instant.");
       persist();
       renderBoutique();
+      // Signale par Lucien le 29/09/2026 ("on voit rien nulle part") : le
+      // pseudo du bandeau du haut n'etait redessine qu'au rechargement.
+      if (typeof renderTopbarProfil === 'function') renderTopbarProfil();
+    };
+  });
+  $$('[data-desequiper]', container).forEach(b => {
+    b.onclick = async () => {
+      b.disabled = true;
+      await equiperObjetParType(b.dataset.desequiper, null);
+      persist();
+      renderBoutique();
+      if (typeof renderTopbarProfil === 'function') renderTopbarProfil();
     };
   });
   $$('[data-retirer-profil]', container).forEach(b => {
-    b.onclick = async () => { await equiperCosmetiqueProfil(b.dataset.retirerProfil, null); persist(); renderBoutique(); };
+    b.onclick = async () => { await equiperCosmetiqueProfil(b.dataset.retirerProfil, null); persist(); renderBoutique(); if (typeof renderTopbarProfil === 'function') renderTopbarProfil(); };
   });
   const btnRetirerTitre = $('[data-retirer-titre]', container);
   if (btnRetirerTitre) btnRetirerTitre.onclick = async () => { await equiperTitre(null); persist(); renderBoutique(); };

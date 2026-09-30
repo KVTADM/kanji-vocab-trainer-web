@@ -68,9 +68,26 @@ function escapeHtml(str) {
 // parenthese dans la traduction -- affiche partout ou mot/lecture/sens
 // sont montres (tableau de traduction, cartes de quiz).
 const REGISTRE_LABELS = { poli: 'poli', humble: 'humble', familier: 'familier', litteraire: 'litteraire' };
+// Precisions sur un mot (liste de Paul, 30/09/2026, suite de la demande sur le
+// registre) : "compteur" (ex. 一台 -> il faut penser au compteur) et "lecture
+// particuliere" (ex. 一人 = ひとり, 二十歳 = はたち : la lecture n'est pas
+// celle qu'on deduirait des kanji). Champ vocab.indice, pose par la migration
+// INDICES_A_PRECISER de webapi.js.
+const INDICE_LABELS = { 'compteur': 'compteur', 'lecture-speciale': 'lecture particulière' };
+function indiceBadge(v) {
+  if (!v || !v.indice || !INDICE_LABELS[v.indice]) return '';
+  return `<span class="registre-badge indice-badge indice-${escapeHtml(v.indice)}" title="${v.indice === 'compteur' ? 'Ce mot est un compteur : pense à la lecture propre à ce compteur.' : 'La lecture de ce mot est particulière : elle ne se déduit pas des kanji.'}">${INDICE_LABELS[v.indice]}</span>`;
+}
 function registreBadge(v) {
-  if (!v || !v.registre || !REGISTRE_LABELS[v.registre]) return '';
-  return `<span class="registre-badge registre-${escapeHtml(v.registre)}">${REGISTRE_LABELS[v.registre]}</span>`;
+  const registre = (!v || !v.registre || !REGISTRE_LABELS[v.registre]) ? ''
+    : `<span class="registre-badge registre-${escapeHtml(v.registre)}">${REGISTRE_LABELS[v.registre]}</span>`;
+  return registre + indiceBadge(v);
+}
+// Sous le mot pose en question : sans l'indice, on ne sait pas qu'un compteur
+// est attendu.
+function indiceQuestionHtml(v) {
+  const badge = indiceBadge(v);
+  return badge ? `<div class="indice-question">${badge}</div>` : '';
 }
 
 function shuffle(arr) {
@@ -949,6 +966,17 @@ function substitutionCost(x, y) {
   return 1;
 }
 
+// Mots longs (signale par Lucien le 29/09/2026 : "『白鳥の湖』" se coupait
+// en "『白鳥の" / "湖』" a 64px, la 2e ligne decalee). On reduit la taille
+// selon le nombre de caracteres pour que le mot tienne sur une ligne, et le
+// CSS equilibre les lignes s'il faut quand meme couper.
+function classeTailleMot(mot) {
+  const n = Array.from(mot || '').length;
+  if (n >= 12) return ' front-word--tres-long';
+  if (n >= 6) return ' front-word--long';
+  return '';
+}
+
 function levenshtein(a, b) {
   const m = a.length, n = b.length;
   if (m === 0) return n;
@@ -978,6 +1006,18 @@ function containsKanji(str) {
   return /[一-鿿㐀-䶿]/.test(str || '');
 }
 
+// Validation d'une saisie japonaise (30/09/2026, liste d'idees de Paul :
+// "pas possible de valider sans rien" et "pas possible de soumettre avec des
+// lettres normales"). Appelee apres finaliserKana() : les lettres latines qui
+// restent sont du romaji que la conversion n'a pas pu lire ("l", "x seul"...).
+// Renvoie le message a afficher, ou null si la saisie peut etre notee.
+function verifierSaisieJp(val) {
+  const t = (val || '').trim();
+  if (!t) return 'Écris une réponse avant de valider.';
+  if (/[A-Za-z]/.test(t)) return "Ta réponse contient des lettres latines qui n'ont pas pu être converties en kana. Corrige-la (romaji accepté : ka, shi, tsu…).";
+  return null;
+}
+
 // Le katakana et le hiragana notent les mêmes sons avec des caractères
 // Unicode différents : sans conversion, une réponse juste écrite en
 // katakana serait comparée lettre à lettre à la bonne réponse en hiragana
@@ -1005,9 +1045,24 @@ function sansEspaces(str) {
   return (str || '').replace(/[\s\u200B]+/g, '');
 }
 
+// Signale par Lucien le 29/09/2026 (boite a problemes) : "危ない！" attendu
+// avec sa ponctuation, "あぶない" tape sans -> 80% ; et "東京の２３区"
+// (chiffres pleine chasse) attendu, "とうきょうの23く" tape en chiffres
+// normaux -> 78%. Personne ne tape le "！" ni les "２３" pleine chasse en
+// repondant : on ramene les deux cotes en NFKC (２３ -> 23, ｶ -> カ) et on
+// retire ponctuation et symboles (！？。、・「」『』〜...), en gardant ー
+// (lettre, pas ponctuation). Symetrique, donc sans effet sur une lecture
+// deja identique des deux cotes. Garde-fou : si tout disparait (lecture
+// faite uniquement de symboles), on garde la version brute.
+function sansPonctuationJp(str) {
+  const nfkc = (str || '').normalize('NFKC');
+  const nette = nfkc.replace(/[\p{P}\p{S}]+/gu, '');
+  return nette.length > 0 ? nette : nfkc;
+}
+
 function similarity(input, correct) {
-  const a = toHiragana(sansEspaces((input || '').trim()));
-  const b = toHiragana(sansEspaces((correct || '').trim()));
+  const a = toHiragana(sansEspaces(sansPonctuationJp((input || '').trim())));
+  const b = toHiragana(sansEspaces(sansPonctuationJp((correct || '').trim())));
   if (a.length === 0 && b.length === 0) return 1;
   if (b.length === 0) return a.length === 0 ? 1 : 0;
   const dist = levenshtein(a, b);
@@ -1507,12 +1562,41 @@ function renderCurrentView() {
   else if (currentView === 'boutique' && typeof renderBoutique === 'function') renderBoutique();
   else if (currentView === 'parties' && typeof renderParties === 'function') renderParties();
   else if (currentView === 'aide' && typeof renderAide === 'function') renderAide();
+  else if (currentView === 'historique' && typeof renderHistorique === 'function') renderHistorique();
   renderSidebarFooter();
   renderTopbarProfil();
+  brancherRechercheGlobale();
+}
+
+// Voyant de synchronisation a la place du compteur de mots (30/09/2026).
+function voyantSyncInfos(etat, connecte) {
+  if (!connecte) return { classe: 'local', texte: 'Local', titre: 'Non connecté : tes données restent sur cet appareil.' };
+  if (etat === 'envoi') return { classe: 'envoi', texte: 'Envoi…', titre: 'Synchronisation en cours.' };
+  if (etat === 'erreur') return { classe: 'erreur', texte: 'Non synchronisé', titre: 'La dernière synchronisation a échoué. Elle sera retentée à ta prochaine action.' };
+  return { classe: 'ok', texte: 'Synchronisé', titre: 'Ta progression est sauvegardée en ligne.' };
 }
 
 function renderSidebarFooter() {
-  $('#weekBadge').innerHTML = `${DB.vocab.length} mot(s) au total<br/>Sauvegarde locale active`;
+  const el = $('#weekBadge');
+  if (!el) return;
+  const v = voyantSyncInfos(window.kvtEtatSync, !!window.accountUser);
+  el.innerHTML = `<span class="voyant-sync voyant-sync--${v.classe}" title="${v.titre}"><span class="voyant-sync__point"></span>${v.texte}</span>`;
+}
+
+// Recherche rapide dans la barre du haut : ouvre Vocabulaire avec le terme.
+function brancherRechercheGlobale() {
+  const champ = document.getElementById('rechercheGlobale');
+  if (!champ || champ.dataset.branche) return;
+  champ.dataset.branche = '1';
+  champ.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter') return;
+    const terme = champ.value.trim();
+    if (!terme) return;
+    rechercheVocabTexte = terme;
+    champ.value = '';
+    champ.blur();
+    if (currentView === 'manage') renderVocab(); else switchView('manage');
+  });
 }
 
 // Acces rapide a son propre profil depuis n'importe quelle page (23/09/2026,
@@ -1622,6 +1706,15 @@ async function rangerSemestre(semesterId, categorieId) {
   if (categorieId === 'cursus' || categorieId === 'jlpt') delete sem.categorie;
   else sem.categorie = categorieId;
   await persist();
+  // Signale par Lucien le 30/09/2026 ("cette fleche fait rien") : ce menu
+  // RANGE le semestre dans une categorie, il ne change pas l'onglet affiche.
+  // Le semestre quittait alors l'ecran sans rien dire, ce qui ressemblait a
+  // un bouton mort. On suit le semestre vers son nouvel onglet et on le dit.
+  const cible = ongletsDashboard().find(o => o.id === categorieId);
+  if (cible) {
+    dashboardMode = cible.id;
+    if (typeof showToast === 'function') showToast(`« ${sem.label} » rangé dans ${cible.label}`);
+  }
   renderDashboard();
 }
 
@@ -1792,12 +1885,9 @@ function renderDashboard() {
   visibleSemesters.forEach(sem => {
     const unitPrefix = sem.id.startsWith('jlpt') ? 'C' : 'S';
     const rangeeDans = categorieDuSemestre(sem);
-    const choixCategorie = `
-      <select class="semestre-categorie" data-ranger="${sem.id}" title="Ranger ce semestre dans une catégorie">
-        <option value="cursus" ${rangeeDans === 'cursus' ? 'selected' : ''}>Cursus</option>
-        <option value="jlpt" ${rangeeDans === 'jlpt' ? 'selected' : ''}>JLPT</option>
-        ${categoriesLibres().map(c => `<option value="${c.id}" ${rangeeDans === c.id ? 'selected' : ''}>${escapeHtml(c.label)}</option>`).join('')}
-      </select>`;
+    // Menu "Ranger dans une categorie" retire le 30/09/2026 (demande de Paul,
+    // apres le retour de Lucien : bouton juge inutile et deroutant).
+
     const replie = semestresReplies.has(sem.id);
     html += `<div class="card">
       <div class="semestre-tete">
@@ -1805,7 +1895,6 @@ function renderDashboard() {
           <button class="semestre-toggle" type="button" data-toggle-semestre="${sem.id}" aria-expanded="${replie ? 'false' : 'true'}" title="${replie ? 'Déplier' : 'Replier'} ce semestre">${replie ? '▸' : '▾'}</button>
           <h3>${escapeHtml(sem.label)}${sem.importe ? ` <span class="semestre-origine">importé de ${escapeHtml(sem.auteur || 'quelqu\'un')}</span>` : ''}</h3>
         </div>
-        ${choixCategorie}
       </div>
       ${replie ? '' : '<div class="week-grid">'}`;
     if (!replie) for (let w = 1; w <= sem.weeks; w++) {
@@ -2656,6 +2745,7 @@ function renderKanjiQuizView(container) {
     const improved = prevBest === null || pct > prevBest;
     if (typeof celebrerProgressionSiBesoin === 'function') setTimeout(celebrerProgressionSiBesoin, 300);
     recordKanjiSessionResult(quizSession.semesterId, quizSession.week, points, maxPoints, pct, dureeMs);
+    if (window.kvtHistorique && !quizSession.historiqueNote) { quizSession.historiqueNote = true; window.kvtHistorique.enregistrerHistoriqueSession(DB, quizSession, 'kanji', { pct, points, maxPoints, dureeMs, difficulte: difficulteDeSession(quizSession) }); }
     clearKanjiInProgress(quizSession.semesterId, quizSession.week);
     persist();
     // Classement de classe, mode 'kanji' (rang 5, #16) : meme principe que
@@ -2686,6 +2776,7 @@ function renderKanjiQuizView(container) {
         <button class="kvt-result__btn" type="button" id="btnBackKanjiReview">Retour</button>
       </div>
     `;
+    if (typeof ajouterClassementResultat === 'function') ajouterClassementResultat(container, 'kanji', quizSession.semesterId, quizSession.week);
     $('#btnBackKanjiReview').addEventListener('click', () => {
       quizSession = null;
       renderReview();
@@ -2738,6 +2829,8 @@ function renderKanjiQuizView(container) {
     activerSaisieKanaDirecte(input, item.type === 'onyomi');
     const submit = () => {
       const val = finaliserKana(input.value, item.type === 'onyomi');
+      { const refus = verifierSaisieJp(val);
+        if (refus) { quizSession.warning = refus; renderReview(); return; } }
       quizSession.warning = null;
       const result = scoreLectureKanji(val, blocLectures);
       quizSession.submitted = true;
@@ -3247,6 +3340,7 @@ function renderTraductionQuizView(container) {
     const improved = prevBest === null || pct > prevBest;
     if (typeof celebrerProgressionSiBesoin === 'function') setTimeout(celebrerProgressionSiBesoin, 300);
     recordTraductionSessionResult(quizSession.semesterId, quizSession.week, points, maxPoints, pct, dureeMs);
+    if (window.kvtHistorique && !quizSession.historiqueNote) { quizSession.historiqueNote = true; window.kvtHistorique.enregistrerHistoriqueSession(DB, quizSession, 'traduction', { pct, points, maxPoints, dureeMs, difficulte: difficulteDeSession(quizSession) }); }
     clearTraductionInProgress(quizSession.semesterId, quizSession.week);
     persist();
     // Classement de classe, mode 'traduction' (rang 5, #16).
@@ -3275,6 +3369,7 @@ function renderTraductionQuizView(container) {
         <button class="kvt-result__btn" type="button" id="btnBackTraductionReview">Retour</button>
       </div>
     `;
+    if (typeof ajouterClassementResultat === 'function') ajouterClassementResultat(container, 'traduction', quizSession.semesterId, quizSession.week);
     $('#btnBackTraductionReview').addEventListener('click', () => {
       quizSession = null;
       renderReview();
@@ -3294,7 +3389,7 @@ function renderTraductionQuizView(container) {
         <div class="progress-bar"><div class="progress-fill" style="width:${progressPct}%"></div></div>
       </div>
       <div class="flashcard">
-        <div class="front-word">${escapeHtml(v.sens || '(sens manquant)')}</div>
+        <div class="front-word">${escapeHtml(v.sens || '(sens manquant)')}</div>${indiceQuestionHtml(v)}
         ${!quizSession.submitted ? `
           ${quizSession.warning ? `<div class="quiz-feedback bad" style="margin-top:12px;">${escapeHtml(quizSession.warning)}</div>` : ''}
           <div class="answer-input-wrap">
@@ -3329,6 +3424,8 @@ function renderTraductionQuizView(container) {
     activerSaisieKanaDirecte(input, false);
     const submit = () => {
       const val = finaliserKana(input.value, false);
+      { const refus = verifierSaisieJp(val);
+        if (refus) { quizSession.warning = refus; renderReview(); return; } }
       quizSession.warning = null;
       const result = scoreTraductionAnswer(val, v);
       quizSession.submitted = true;
@@ -3465,6 +3562,7 @@ function renderDoubleQuizView(container) {
     const improved = prevBest === null || pct > prevBest;
     if (typeof celebrerProgressionSiBesoin === 'function') setTimeout(celebrerProgressionSiBesoin, 300);
     recordDoubleSessionResult(quizSession.semesterId, quizSession.week, points, maxPoints, pct, dureeMs);
+    if (window.kvtHistorique && !quizSession.historiqueNote) { quizSession.historiqueNote = true; window.kvtHistorique.enregistrerHistoriqueSession(DB, quizSession, 'double', { pct, points, maxPoints, dureeMs, difficulte: difficulteDeSession(quizSession) }); }
     clearDoubleInProgress(quizSession.semesterId, quizSession.week);
     persist();
     // Classement de classe, mode 'double' (rang 5, #16).
@@ -3493,6 +3591,7 @@ function renderDoubleQuizView(container) {
         <button class="kvt-result__btn" type="button" id="btnBackDoubleReview">Retour</button>
       </div>
     `;
+    if (typeof ajouterClassementResultat === 'function') ajouterClassementResultat(container, 'double', quizSession.semesterId, quizSession.week);
     $('#btnBackDoubleReview').addEventListener('click', () => {
       quizSession = null;
       renderReview();
@@ -3512,7 +3611,7 @@ function renderDoubleQuizView(container) {
         <div class="progress-bar"><div class="progress-fill" style="width:${progressPct}%"></div></div>
       </div>
       <div class="flashcard">
-        <div class="front-word">${escapeHtml(v.mot)}</div>
+        <div class="front-word${classeTailleMot(v.mot)}">${escapeHtml(v.mot)}</div>${indiceQuestionHtml(v)}
         <div class="hint">Lecture ET sens attendus -- les deux doivent etre justes pour marquer des points.</div>
         ${!quizSession.submitted ? `
           ${quizSession.warning ? `<div class="quiz-feedback bad" style="margin-top:12px;">${escapeHtml(quizSession.warning)}</div>` : ''}
@@ -3551,6 +3650,8 @@ function renderDoubleQuizView(container) {
     const submit = () => {
       const valLecture = finaliserKana(inputLecture.value, false);
       const valSens = inputSens.value;
+      if (!valLecture.trim() && !valSens.trim()) { quizSession.warning = 'Écris une réponse avant de valider.'; renderReview(); return; }
+      if (/[A-Za-z]/.test(valLecture)) { quizSession.warning = "Ta lecture contient des lettres latines qui n'ont pas pu être converties en kana. Corrige-la."; renderReview(); return; }
       quizSession.warning = null;
       const result = scoreDoubleAnswer(valLecture, valSens, v);
       quizSession.submitted = true;
@@ -3770,7 +3871,7 @@ function renderPratiqueQuizView(container) {
         <div class="progress-bar"><div class="progress-fill" style="width:${progressPct}%"></div></div>
       </div>
       <div class="flashcard">
-        <div class="front-word">${escapeHtml(v.mot)}</div>
+        <div class="front-word${classeTailleMot(v.mot)}">${escapeHtml(v.mot)}</div>${indiceQuestionHtml(v)}
         ${!quizSession.submitted ? `
           ${quizSession.warning ? `<div class="quiz-feedback bad" style="margin-top:12px;">${escapeHtml(quizSession.warning)}</div>` : ''}
           <div class="answer-input-wrap">
@@ -3803,6 +3904,8 @@ function renderPratiqueQuizView(container) {
     activerSaisieKanaDirecte(input, false);
     const submit = () => {
       const val = finaliserKana(input.value, false);
+      { const refus = verifierSaisieJp(val);
+        if (refus) { quizSession.warning = refus; renderReview(); return; } }
       if (containsKanji(val)) {
         quizSession.warning = 'Ta reponse contient du kanji -- la lecture doit etre en hiragana/katakana uniquement. Retape-la.';
         renderReview();
@@ -4217,6 +4320,7 @@ function renderReview() {
     const improved = prevBest === null || pct > prevBest;
     if (typeof celebrerProgressionSiBesoin === 'function') setTimeout(celebrerProgressionSiBesoin, 300);
     recordSessionResult(quizSession.semesterId, quizSession.week, points, maxPoints, pct, quizSession.verbeFilter, dureeMs);
+    if (window.kvtHistorique && !quizSession.historiqueNote) { quizSession.historiqueNote = true; window.kvtHistorique.enregistrerHistoriqueSession(DB, quizSession, 'vocab', { pct, points, maxPoints, dureeMs, difficulte: difficulteDeSession(quizSession) }); }
     // Gamification : bonus de pièces si la session est réussie (>= 80%).
     if (typeof bonusFinSession === 'function') bonusFinSession(pct, quizSession.semesterId);
     // Le palier qui compte vraiment : quelqu'un a fait un quiz en entier.
@@ -4298,6 +4402,7 @@ function renderReview() {
       </div>
       ${recap}
     `;
+    if (typeof ajouterClassementResultat === 'function') ajouterClassementResultat(container, 'vocab', quizSession.semesterId, quizSession.week);
     $('#btnBackReview').addEventListener('click', () => {
       quizSession = null;
       renderReview();
@@ -4319,7 +4424,7 @@ function renderReview() {
         <div class="progress-bar"><div class="progress-fill" style="width:${progressPct}%"></div></div>
       </div>
       <div class="flashcard">
-        <div class="front-word">${escapeHtml(v.mot)}</div>
+        <div class="front-word${classeTailleMot(v.mot)}">${escapeHtml(v.mot)}</div>${indiceQuestionHtml(v)}
         ${/* Indice (kanji du groupe + titre) : reserve au mode Facile
            (tache #7, demande de Paul le 14/09/2026 -- "RETIRER les
            indices en mode normal"). Avant ce correctif il s'affichait
@@ -4383,6 +4488,8 @@ function renderReview() {
     }
     const submit = async () => {
       const val = finaliserKana(input.value, false);
+      { const refus = verifierSaisieJp(val);
+        if (refus) { quizSession.warning = refus; renderReview(); return; } }
       if (containsKanji(val)) {
         // Le clavier japonais a converti la saisie en kanji au lieu de la
         // laisser en kana (touche Espace/Tab pressée par réflexe, ou

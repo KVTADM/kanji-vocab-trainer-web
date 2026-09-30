@@ -71,3 +71,40 @@ essai('corrige 己自身 (おのれじしん) et 試験に落ちる (しけん�
   const l = id => data.vocab.find(v => v.id === id).lecture;
   if (l('v-mrhvk4uuo7iw5') !== 'おのれじしん' || l('v-mrhvk4v76n0qf') !== 'しけんにおちる') throw new Error(l('v-mrhvk4uuo7iw5') + ' / ' + l('v-mrhvk4v76n0qf'));
 });
+
+essai('corrige 吸血鬼 (きゅうけつき) et ajoute しんたい à 身体 sur un compte existant (Lucien, 29/09/2026)', async () => {
+  fakeStockage.clear();
+  const base = donneeDeBase();
+  base.vocab.push({ id: 'v-mrhvk4v51mgny', kanjiGroupId: 'kg-test-s3-a', mot: '吸血鬼', lecture: 'きゅうつき', sens: 'x' });
+  base.vocab.push({ id: 'v-mrhvk4v3086o6', kanjiGroupId: 'kg-test-s3-a', mot: '身体', lecture: 'からだ', sens: 'x' });
+  fakeStockage.set('data', base);
+  const data = await window.api.loadData();
+  const l = id => data.vocab.find(v => v.id === id).lecture;
+  if (l('v-mrhvk4v51mgny') !== 'きゅうけつき' || l('v-mrhvk4v3086o6') !== 'からだ / しんたい') throw new Error(l('v-mrhvk4v51mgny') + ' / ' + l('v-mrhvk4v3086o6'));
+});
+
+essai('corrige la lecture kun de 港 (みなo -> みなと) sur un compte existant', async () => {
+  fakeStockage.clear();
+  const base = donneeDeBase();
+  base.kanjiGroups.push({ id: 'kg-mrhvk4v5u55ww', semesterId: 's2', week: 7, kanji: '港', titre: 'Port', onyomi: 'コウ', kunyomi: 'みなo' });
+  fakeStockage.set('data', base);
+  const data = await window.api.loadData();
+  const g = data.kanjiGroups.find(x => x.id === 'kg-mrhvk4v5u55ww');
+  if (g.kunyomi !== 'みなと') throw new Error(g.kunyomi);
+});
+
+essai('pose les precisions "compteur" et "lecture particuliere" sans ecraser un indice existant (30/09/2026)', async () => {
+  fakeStockage.clear();
+  const base = donneeDeBase();
+  base.vocab.push({ id: 'v-l0s2-w2-10-03', kanjiGroupId: 'kg-test-s3-a', mot: '一台', lecture: 'いちだい', sens: 'x' });
+  base.vocab.push({ id: 'v-l0s1-w2-01-06', kanjiGroupId: 'kg-test-s3-a', mot: '一人', lecture: 'ひとり', sens: 'x' });
+  base.vocab.push({ id: 'v-mrhvk4uye3rji', kanjiGroupId: 'kg-test-s3-a', mot: '冊', lecture: 'さつ', sens: 'x', indice: 'lecture-speciale' });
+  base.vocab.push({ id: 'v-autre-mot', kanjiGroupId: 'kg-test-s3-a', mot: '猫', lecture: 'ねこ', sens: 'x' });
+  fakeStockage.set('data', base);
+  const data = await window.api.loadData();
+  const i = id => data.vocab.find(v => v.id === id).indice;
+  if (i('v-l0s2-w2-10-03') !== 'compteur') throw new Error('一台 : ' + i('v-l0s2-w2-10-03'));
+  if (i('v-l0s1-w2-01-06') !== 'lecture-speciale') throw new Error('一人 : ' + i('v-l0s1-w2-01-06'));
+  if (i('v-mrhvk4uye3rji') !== 'lecture-speciale') throw new Error('indice existant ecrase');
+  if (i('v-autre-mot') !== undefined) throw new Error('un mot non liste ne doit pas avoir d\'indice');
+});

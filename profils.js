@@ -33,7 +33,7 @@ async function chargerProfils(ids) {
   if (!manquants.length || !window.sb) return;
   try {
     const { data, error } = await window.sb
-      .from('profiles').select('id,pseudo,avatar_url,niveau,bio,banniere_active,pseudo_style,bordure_active').in('id', manquants);
+      .from('profiles').select('id,pseudo,avatar_url,niveau,bio,banniere_active,pseudo_style,bordure_active,titre_actif,niveau_jeu').in('id', manquants);
     if (error) throw error;
     (data || []).forEach(p => profilsCache.set(p.id, p));
     // Un identifiant sans profil est mis en cache vide, sinon on le
@@ -60,6 +60,14 @@ function teinteDe(texte) {
 // La photo si elle existe, sinon l'initiale sur un fond coloré. Jamais une
 // image cassée : un avatar_url mort retomberait sur l'initiale via onerror.
 function avatarHtml(userId, pseudo, taille) {
+  const interne = avatarHtmlSansCadre(userId, pseudo, taille);
+  // Bordure achetee en boutique (liste de Paul, 30/09/2026 : "un contour
+  // autour de la PP", visible partout et pas seulement sur la page de profil).
+  const cadre = typeof classeBordure === 'function' ? classeBordure((profilDe(userId) || {}).bordure_active) : '';
+  return cadre ? `<span class="avatar-cadre ${cadre}">${interne}</span>` : interne;
+}
+
+function avatarHtmlSansCadre(userId, pseudo, taille) {
   const p = profilDe(userId);
   const nom = (p && p.pseudo) || pseudo || '?';
   const px = taille || 32;
@@ -81,17 +89,40 @@ function avatarHtml(userId, pseudo, taille) {
 // Le clic est capte une seule fois, au niveau du document (voir plus bas) :
 // ces blocs sont regeneres a chaque rendu, et rebrancher un gestionnaire sur
 // chacun a chaque fois finirait par en empiler des centaines.
+// Petites icones a cote du pseudo (liste de Paul, 30/09/2026 : "les titres
+// servent a rien, on les voit pas" et "niveau rang visible sur profil a
+// tous") : l'emoji du titre equipe et celui du rang, avec le detail au
+// survol. Rien du tout si le joueur n'a ni titre ni niveau synchronise.
+function insigneRangHtml(niveau) {
+  if (typeof rangDepuisNiveau !== 'function' || !(niveau >= 1)) return '';
+  const r = rangDepuisNiveau(niveau);
+  return `<span class="insigne insigne--rang" style="--rang-couleur:${r.couleur}" title="Niveau ${niveau} · ${escapeHtml(r.nom)}">${r.emoji}<span class="insigne__n">${niveau}</span></span>`;
+}
+
+function insigneTitreHtml(titreId) {
+  if (!titreId || typeof objetBoutique !== 'function') return '';
+  const t = objetBoutique(titreId);
+  if (!t || t.type !== 'titre') return '';
+  return `<span class="insigne insigne--titre" title="${escapeHtml(t.nom)}">${t.emoji}</span>`;
+}
+
+function insignesHtml(profil) {
+  if (!profil) return '';
+  return insigneTitreHtml(profil.titre_actif) + insigneRangHtml(profil.niveau_jeu);
+}
+
 function auteurHtml(userId, pseudo, taille) {
   const nom = escapeHtml((profilDe(userId) || {}).pseudo || pseudo || '');
   // Pseudo stylise achete en boutique (29/09/2026), visible partout.
   const style = typeof classePseudo === 'function' ? classePseudo((profilDe(userId) || {}).pseudo_style) : '';
+  const insignes = insignesHtml(profilDe(userId));
   if (!userId) {
-    return `<span class="auteur">${avatarHtml(userId, pseudo, taille || 24)}<span class="auteur-pseudo ${style}">${nom}</span></span>`;
+    return `<span class="auteur">${avatarHtml(userId, pseudo, taille || 24)}<span class="auteur-pseudo ${style}">${nom}</span>${insignes}</span>`;
   }
   return `
     <button type="button" class="auteur auteur--lien" data-voir-profil="${escapeHtml(userId)}" title="Voir le profil de ${nom}">
       ${avatarHtml(userId, pseudo, taille || 24)}
-      <span class="auteur-pseudo ${style}">${nom}</span>
+      <span class="auteur-pseudo ${style}">${nom}</span>${insignes}
     </button>`;
 }
 

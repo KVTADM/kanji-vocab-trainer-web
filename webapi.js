@@ -305,12 +305,62 @@ const JLPT_N4_SEED = {"kanjiGroups":[{"id":"kg-hu66go90952pa","semesterId":"jlpt
       // Signales dans le PDF de retours de Paul, verifies sur Jisho le
       // 29/09/2026 (己 = おのれ, 試験 = しけん).
       'v-mrhvk4uuo7iw5': { old: 'こじしん', neuve: 'おのれじしん' },           // 己自身 (S1 sem. 1)
-      'v-mrhvk4v76n0qf': { old: 'しけいにおちる', neuve: 'しけんにおちる' }     // 試験に落ちる (S2 sem. 8)
+      'v-mrhvk4v76n0qf': { old: 'しけいにおちる', neuve: 'しけんにおちる' },    // 試験に落ちる (S2 sem. 8)
+      // Signales par Lucien le 29/09/2026 : 吸血鬼 = きゅうけつき (le け
+      // manquait) ; 身体 se lit aussi しんたい (Jisho), comme 門 / 昨日.
+      'v-mrhvk4v51mgny': { old: 'きゅうつき', neuve: 'きゅうけつき' },          // 吸血鬼 (S2 sem. 7)
+      'v-mrhvk4v3086o6': { old: 'からだ', neuve: 'からだ / しんたい' }           // 身体 (S2 sem. 5)
     };
     if (Array.isArray(data.vocab)) {
       data.vocab.forEach(v => {
         const fix = LECTURES_A_CORRIGER_2[v.id];
         if (fix && v.lecture === fix.old) v.lecture = fix.neuve;
+      });
+    }
+    // Coquille dans le seed (30/09/2026) : la lecture kun de 港 etait
+    // "みなo" (un "o" latin a la place de "と"), impossible a taper en kana.
+    if (Array.isArray(data.kanjiGroups)) {
+      data.kanjiGroups.forEach(g => {
+        if (g.id === 'kg-mrhvk4v5u55ww' && g.kunyomi === 'みなo') g.kunyomi = 'みなと';
+      });
+    }
+    // Precisions sur les mots (liste de Paul, 30/09/2026) : badge "compteur"
+    // ou "lecture particuliere" pose sur le champ vocab.indice. Idempotent : ne
+    // touche que les ids listes et n'ecrase jamais un indice deja present.
+    const INDICES_A_PRECISER = {
+      'v-mrhvk4uye3rji': 'compteur',
+      'v-mrhvk4uyf06iw': 'compteur',
+      'v-mrhvk4uy9wtve': 'compteur',
+      'v-mrhvk4v4i5oc4': 'compteur',
+      'v-mrhvk4v44dnyx': 'compteur',
+      'v-mrhvk4vun8hk4': 'compteur',
+      'v-mrhvk4w0ny1o7': 'compteur',
+      'v-l0s1-w2-01-03': 'compteur',
+      'v-l0s1-w2-01-04': 'compteur',
+      'v-l0s1-w4-03-02': 'compteur',
+      'v-l0s1-w4-05-04': 'compteur',
+      'v-l0s1-w5-01-03': 'compteur',
+      'v-l0s1-w5-03-04': 'compteur',
+      'v-l0s1-w5-04-04': 'compteur',
+      'v-l0s1-w5-05-02': 'compteur',
+      'v-l0s1-w5-06-02': 'compteur',
+      'v-l0s1-w5-07-02': 'compteur',
+      'v-l0s2-w2-10-03': 'compteur',
+      'v-7hwnfqts6o7l9': 'compteur',
+      'v-mrhvk4uy1hhha': 'lecture-speciale',
+      'v-qzfp4zk0xzp1v': 'lecture-speciale',
+      'v-l0s1-w2-01-06': 'lecture-speciale',
+      'v-l0s1-w2-01-07': 'lecture-speciale',
+      'v-l0s1-w4-01-05': 'lecture-speciale',
+      'v-l0s1-w4-02-05': 'lecture-speciale',
+      'v-l0s1-w4-04-04': 'lecture-speciale',
+      'v-l0s1-w5-05-07': 'lecture-speciale',
+      'v-gwp75cigbc7h6': 'lecture-speciale',
+    };
+    if (Array.isArray(data.vocab)) {
+      data.vocab.forEach(v => {
+        const indice = INDICES_A_PRECISER[v.id];
+        if (indice && !v.indice) v.indice = indice;
       });
     }
     // Doublons de vocabulaire dans une meme semaine (signale par Paul le

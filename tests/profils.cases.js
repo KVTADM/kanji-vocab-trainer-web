@@ -46,3 +46,37 @@ essai('les niveaux ont tous un libellé', () => {
   if (libelleNiveau('expert') !== 'Non précisé') throw new Error('un code inconnu devrait retomber sur « Non précisé »');
 });
 
+
+// Bordure, titre et rang visibles partout (liste de Paul, 30/09/2026).
+essai('sans bordure, l\'avatar n\'est pas enveloppe', () => {
+  global.classeBordure = () => '';
+  const html = avatarHtml('inconnu', 'Zoé', 32);
+  if (html.includes('avatar-cadre')) throw new Error(html);
+});
+
+essai('avec une bordure achetee, l\'avatar est entoure de son cadre', () => {
+  global.classeBordure = (id) => id ? `profil-bordure profil-bordure--${id}` : '';
+  profilsCache.set('uB', { id: 'uB', pseudo: 'Bob', bordure_active: 'dragon' });
+  const html = avatarHtml('uB', 'Bob', 32);
+  if (!html.includes('avatar-cadre profil-bordure profil-bordure--dragon')) throw new Error(html);
+});
+
+essai('titre et rang apparaissent a cote du pseudo, avec leur detail au survol', () => {
+  global.objetBoutique = (id) => id === 'titre-motive' ? { type: 'titre', nom: 'Motivé·e', emoji: '🌱' } : null;
+  global.rangDepuisNiveau = (n) => ({ nom: 'Argent', emoji: '🥈', couleur: '#7c8794' });
+  profilsCache.set('uC', { id: 'uC', pseudo: 'Cam', titre_actif: 'titre-motive', niveau_jeu: 12 });
+  const html = auteurHtml('uC', 'Cam', 24);
+  if (!html.includes('🌱') || !html.includes('Niveau 12 · Argent')) throw new Error(html);
+});
+
+essai('un joueur sans titre ni niveau n\'a pas d\'insigne', () => {
+  profilsCache.set('uD', { id: 'uD', pseudo: 'Dan' });
+  const html = auteurHtml('uD', 'Dan', 24);
+  if (html.includes('insigne')) throw new Error(html);
+});
+
+essai('un id de titre inconnu est ignore sans erreur', () => {
+  profilsCache.set('uE', { id: 'uE', pseudo: 'Eve', titre_actif: 'titre-supprime', niveau_jeu: 3 });
+  const html = auteurHtml('uE', 'Eve', 24);
+  if (html.includes('insigne--titre')) throw new Error(html);
+});

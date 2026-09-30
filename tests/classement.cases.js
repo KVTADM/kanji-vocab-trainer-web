@@ -271,3 +271,29 @@ essai('points cumulés au global : sessions filtrées incluses, % moyen sur les 
   if (p.points !== 700) throw new Error('points = ' + p.points);
   if (p.pctMoyen !== 50) throw new Error('% moyen = ' + p.pctMoyen);
 });
+
+// Classement affiche sur l'ecran de fin de session (30/09/2026).
+essai('ecran de fin : classement trie par %, puis difficulte, puis temps, avec ma place', () => {
+  const l = (id, pct, ms, diff) => ({ user_id: id, pseudo: id, mode: 'vocab', semester_id: 's1', week: 1, pct, duree_ms: ms, difficulte: diff, max_points: 400, verbe_filter: 'tous' });
+  const html = htmlClassementResultat([l('a', 90, 100000, 'normal'), l('moi', 95, 200000, 'normal'), l('b', 95, 150000, 'normal')], 'moi');
+  const ordre = [...html.matchAll(/<span class="auteur">([^<]+)<\/span>/g)].map(m => m[1]).join(',');
+  if (ordre !== 'b,moi,a') throw new Error('ordre = ' + ordre);
+  if (!html.includes('Tu es <strong>2<sup>e</sup></strong> sur 3')) throw new Error(html);
+  if (!html.includes('est-moi')) throw new Error('ma ligne non mise en evidence');
+});
+
+essai('ecran de fin : sessions filtrees ignorees, et ma ligne ajoutee si je suis hors du top 5', () => {
+  const l = (id, pct) => ({ user_id: id, pseudo: id, mode: 'vocab', semester_id: 's1', week: 1, pct, duree_ms: 1000, difficulte: 'normal', max_points: 400, verbe_filter: 'tous' });
+  const lignes = ['a', 'b', 'c', 'd', 'e', 'f'].map((id, i) => l(id, 99 - i));
+  lignes.push({ ...l('moi', 10), verbe_filter: 'kanji_groupe' });
+  let html = htmlClassementResultat(lignes, 'moi');
+  if (html.includes('>moi<')) throw new Error('session filtree comptee');
+  lignes[lignes.length - 1].verbe_filter = 'tous';
+  html = htmlClassementResultat(lignes, 'moi');
+  if (!html.includes('>moi<') || !html.includes('kvt-result-classement__sep')) throw new Error(html);
+  if (html.includes('>f<')) throw new Error('le 6e devrait etre masque');
+});
+
+essai('ecran de fin : classement vide -> message, pas d\'erreur', () => {
+  if (!htmlClassementResultat([], 'moi').includes('encore classé')) throw new Error('message manquant');
+});
