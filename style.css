@@ -3481,6 +3481,9 @@ code {
   -webkit-appearance: none; appearance: none; flex-shrink: 0;
 }
 .recherche-globale::-webkit-search-cancel-button { display: none; }
+/* Replie : le texte d'aide ne doit pas depasser sur la loupe (bug d'affichage 02/10/2026) */
+.recherche-globale:not(:focus) { font-size: 0; text-indent: -9999px; overflow: hidden; }
+.recherche-globale:not(:focus)::placeholder { color: transparent; opacity: 0; }
 .recherche-globale:focus {
   position: absolute; right: 20px; top: calc(100% + 4px); z-index: 60;
   width: 280px; height: auto; padding: 8px 14px; cursor: text;
