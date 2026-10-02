@@ -134,7 +134,10 @@ if (typeof document !== 'undefined') {
     if (!cible) return;
     if (window.kvtProfilPublic) {
       if (typeof currentView !== 'undefined') window.kvtProfilPublic.depuis(currentView);
-      window.kvtProfilPublic.ouvrirProfilPublic(cible.dataset.voirProfil);
+      // Depuis le pseudo de la barre du haut (son propre profil), on ouvre
+      // directement l'onglet Compte (demande de Paul, 02/10/2026).
+      const depuisBarre = !!cible.closest('#topbarProfil');
+      window.kvtProfilPublic.ouvrirProfilPublic(cible.dataset.voirProfil, depuisBarre ? 'compte' : undefined);
     }
   });
 }
