@@ -2859,13 +2859,13 @@ function renderKanjiQuizView(container) {
         <div class="kvt-result__pct">${formatPct(pct)}</div>
         <div class="kvt-result__points">${points} / ${maxPoints} points</div>
         ${dureeMs !== null ? `<div class="kvt-result__duree">Termine en ${formatDuree(dureeMs)}</div>` : ''}
-        <button class="kvt-result__btn" type="button" id="btnBackKanjiReview">Retour</button>
+        <button class="kvt-result__btn" type="button" id="btnBackKanjiReview">Retour au tableau de bord</button>
       </div>
     `;
     if (typeof ajouterClassementResultat === 'function') ajouterClassementResultat(container, 'kanji', quizSession.semesterId, quizSession.week);
     $('#btnBackKanjiReview').addEventListener('click', () => {
       quizSession = null;
-      renderReview();
+      switchView('dashboard');
     });
     return;
   }
@@ -3062,12 +3062,12 @@ function renderKanaQuizView(container) {
         <div class="kvt-result__pct">${formatPct(pct)}</div>
         <div class="kvt-result__points">${points} / ${maxPoints} points</div>
         ${dureeMs !== null ? `<div class="kvt-result__duree">Termine en ${formatDuree(dureeMs)}</div>` : ''}
-        <button class="kvt-result__btn" type="button" id="btnBackKanaReview">Retour</button>
+        <button class="kvt-result__btn" type="button" id="btnBackKanaReview">Retour au tableau de bord</button>
       </div>
     `;
     $('#btnBackKanaReview').addEventListener('click', () => {
       quizSession = null;
-      renderReview();
+      switchView('dashboard');
     });
     return;
   }
@@ -3256,12 +3256,12 @@ function renderEcritureQuizView(container) {
       <div class="kvt-result kvt-result--good">
         <div class="kvt-result__title">Termine.</div>
         <div class="kvt-result__sub">${quizSession.queue.length} mot(s) ecrit(s). Pas de score sur ce mode -- l'auto-correction sur papier suffit.</div>
-        <button class="kvt-result__btn" type="button" id="btnBackEcritureReview">Retour</button>
+        <button class="kvt-result__btn" type="button" id="btnBackEcritureReview">Retour au tableau de bord</button>
       </div>
     `;
     $('#btnBackEcritureReview').addEventListener('click', () => {
       quizSession = null;
-      renderReview();
+      switchView('dashboard');
     });
     return;
   }
@@ -3452,13 +3452,13 @@ function renderTraductionQuizView(container) {
         <div class="kvt-result__pct">${formatPct(pct)}</div>
         <div class="kvt-result__points">${points} / ${maxPoints} points</div>
         ${dureeMs !== null ? `<div class="kvt-result__duree">Termine en ${formatDuree(dureeMs)}</div>` : ''}
-        <button class="kvt-result__btn" type="button" id="btnBackTraductionReview">Retour</button>
+        <button class="kvt-result__btn" type="button" id="btnBackTraductionReview">Retour au tableau de bord</button>
       </div>
     `;
     if (typeof ajouterClassementResultat === 'function') ajouterClassementResultat(container, 'traduction', quizSession.semesterId, quizSession.week);
     $('#btnBackTraductionReview').addEventListener('click', () => {
       quizSession = null;
-      renderReview();
+      switchView('dashboard');
     });
     return;
   }
@@ -3674,13 +3674,13 @@ function renderDoubleQuizView(container) {
         <div class="kvt-result__pct">${formatPct(pct)}</div>
         <div class="kvt-result__points">${points} / ${maxPoints} points</div>
         ${dureeMs !== null ? `<div class="kvt-result__duree">Termine en ${formatDuree(dureeMs)}</div>` : ''}
-        <button class="kvt-result__btn" type="button" id="btnBackDoubleReview">Retour</button>
+        <button class="kvt-result__btn" type="button" id="btnBackDoubleReview">Retour au tableau de bord</button>
       </div>
     `;
     if (typeof ajouterClassementResultat === 'function') ajouterClassementResultat(container, 'double', quizSession.semesterId, quizSession.week);
     $('#btnBackDoubleReview').addEventListener('click', () => {
       quizSession = null;
-      renderReview();
+      switchView('dashboard');
     });
     return;
   }
@@ -3935,12 +3935,12 @@ function renderPratiqueQuizView(container) {
         <div class="kvt-result__pct">${formatPct(pct)}</div>
         <div class="kvt-result__points">${points} / ${maxPoints} points</div>
         ${dureeMs !== null ? `<div class="kvt-result__duree">Termine en ${formatDuree(dureeMs)}</div>` : ''}
-        <button class="kvt-result__btn" type="button" id="btnBackPratiqueReview">Retour</button>
+        <button class="kvt-result__btn" type="button" id="btnBackPratiqueReview">Retour au tableau de bord</button>
       </div>
     `;
     $('#btnBackPratiqueReview').addEventListener('click', () => {
       quizSession = null;
-      renderReview();
+      switchView('dashboard');
     });
     return;
   }
@@ -4484,14 +4484,14 @@ function renderReview() {
         ${dureeMs !== null ? `<div class="kvt-result__duree">Termine en ${formatDuree(dureeMs)}</div>` : ''}
         <div class="kvt-result__title">${textes.titre}</div>
         <div class="kvt-result__sub">${textes.sub}</div>
-        <button class="kvt-result__btn" type="button" id="btnBackReview">Retour</button>
+        <button class="kvt-result__btn" type="button" id="btnBackReview">Retour au tableau de bord</button>
       </div>
       ${recap}
     `;
     if (typeof ajouterClassementResultat === 'function') ajouterClassementResultat(container, 'vocab', quizSession.semesterId, quizSession.week);
     $('#btnBackReview').addEventListener('click', () => {
       quizSession = null;
-      renderReview();
+      switchView('dashboard');
     });
     return;
   }
