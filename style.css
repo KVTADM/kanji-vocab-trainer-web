@@ -3738,3 +3738,7 @@ input.dessin-faux { animation: dessin-secoue .4s; border-color: var(--bad-bright
 @media (prefers-reduced-motion: reduce) {
   .bombe-joueur--actif, .bombe-scene--alerte .bombe-svg, .duel-pret, .bombe-flash, .bombe-flash span { animation: none !important; }
 }
+
+/* Explication affichee apres la reponse (vocabulaire pratique, 02/10/2026) */
+.flashcard .back-note { margin: 12px auto 0; max-width: 460px; text-align: left; font-size: 14px; line-height: 1.5; padding: 10px 12px; border-left: 3px solid var(--accent-bright); background: rgba(91, 200, 245, 0.08); border-radius: 6px; }
+.flashcard .back-note strong { display: block; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--accent-bright); margin-bottom: 2px; }

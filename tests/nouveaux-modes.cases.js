@@ -294,3 +294,41 @@ essai('rechercherVocab : kanji, kana, romaji et français (sans accents) ; mots 
   DB.motsMasques = ['v9'];
   if (ids('試験').includes('v9')) throw new Error('mot masqué trouvé');
 });
+
+
+essai('compteurs : les 14 compteurs de la feuille sont presents, chacun avec une explication', () => {
+  const liste = getPratiqueList('compteurs').concat(getPratiqueList('compteurs2'));
+  '個券羽頭名度番線期代町杯点号'.split('').forEach(k => {
+    const mots = liste.filter(v => v.mot.includes(k));
+    if (mots.length < 3) throw new Error('compteur ' + k + ' : moins de 3 mots');
+    if (mots.some(v => !v.note || v.note.length < 10)) throw new Error('compteur ' + k + ' : explication manquante');
+  });
+});
+
+essai('compteurs : pas de doublon mot+lecture, lectures en kana, notes en texte', () => {
+  const vus = new Set();
+  getPratiqueList('compteurs').concat(getPratiqueList('compteurs2')).forEach(v => {
+    const cle = v.mot + '|' + v.lecture;
+    if (vus.has(cle)) throw new Error('doublon ' + cle);
+    vus.add(cle);
+    if (!/^[\u3041-\u309f\u30a0-\u30ff]+$/.test(v.lecture)) throw new Error('lecture non kana : ' + v.mot + ' ' + v.lecture);
+    if (v.note !== undefined && typeof v.note !== 'string') throw new Error('note invalide : ' + v.mot);
+  });
+});
+
+essai('compteurs : les formes irregulieres cles sont bien lues', () => {
+  const att = { '一個':'いっこ','三羽':'さんば','六羽':'ろっぱ','一頭':'いっとう','六杯':'ろっぱい','三杯':'さんばい','乾杯':'かんぱい','一点':'いってん','十点':'じゅってん','二十歳':'はたち','一人':'ひとり','四人':'よにん','三本':'さんぼん','三階':'さんがい' };
+  const liste = getPratiqueList('compteurs').concat(getPratiqueList('compteurs2'));
+  Object.keys(att).forEach(m => {
+    const v = liste.find(x => x.mot === m);
+    if (!v || v.lecture !== att[m]) throw new Error(m + ' devrait se lire ' + att[m]);
+  });
+});
+
+essai('compteurs : le theme est coupe en deux parties sans recouvrement', () => {
+  const a = getPratiqueList('compteurs'), b = getPratiqueList('compteurs2');
+  if (a.length < 30 || b.length < 30) throw new Error('une partie est trop petite : ' + a.length + '/' + b.length);
+  const ids = new Set(a.map(v => v.id));
+  if (b.some(v => ids.has(v.id))) throw new Error('recouvrement entre les deux parties');
+  if (a.some(v => /[度番線期代町杯点号]/.test(v.mot))) throw new Error('un compteur de la partie 2 est dans la partie 1');
+});
