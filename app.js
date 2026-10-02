@@ -5006,7 +5006,9 @@ async function init() {
   // mais autant etre explicite plutot que de compter sur ce hasard.
   const erreurAuth = traiterErreurAuthDansUrl();
   const ancre = decodeURIComponent(location.hash.replace(/^#/, ''));
-  switchView(erreurAuth ? 'account' : (vuesConnues.has(ancre) ? ancre : 'communaute'));
+  // Lien de salon (/app/?salon=CODE) : on ouvre l'onglet Parties, code déjà saisi.
+  const veutSalon = /[?&]salon=/.test(location.search);
+  switchView(erreurAuth ? 'account' : (veutSalon ? 'parties' : (vuesConnues.has(ancre) ? ancre : 'communaute')));
 
   // Signal de mesure : quelqu'un a ouvert l'application, pas seulement
   // affiche une page. C'est le premier palier qui distingue un visiteur

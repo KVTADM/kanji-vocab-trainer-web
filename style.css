@@ -3620,3 +3620,121 @@ code {
 .notif-pastille--topbar { cursor: pointer; animation: notif-pouls 2.4s ease-in-out infinite; }
 @keyframes notif-pouls { 0%,100% { box-shadow: 0 0 0 0 rgba(192,64,96,.55); } 50% { box-shadow: 0 0 0 5px rgba(192,64,96,0); } }
 @media (prefers-reduced-motion: reduce) { .notif-pastille--topbar { animation: none; } }
+
+/* ---------- Salons : 4 jeux, sélection de semaines (02/10/2026, voir parties-ui.js / parties-jeux.js) ---------- */
+.jeu-choix-liste { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px; }
+.jeu-choix { cursor: pointer; display: block; }
+.jeu-choix input { position: absolute; opacity: 0; pointer-events: none; }
+.jeu-choix__carte {
+  display: flex; flex-direction: column; gap: 4px; height: 100%; padding: 12px 14px;
+  background: var(--panel-alt); border: 2px solid var(--border); border-radius: 12px;
+  transition: border-color .15s, transform .15s, box-shadow .15s;
+}
+.jeu-choix__carte em { font-style: normal; font-size: 12.5px; color: var(--muted); line-height: 1.35; }
+.jeu-choix__carte small { color: var(--muted-dim); }
+.jeu-choix__icone { font-size: 28px; line-height: 1; }
+.jeu-choix:hover .jeu-choix__carte { border-color: var(--accent); transform: translateY(-2px); }
+.jeu-choix input:checked + .jeu-choix__carte { border-color: var(--accent-bright); box-shadow: 0 0 0 1px var(--accent-bright) inset, 0 6px 18px rgba(0,0,0,.25); }
+.jeu-choix input:focus-visible + .jeu-choix__carte { outline: 2px solid var(--accent-bright); outline-offset: 2px; }
+.partie-form [hidden], .partie-form[hidden] { display: none !important; }
+.partie-form > div[data-jeu-options] { display: flex; flex-direction: column; gap: 12px; }
+
+.sel-semaines { border: 1px solid var(--border); border-radius: 10px; padding: 8px 12px; background: var(--panel-alt); }
+.sel-semaines summary { cursor: pointer; color: var(--muted); font-size: 13px; }
+.sel-semaines summary strong { color: var(--ink); }
+.sel-semaines__corps { margin-top: 10px; display: flex; flex-direction: column; gap: 10px; }
+.sel-semaines__aide { margin: 0; font-size: 12.5px; color: var(--muted); }
+.sel-sem__tete { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+.sel-sem__puces { display: flex; flex-wrap: wrap; gap: 6px; }
+.sel-puce {
+  min-width: 36px; height: 34px; padding: 0 8px; border-radius: 8px; cursor: pointer;
+  border: 1px solid var(--border); background: var(--panel); color: var(--ink); font-size: 13px;
+}
+.sel-puce:hover { border-color: var(--accent); }
+.sel-puce--actif { background: var(--accent); border-color: var(--accent-bright); color: var(--sur-accent); font-weight: 700; }
+
+.salon-code { display: inline-flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 8px 14px; border: 1px dashed var(--accent); border-radius: 10px; margin-bottom: 10px; }
+.salon-code span { color: var(--muted); font-size: 12.5px; text-transform: uppercase; letter-spacing: .06em; }
+.salon-code strong { font-size: 26px; letter-spacing: .25em; color: var(--accent-bright); }
+
+.jeu-manche { font-size: 13px; font-weight: 400; color: var(--muted); margin-left: 8px; }
+
+/* --- Bombe : scène, mèche, joueurs --- */
+.bombe-joueurs { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin: 6px 0 4px; }
+.bombe-joueur {
+  display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 84px;
+  padding: 8px 10px; border-radius: 12px; background: var(--panel-alt); border: 2px solid var(--border);
+  transition: transform .2s, border-color .2s, box-shadow .2s;
+}
+.bombe-joueur__pastille {
+  width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  font-weight: 700; background: var(--accent); color: var(--sur-accent);
+}
+.bombe-joueur__nom { font-size: 12.5px; max-width: 96px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bombe-joueur--actif { border-color: var(--warn-bright); transform: scale(1.08); box-shadow: 0 0 0 3px rgba(224,160,80,.25), 0 6px 16px rgba(0,0,0,.3); animation: bombe-pouls 1s ease-in-out infinite; }
+.bombe-joueur--actif .bombe-joueur__pastille { background: var(--warn); }
+@keyframes bombe-pouls { 50% { box-shadow: 0 0 0 7px rgba(224,160,80,.08), 0 6px 16px rgba(0,0,0,.3); } }
+.bombe-scene { position: relative; width: min(280px, 80%); margin: 6px auto 0; }
+.bombe-svg { width: 100%; height: auto; display: block; overflow: visible; filter: drop-shadow(0 8px 14px rgba(0,0,0,.35)); }
+.bombe-mot-carte { position: absolute; left: 50%; top: 59%; transform: translate(-50%, -50%); width: 70%; text-align: center; pointer-events: none; }
+.bombe-mot-carte .partie-mot-actif { margin: 0; font-size: clamp(26px, 8vw, 46px); color: #f6ecd2; text-shadow: 0 2px 8px rgba(0,0,0,.6); word-break: keep-all; }
+.bombe-scene--alerte .bombe-svg { animation: bombe-tremble .28s linear infinite; }
+.bombe-scene--alerte .bombe-svg circle:first-of-type { fill: #ff7a2a; }
+@keyframes bombe-tremble { 0% { transform: translate(0, 0) rotate(0); } 25% { transform: translate(-2px, 1px) rotate(-1.2deg); } 75% { transform: translate(2px, -1px) rotate(1.2deg); } 100% { transform: translate(0, 0) rotate(0); } }
+.bombe-consigne { text-align: center; margin: 8px 0; }
+.bombe-saisie { justify-content: center; }
+.bombe-flash {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; text-align: center;
+  font-weight: 700; font-size: 17px; border-radius: 16px; pointer-events: none; animation: bombe-flash 1.6s ease-out forwards;
+}
+.bombe-flash span { font-size: 64px; display: block; animation: bombe-boum .9s ease-out; }
+.bombe-flash--boum { flex-direction: column; color: #ffd9c2; background: radial-gradient(circle, rgba(255,120,40,.75), rgba(255,120,40,0) 70%); }
+.bombe-flash--ok { color: #d6ffd6; background: radial-gradient(circle, rgba(80,200,110,.6), rgba(80,200,110,0) 70%); }
+@keyframes bombe-flash { 0% { opacity: 0; } 12% { opacity: 1; } 70% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes bombe-boum { 0% { transform: scale(.2) rotate(-20deg); } 55% { transform: scale(1.5) rotate(8deg); } 100% { transform: scale(1) rotate(0); } }
+
+/* --- Duel éclair --- */
+.duel-tableau { display: flex; align-items: stretch; justify-content: center; gap: 14px; margin: 10px 0; }
+.duel-joueur { flex: 1; max-width: 220px; text-align: center; padding: 10px; border-radius: 14px; background: var(--panel-alt); border: 2px solid var(--border); transition: border-color .2s, transform .2s; }
+.duel-joueur--moi { border-color: var(--accent); }
+.duel-joueur--gagne { border-color: var(--good-bright); transform: scale(1.05); }
+.duel-joueur__nom { font-size: 13px; color: var(--muted); }
+.duel-joueur__score { font-size: 40px; font-weight: 800; line-height: 1.1; }
+.duel-joueur__etat { height: 22px; font-size: 18px; }
+.duel-vs { align-self: center; font-weight: 800; color: var(--pink); letter-spacing: .1em; }
+.duel-pret { text-align: center; font-size: 54px; font-weight: 800; padding: 36px 0; color: var(--warn-bright); animation: duel-pret .5s ease-in-out infinite alternate; }
+@keyframes duel-pret { from { transform: scale(.94); } to { transform: scale(1.06); } }
+.duel-saisie { justify-content: center; }
+.duel-attente { text-align: center; color: var(--muted); }
+.duel-revele { text-align: center; font-size: 18px; }
+.duel-revele span { color: var(--muted); font-size: 15px; }
+.duel-verdict { text-align: center; font-weight: 700; margin-top: 8px; color: var(--good-bright); }
+.duel-verdict--aucun { color: var(--muted); }
+
+/* --- Relais des mots --- */
+.relais-chaine { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 6px; margin: 10px 0; }
+.relais-maillon { padding: 4px 12px; border-radius: 16px; background: var(--panel-alt); border: 1px solid var(--border); font-size: 18px; }
+.relais-fleche { color: var(--muted); }
+.relais-courant { text-align: center; }
+.relais-consigne { color: var(--muted); }
+.relais-kanji { display: inline-block; min-width: 44px; padding: 0 10px; margin-left: 6px; font-size: 34px; font-weight: 800; color: var(--accent-bright); border-bottom: 3px solid var(--accent-bright); }
+.relais-saisie { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 12px; }
+.relais-saisie input { min-width: 150px; flex: 1; max-width: 240px; }
+.relais-retour { margin: 8px 0; padding: 8px 12px; border-radius: 10px; font-size: 14px; }
+.relais-retour--ok { background: rgba(95,174,95,.14); border: 1px solid var(--good-bright); }
+.relais-retour--rate { background: rgba(192,64,96,.14); border: 1px solid var(--bad-bright); }
+
+/* --- Dessin de kanji --- */
+.dessin-consigne { text-align: center; margin: 8px 0; }
+.dessin-consigne span { color: var(--muted); font-size: 13px; }
+.dessin-mot { font-size: 38px; margin: 0 8px; }
+.dessin-indice { text-align: center; color: var(--warn-bright); min-height: 22px; font-size: 14px; }
+.dessin-cadre { width: min(480px, 100%); margin: 10px auto 0; border-radius: 12px; overflow: hidden; border: 2px solid var(--border); box-shadow: 0 6px 18px rgba(0,0,0,.25); }
+.dessin-cadre canvas { display: block; width: 100%; height: auto; aspect-ratio: 1; background: #fbf7ea; touch-action: auto; }
+.dessin-cadre canvas.dessin-actif { touch-action: none; cursor: crosshair; }
+input.dessin-faux { animation: dessin-secoue .4s; border-color: var(--bad-bright); }
+@keyframes dessin-secoue { 20%, 60% { transform: translateX(-6px); } 40%, 80% { transform: translateX(6px); } }
+.jeu-carte--dessin .partie-actions { justify-content: center; }
+@media (prefers-reduced-motion: reduce) {
+  .bombe-joueur--actif, .bombe-scene--alerte .bombe-svg, .duel-pret, .bombe-flash, .bombe-flash span { animation: none !important; }
+}

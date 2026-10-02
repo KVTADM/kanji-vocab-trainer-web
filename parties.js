@@ -5,7 +5,9 @@
 // Paul, pour construire d'abord sur des bases solides). Voir 02 - Idées
 // futures.md, entrée du 28/09/2026, pour l'idée d'origine (jeu de vitesse et
 // jeu de dessin de kanji à la souris restent à faire, dans un futur salon du
-// même système).
+// même système). Mis à jour le 02/10/2026 : quatre jeux (bombe, duel éclair,
+// relais des mots, dessin de kanji), sélection de semaines, écrans dans
+// parties-ui.js, nouveaux jeux dans parties-jeux.js.
 //
 // Architecture : deux tables Supabase, `parties` (un salon, avec son état de
 // jeu complet dans la colonne jsonb etat_jeu) et `parties_joueurs` (qui a
@@ -35,6 +37,22 @@ let minuteurAffichagePartie = null;
 const PARTIES_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // sans 0/O/1/I, ambigus
 const PARTIES_TEMPS_TOUR_OPTIONS = [10000, 15000, 20000, 30000];
 const PARTIES_VIES_OPTIONS = [1, 2, 3, 5];
+const PARTIES_RELAIS_TEMPS_OPTIONS = [15000, 20000, 30000, 45000];
+const PARTIES_DUEL_MANCHES_OPTIONS = [5, 10, 15];
+const PARTIES_DUEL_TEMPS_OPTIONS = [5000, 10000, 15000, 20000];
+const PARTIES_DESSIN_TEMPS_OPTIONS = [45000, 60000, 90000];
+
+// Les jeux disponibles dans un salon (02/10/2026). `pool` : le jeu utilise la
+// sélection de semaines ; le Relais prend tout le vocabulaire, sans choix.
+const PARTIES_JEUX = {
+  bombe: { nom: 'Jeu de la bombe', icone: '💣', min: 2, max: 10, pool: true, resume: "À tour de rôle, devine la lecture du mot avant l'explosion. Le dernier survivant gagne." },
+  duel: { nom: 'Duel éclair', icone: '⚡', min: 2, max: 2, pool: true, resume: 'Même mot pour les deux joueurs : le plus rapide à donner la bonne lecture marque le point.' },
+  relais: { nom: 'Relais des mots', icone: '🔗', min: 2, max: 10, pool: false, resume: "Trouve un mot qui commence par le dernier kanji du mot précédent. 3 vies, tout le vocabulaire." },
+  dessin: { nom: 'Dessin de kanji', icone: '✏️', min: 2, max: 10, pool: true, resume: 'Chacun son tour dessine un mot ; les autres devinent sa lecture le plus vite possible.' }
+};
+
+// Sélection de semaines du formulaire de création : clés « semestre:semaine ».
+let selectionSemainesForm = new Set();
 
 function genererCodePartie() {
   let code = '';
@@ -47,6 +65,12 @@ function genererCodePartie() {
 // semaine serait souvent trop courte pour un jeu à plusieurs joueurs qui
 // tourne un moment.
 function poolVocabPourPartie(config) {
+  // Sélection semaine par semaine (02/10/2026) : config.selection = ['s1:3', 's1:4', ...].
+  if (config && Array.isArray(config.selection) && config.selection.length) {
+    const cles = new Set(config.selection);
+    const groupIds = new Set(DB.kanjiGroups.filter(g => cles.has(g.semesterId + ':' + g.week)).map(g => g.id));
+    return DB.vocab.filter(v => groupIds.has(v.kanjiGroupId) && !estMotMasque(v.id));
+  }
   if (!config || !config.semesterId || config.semesterId === 'tout') {
     return DB.vocab.filter(v => !estMotMasque(v.id));
   }
@@ -101,32 +125,50 @@ function sabonnerPartie(partieId) {
         renderParties();
         return;
       }
+      // Les nouveaux jeux numérotent leur état (v) : on ignore un message
+      // arrivé en retard, plus ancien que ce qu'on affiche déjà.
+      const vNouveau = payload.new.etat_jeu && payload.new.etat_jeu.v;
+      const vActuel = partieCourante && partieCourante.etat_jeu && partieCourante.etat_jeu.v;
+      if (typeof vNouveau === 'number' && typeof vActuel === 'number' && vNouveau < vActuel) return;
       partieCourante = payload.new;
       renderParties();
     })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'parties_joueurs', filter: `partie_id=eq.${partieId}` }, async () => {
       joueursPartieCourante = await chargerJoueursPartie(partieId);
       renderParties();
+      if (typeof jeuxGererDeparts === 'function') jeuxGererDeparts();
     })
+    .on('broadcast', { event: 'trait' }, (m) => { if (typeof dessinRecevoir === 'function') dessinRecevoir('trait', m.payload); })
+    .on('broadcast', { event: 'annuler' }, (m) => { if (typeof dessinRecevoir === 'function') dessinRecevoir('annuler', m.payload); })
+    .on('broadcast', { event: 'effacer' }, (m) => { if (typeof dessinRecevoir === 'function') dessinRecevoir('effacer', m.payload); })
+    .on('broadcast', { event: 'demande' }, (m) => { if (typeof dessinRecevoir === 'function') dessinRecevoir('demande', m.payload); })
+    .on('broadcast', { event: 'sync' }, (m) => { if (typeof dessinRecevoir === 'function') dessinRecevoir('sync', m.payload); })
     .subscribe();
 }
 
 function arreterMinuteursPartie() {
   if (minuteurHotePartie) { clearInterval(minuteurHotePartie); minuteurHotePartie = null; }
   if (minuteurAffichagePartie) { clearInterval(minuteurAffichagePartie); minuteurAffichagePartie = null; }
+  if (typeof arreterTickJeux === 'function') arreterTickJeux();
 }
 
 // ---------------------------------------------------------------------------
 // Actions sur les salons
 // ---------------------------------------------------------------------------
 
+// Réglages propres à chaque jeu, tels qu'ils sont enregistrés dans parties.config.
+function configPartiePourJeu(jeu, o) {
+  const selection = PARTIES_JEUX[jeu].pool && Array.isArray(o.selection) && o.selection.length ? o.selection.slice() : null;
+  if (jeu === 'duel') return { semesterId: 'tout', selection, manches: o.manches || 10, tempsMs: o.tempsMs || 10000 };
+  if (jeu === 'relais') return { tempsTourMs: o.tempsTourMs || 20000 };
+  if (jeu === 'dessin') return { semesterId: 'tout', selection, tempsMs: o.tempsMs || 60000 };
+  return { semesterId: o.semesterId || 'tout', selection, tempsTourMs: o.tempsTourMs || 15000, vies: o.vies || 3 };
+}
+
 async function creerPartie(options) {
   if (!window.accountUser) { showToast('Connecte-toi pour créer un salon.'); return; }
-  const config = {
-    semesterId: options.semesterId || 'tout',
-    tempsTourMs: options.tempsTourMs || 15000,
-    vies: options.vies || 3
-  };
+  const jeu = PARTIES_JEUX[options.jeu] ? options.jeu : 'bombe';
+  const config = configPartiePourJeu(jeu, options);
   let derniereErreur = null;
   for (let essai = 0; essai < 5; essai++) {
     const code = genererCodePartie();
@@ -134,7 +176,7 @@ async function creerPartie(options) {
       .from('parties')
       .insert({
         code,
-        jeu: 'bombe',
+        jeu,
         hote_id: window.accountUser.id,
         hote_pseudo: window.accountUser.pseudo || null,
         nom: options.nom ? options.nom.slice(0, 60) : null,
@@ -186,6 +228,9 @@ async function rejoindrePartie(ligne, motDePasseSaisi) {
     showToast('Mot de passe incorrect.');
     return;
   }
+  const max = (PARTIES_JEUX[ligne.jeu] || PARTIES_JEUX.bombe).max;
+  const dedans = await chargerJoueursPartie(ligne.id);
+  if (dedans.length >= max && !dedans.some(j => j.user_id === window.accountUser.id)) { showToast('Ce salon est complet.'); return; }
   const { error } = await window.sb.from('parties_joueurs').insert({
     partie_id: ligne.id,
     user_id: window.accountUser.id,
@@ -221,6 +266,13 @@ async function quitterPartie() {
 async function retirerJoueurPartie(userId) {
   if (!partieCourante || partieCourante.hote_id !== window.accountUser.id) return;
   await window.sb.from('parties_joueurs').delete().eq('partie_id', partieCourante.id).eq('user_id', userId);
+}
+
+// Démarre le jeu du salon, quel qu'il soit.
+async function demarrerPartie() {
+  if (!partieCourante) return;
+  if (partieCourante.jeu === 'bombe' || !partieCourante.jeu) return demarrerPartieBombe();
+  return demarrerPartieJeu();
 }
 
 async function demarrerPartieBombe() {
@@ -340,10 +392,9 @@ function demarrerMinuteurAffichagePartie() {
     if (!texte || !partieCourante || !partieCourante.etat_jeu || !partieCourante.etat_jeu.finTourA) return;
     const resteMs = Math.max(0, partieCourante.etat_jeu.finTourA - Date.now());
     texte.textContent = Math.ceil(resteMs / 1000) + 's';
-    if (barre) {
-      const total = (partieCourante.config && partieCourante.config.tempsTourMs) || 15000;
-      barre.style.width = Math.max(0, Math.min(100, (resteMs / total) * 100)) + '%';
-    }
+    const total = (partieCourante.config && partieCourante.config.tempsTourMs) || 15000;
+    if (barre) barre.style.width = Math.max(0, Math.min(100, (resteMs / total) * 100)) + '%';
+    if (typeof majMecheBombe === 'function') majMecheBombe(resteMs / total);
   }, 200);
 }
 
@@ -351,9 +402,34 @@ function demarrerMinuteurAffichagePartie() {
 // Rendu
 // ---------------------------------------------------------------------------
 
+// Chaque mise à jour du salon reconstruit la vue : on garde ce qu'un joueur
+// était en train de taper (champs marqués data-garde) et le focus.
+function sauvegarderSaisiesParties(el) {
+  const sauve = {};
+  el.querySelectorAll('input[data-garde]').forEach(i => {
+    sauve[i.id] = { valeur: i.value, focus: document.activeElement === i, debut: i.selectionStart, fin: i.selectionEnd };
+  });
+  return sauve;
+}
+
+function restaurerSaisiesParties(el, sauve) {
+  Object.keys(sauve).forEach(id => {
+    const i = el.querySelector('#' + id);
+    if (!i || i.disabled) return;
+    if (sauve[id].valeur) i.value = sauve[id].valeur;
+    if (sauve[id].focus) { i.focus(); try { i.setSelectionRange(sauve[id].debut, sauve[id].fin); } catch (e) { /* champ sans sélection */ } }
+  });
+}
+
 function renderParties() {
   const el = $('#view-parties');
   if (!el) return;
+  const sauve = (typeof document !== 'undefined' && el.querySelectorAll) ? sauvegarderSaisiesParties(el) : {};
+  renderPartiesVue(el);
+  if (el.querySelectorAll) restaurerSaisiesParties(el, sauve);
+}
+
+function renderPartiesVue(el) {
   if (!window.accountUser) {
     el.innerHTML = `<div class="card"><h2>Parties</h2><p style="color:var(--muted);">Connecte-toi pour créer ou rejoindre un salon de jeu.</p></div>`;
     return;
@@ -372,166 +448,4 @@ function renderParties() {
   }
 }
 
-function renderPartiesAccueil(el) {
-  const options = (DB.settings.semesters || []).map(s => `<option value="${s.id}">${escapeHtml(s.label)}</option>`).join('');
-  el.innerHTML = `
-    <div class="card">
-      <h2>Parties</h2>
-      <p style="color:var(--muted);">Jeu de la bombe : à tour de rôle, devine la lecture du mot affiché avant l'explosion. Le dernier survivant gagne. (Jeu de vitesse et jeu de dessin de kanji arriveront plus tard, dans ce même système de salons.)</p>
-    </div>
-    <div class="card">
-      <h3>Rejoindre par code</h3>
-      <div class="partie-actions">
-        <input type="text" id="partieCodeInput" placeholder="Code du salon" maxlength="5" style="text-transform:uppercase; width:120px;">
-        <input type="password" id="partieCodeMdp" placeholder="Mot de passe (si besoin)" style="width:200px;">
-        <button class="primary" id="btnRejoindreParCode">Rejoindre</button>
-      </div>
-    </div>
-    <div class="card">
-      <h3>Créer un salon</h3>
-      <div class="partie-form">
-        <label>Nom du salon (optionnel)<input type="text" id="partieNomInput" maxlength="60" placeholder="Ex. Soirée jeu entre nous"></label>
-        <label>Contenu<select id="partieSemestreInput"><option value="tout">Tout le vocabulaire débloqué</option>${options}</select></label>
-        <label>Temps par tour<select id="partieTempsInput">${PARTIES_TEMPS_TOUR_OPTIONS.map(ms => `<option value="${ms}" ${ms === 15000 ? 'selected' : ''}>${ms / 1000} secondes</option>`).join('')}</select></label>
-        <label>Vies par joueur<select id="partieViesInput">${PARTIES_VIES_OPTIONS.map(v => `<option value="${v}" ${v === 3 ? 'selected' : ''}>${v}</option>`).join('')}</select></label>
-        <label class="partie-form__case"><input type="checkbox" id="partiePriveInput"> Salon privé (absent du navigateur de salons)</label>
-        <label class="partie-form__case"><input type="checkbox" id="partieAmisInput"> Réservé à mes amis</label>
-        <label>Mot de passe (optionnel)<input type="text" id="partieMdpInput" placeholder="Laisser vide = aucun"></label>
-        <button class="primary" id="btnCreerPartie">Créer et entrer dans le salon</button>
-      </div>
-    </div>
-    <div class="card">
-      <h3>Salons ouverts</h3>
-      <div id="partiesListeZone"><p style="color:var(--muted);">Chargement…</p></div>
-    </div>`;
-
-  $('#btnRejoindreParCode').onclick = () => {
-    rejoindrePartieParCode($('#partieCodeInput').value, $('#partieCodeMdp').value);
-  };
-  $('#btnCreerPartie').onclick = () => {
-    creerPartie({
-      nom: $('#partieNomInput').value.trim(),
-      semesterId: $('#partieSemestreInput').value,
-      tempsTourMs: parseInt($('#partieTempsInput').value, 10),
-      vies: parseInt($('#partieViesInput').value, 10),
-      prive: $('#partiePriveInput').checked,
-      amisUniquement: $('#partieAmisInput').checked,
-      motDePasse: $('#partieMdpInput').value.trim() || null
-    });
-  };
-
-  chargerPartiesOuvertes().then(() => {
-    const zone = $('#partiesListeZone');
-    if (!zone) return; // la vue a changé entre-temps
-    if (!partiesOuvertes.length) {
-      zone.innerHTML = `<p style="color:var(--muted);">Aucun salon public ouvert pour l'instant. Crée le tien !</p>`;
-      return;
-    }
-    zone.innerHTML = partiesOuvertes.map(p => {
-      const nbJoueurs = (p.parties_joueurs && p.parties_joueurs[0] && p.parties_joueurs[0].count) || 0;
-      return `
-        <div class="partie-liste-item">
-          <div>
-            <strong>${escapeHtml(p.nom || 'Salon sans nom')}</strong>
-            <div style="color:var(--muted); font-size:12.5px;">Hébergé par ${escapeHtml(p.hote_pseudo || "quelqu'un")} · ${nbJoueurs} joueur${nbJoueurs > 1 ? 's' : ''} · code ${p.code}</div>
-          </div>
-          <button class="secondary small" data-rejoindre-partie="${p.id}">Rejoindre</button>
-        </div>`;
-    }).join('');
-    $$('[data-rejoindre-partie]', zone).forEach(btn => {
-      btn.onclick = () => rejoindrePartieDepuisListe(btn.dataset.rejoindrePartie);
-    });
-  });
-}
-
-function renderPartieLobby(el) {
-  const jeSuisHote = partieCourante.hote_id === window.accountUser.id;
-  const joueursHtml = joueursPartieCourante.map(j => `
-    <div class="partie-joueur-chip">
-      <span>${escapeHtml(j.pseudo || 'Joueur')}${j.user_id === partieCourante.hote_id ? ' 👑' : ''}</span>
-      ${jeSuisHote && j.user_id !== window.accountUser.id ? `<button class="secondary small" data-retirer-joueur="${j.user_id}" title="Retirer du salon">✕</button>` : ''}
-    </div>`).join('');
-  el.innerHTML = `
-    <div class="card">
-      <h2>Salon : ${escapeHtml(partieCourante.nom || 'Sans nom')}</h2>
-      <p style="color:var(--muted);">Code à partager : <strong>${partieCourante.code}</strong>${partieCourante.mot_de_passe ? ' · protégé par mot de passe' : ''}${partieCourante.amis_uniquement ? " · réservé aux amis de l'hôte" : ''}</p>
-      <p style="color:var(--muted);">Jeu de la bombe · ${(partieCourante.config.tempsTourMs || 15000) / 1000}s par tour · ${partieCourante.config.vies || 3} vies</p>
-      <h3>Joueurs (${joueursPartieCourante.length})</h3>
-      <div class="partie-joueurs-liste">${joueursHtml}</div>
-      <div class="partie-actions" style="margin-top:14px;">
-        ${jeSuisHote ? `<button class="primary" id="btnDemarrerPartie">Démarrer la partie</button>` : `<p style="color:var(--muted);">En attente que l'hôte démarre la partie…</p>`}
-        <button class="secondary" id="btnQuitterPartie">Quitter le salon</button>
-      </div>
-    </div>`;
-  if (jeSuisHote) {
-    $('#btnDemarrerPartie').onclick = () => demarrerPartieBombe();
-    $$('[data-retirer-joueur]', el).forEach(btn => { btn.onclick = () => retirerJoueurPartie(btn.dataset.retirerJoueur); });
-  }
-  $('#btnQuitterPartie').onclick = () => quitterPartie();
-}
-
-function renderPartieJeu(el) {
-  const ej = partieCourante.etat_jeu;
-  if (!ej || !ej.ordre) { el.innerHTML = `<div class="card"><p style="color:var(--muted);">Préparation de la partie…</p></div>`; return; }
-  const monId = window.accountUser.id;
-  const monTour = ej.ordre[ej.joueurActifIndex] === monId;
-  const mot = DB.vocab.find(v => v.id === ej.motActuelId);
-  const pseudoDe = (uid) => {
-    const j = joueursPartieCourante.find(x => x.user_id === uid);
-    return (j && j.pseudo) || 'Joueur';
-  };
-  const viesHtml = ej.ordre.map((uid, i) => `
-    <div class="partie-joueur-chip ${i === ej.joueurActifIndex ? 'partie-joueur-chip--actif' : ''}">
-      <span>${escapeHtml(pseudoDe(uid))}${uid === monId ? ' (toi)' : ''}</span>
-      <span class="partie-vies">${'❤️'.repeat(Math.max(0, ej.vies[uid] || 0))}</span>
-    </div>`).join('');
-  el.innerHTML = `
-    <div class="card">
-      <h2>💣 Jeu de la bombe</h2>
-      <div class="partie-joueurs-liste">${viesHtml}</div>
-      <div class="partie-minuteur">
-        <div class="partie-minuteur-barre"><div class="partie-minuteur-barre__remplissage" id="partieMinuteurBarre"></div></div>
-        <span id="partieMinuteurTexte" class="partie-minuteur-texte">…</span>
-      </div>
-      <div class="partie-mot-actif">${mot ? escapeHtml(mot.mot) : '…'}</div>
-      ${monTour ? `
-        <p><strong>À toi de jouer !</strong> Tape la lecture du mot avant l'explosion.</p>
-        <div class="partie-actions">
-          <input type="text" id="partieReponseInput" autocomplete="off" placeholder="Lecture (hiragana)" autofocus>
-          <button class="primary" id="btnValiderReponsePartie">Valider</button>
-        </div>` : `<p style="color:var(--muted);">Tour de ${escapeHtml(pseudoDe(ej.ordre[ej.joueurActifIndex]))}…</p>`}
-      <div class="partie-actions" style="margin-top:14px;"><button class="secondary small" id="btnQuitterPartieJeu">Quitter la partie</button></div>
-    </div>`;
-  if (monTour) {
-    const input = $('#partieReponseInput');
-    activerSaisieKanaDirecte(input, false);
-    input.focus();
-    const valider = () => { const v = input.value; input.value = ''; input.disabled = true; soumettreReponseBombe(v); };
-    $('#btnValiderReponsePartie').onclick = valider;
-    input.addEventListener('keydown', (e) => { if (e.key === 'Enter') valider(); });
-  }
-  $('#btnQuitterPartieJeu').onclick = () => quitterPartie();
-  demarrerMinuteurAffichagePartie();
-  if (partieCourante.hote_id === window.accountUser.id) demarrerMinuteurHotePartie();
-}
-
-function renderPartieFin(el) {
-  const ej = partieCourante.etat_jeu || {};
-  const jeSuisHote = partieCourante.hote_id === window.accountUser.id;
-  const pseudoDe = (uid) => {
-    const j = joueursPartieCourante.find(x => x.user_id === uid);
-    return (j && j.pseudo) || 'Joueur';
-  };
-  const jaiGagne = ej.vainqueurId === window.accountUser.id;
-  el.innerHTML = `
-    <div class="card">
-      <h2>Partie terminée</h2>
-      <p>${ej.vainqueurId ? `🏆 ${escapeHtml(pseudoDe(ej.vainqueurId))} remporte la partie${jaiGagne ? ' — bravo !' : ''}` : 'Partie terminée.'}</p>
-      <div class="partie-actions">
-        ${jeSuisHote ? `<button class="primary" id="btnRejouerPartie">Rejouer avec le même salon</button>` : `<p style="color:var(--muted);">En attente que l'hôte relance une manche…</p>`}
-        <button class="secondary" id="btnQuitterPartieFin">Quitter le salon</button>
-      </div>
-    </div>`;
-  if (jeSuisHote) $('#btnRejouerPartie').onclick = () => rejouerPartieBombe();
-  $('#btnQuitterPartieFin').onclick = () => quitterPartie();
-}
+// Les écrans (accueil, salon, bombe, fin) sont dans parties-ui.js ; les jeux Duel, Relais et Dessin dans parties-jeux.js.
