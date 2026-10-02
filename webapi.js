@@ -127,6 +127,11 @@ const JLPT_N4_SEED = {"kanjiGroups":[{"id":"kg-hu66go90952pa","semesterId":"jlpt
       data.kanjiGroups.push(...window.JLPT_N1D_SEED.kanjiGroups);
       data.vocab.push(...window.JLPT_N1D_SEED.vocab);
     }
+    // Semestre 5 (02/10/2026) : donnees dans s5-data.js (window.S5_SEED).
+    if (typeof window !== 'undefined' && window.S5_SEED && !data.kanjiGroups.some(g => g.semesterId === 's5')) {
+      data.kanjiGroups.push(...window.S5_SEED.kanjiGroups);
+      data.vocab.push(...window.S5_SEED.vocab);
+    }
     if (!data.kanjiGroups.some(g => g.semesterId === 'l0-s1')) {
       data.kanjiGroups.push(...L0_S1_SEED.kanjiGroups);
       data.vocab.push(...L0_S1_SEED.vocab);
