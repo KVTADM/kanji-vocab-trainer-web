@@ -91,7 +91,8 @@ const GAMIF_STREAK_PLAFOND_JOURS = 30;
 // n'est pas "un semestre du programme" — pas de bonus, tarif de base.
 const GAMIF_ORDRE_SEMESTRES = [
   'l0-s1', 'l0-s2', 's1', 's2', 's3', 's4', 's5', 's6',
-  'jlpt-n5', 'jlpt-n4', 'jlpt-n3'
+  'jlpt-n5', 'jlpt-n4', 'jlpt-n3', 'jlpt-n2',
+  'jlpt-n1a', 'jlpt-n1b', 'jlpt-n1c', 'jlpt-n1d'
 ];
 const GAMIF_BONUS_PAR_PALIER = 0.08;
 

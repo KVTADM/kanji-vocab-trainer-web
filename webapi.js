@@ -55,7 +55,12 @@
     { id: 's6', label: 'Semestre 6', weeks: 12 },
     { id: 'jlpt-n5', label: 'JLPT N5', weeks: 4 },
     { id: 'jlpt-n4', label: 'JLPT N4', weeks: 7 },
-    { id: 'jlpt-n3', label: 'JLPT N3', weeks: 15 }
+    { id: 'jlpt-n3', label: 'JLPT N3', weeks: 15 },
+    { id: 'jlpt-n2', label: 'JLPT N2', weeks: 15 },
+    { id: 'jlpt-n1a', label: 'JLPT N1 – partie 1', weeks: 13 },
+    { id: 'jlpt-n1b', label: 'JLPT N1 – partie 2', weeks: 13 },
+    { id: 'jlpt-n1c', label: 'JLPT N1 – partie 3', weeks: 13 },
+    { id: 'jlpt-n1d', label: 'JLPT N1 – partie 4', weeks: 13 }
   ];
 
   // Contenu figé du module JLPT N5 (79 kanji, 301 mots), pour pouvoir
@@ -98,6 +103,29 @@ const JLPT_N4_SEED = {"kanjiGroups":[{"id":"kg-hu66go90952pa","semesterId":"jlpt
     if (!data.kanjiGroups.some(g => g.semesterId === 'jlpt-n3')) {
       data.kanjiGroups.push(...JLPT_N3_SEED.kanjiGroups);
       data.vocab.push(...JLPT_N3_SEED.vocab);
+    }
+    // JLPT N2 (02/10/2026) : donnees dans jlpt-n2-data.js (window.JLPT_N2_SEED),
+    // charge avant ce fichier ; absent (tests) = on saute, sans erreur.
+    if (typeof window !== 'undefined' && window.JLPT_N2_SEED && !data.kanjiGroups.some(g => g.semesterId === 'jlpt-n2')) {
+      data.kanjiGroups.push(...window.JLPT_N2_SEED.kanjiGroups);
+      data.vocab.push(...window.JLPT_N2_SEED.vocab);
+    }
+    // JLPT N1 (02/10/2026) : 4 modules jlpt-n1a-data.js ... jlpt-n1d-data.js
+    if (typeof window !== 'undefined' && window.JLPT_N1A_SEED && !data.kanjiGroups.some(g => g.semesterId === 'jlpt-n1a')) {
+      data.kanjiGroups.push(...window.JLPT_N1A_SEED.kanjiGroups);
+      data.vocab.push(...window.JLPT_N1A_SEED.vocab);
+    }
+    if (typeof window !== 'undefined' && window.JLPT_N1B_SEED && !data.kanjiGroups.some(g => g.semesterId === 'jlpt-n1b')) {
+      data.kanjiGroups.push(...window.JLPT_N1B_SEED.kanjiGroups);
+      data.vocab.push(...window.JLPT_N1B_SEED.vocab);
+    }
+    if (typeof window !== 'undefined' && window.JLPT_N1C_SEED && !data.kanjiGroups.some(g => g.semesterId === 'jlpt-n1c')) {
+      data.kanjiGroups.push(...window.JLPT_N1C_SEED.kanjiGroups);
+      data.vocab.push(...window.JLPT_N1C_SEED.vocab);
+    }
+    if (typeof window !== 'undefined' && window.JLPT_N1D_SEED && !data.kanjiGroups.some(g => g.semesterId === 'jlpt-n1d')) {
+      data.kanjiGroups.push(...window.JLPT_N1D_SEED.kanjiGroups);
+      data.vocab.push(...window.JLPT_N1D_SEED.vocab);
     }
     if (!data.kanjiGroups.some(g => g.semesterId === 'l0-s1')) {
       data.kanjiGroups.push(...L0_S1_SEED.kanjiGroups);
