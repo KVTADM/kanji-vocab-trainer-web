@@ -3748,3 +3748,10 @@ input.dessin-faux { animation: dessin-secoue .4s; border-color: var(--bad-bright
 .trace-nav-btn { font-size: 22px; line-height: 1; min-width: 56px; min-height: 44px; padding: 6px 14px; }
 .trace-nav-btn:disabled { opacity: .35; cursor: default; }
 .trace-nav-pos { font-size: 14px; color: var(--muted); min-width: 56px; text-align: center; }
+
+/* Memes couleurs de palier pour les cartes du Vocabulaire pratique (compteurs, couleurs, heure) -- 03/10/2026 */
+.review-week-card.palier-faible { border-top-color: var(--bad-bright); background: rgba(192, 64, 96, 0.10); }
+.review-week-card.palier-moyen { border-top-color: var(--warn-bright); background: rgba(224, 160, 80, 0.10); }
+.review-week-card.palier-bon { border-top-color: var(--good-bright); background: rgba(95, 174, 95, 0.08); }
+.review-week-card.palier-parfait { border-color: var(--good-bright); border-top-color: var(--good-bright); background: rgba(95, 174, 95, 0.22); box-shadow: 0 0 0 1px var(--good-bright) inset; }
+.review-week-card.week-card--hardcore { border-color: var(--bad); box-shadow: 0 0 0 1px var(--bad) inset; }

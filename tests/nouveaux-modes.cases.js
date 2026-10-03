@@ -356,3 +356,14 @@ essai('compteurs : aucun mot compose qui n\'est pas une forme de compteur', () =
   const trouve = liste.find(v => interdits.includes(v.mot));
   if (trouve) throw new Error(trouve.mot + ' n\'est pas un compteur');
 });
+
+essai('cartes du vocabulaire pratique : couleur de palier selon le meilleur score', () => {
+  DB = baseDB();
+  DB.scoresPratique = { compteurs: { best: { points: 10, maxPoints: 10, pct: 100, history: [] }, history: [] }, couleurs: { best: { points: 2, maxPoints: 10, pct: 20 }, history: [] }, heure: { best: { points: 6, maxPoints: 10, pct: 60 }, history: [] } };
+  const html = buildPratiqueCardsHtml('review-week-card', 'r');
+  const carte = (t) => (html.split('\n').find(l => l.includes('data-theme="' + t + '"')) || '');
+  if (!carte('compteurs').includes('palier-parfait')) throw new Error('compteurs 100% devrait etre palier-parfait');
+  if (!carte('couleurs').includes('palier-faible')) throw new Error('couleurs 20% devrait etre palier-faible');
+  if (!carte('heure').includes('palier-moyen')) throw new Error('heure 60% devrait etre palier-moyen');
+  if (carte('compteurs2').includes('palier')) throw new Error('un theme sans score ne doit pas avoir de palier');
+});

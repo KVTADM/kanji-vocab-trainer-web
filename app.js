@@ -3939,7 +3939,7 @@ function buildPratiqueCardsHtml(cardClass, restartClass) {
     const entry = getPratiqueScoreEntry(t.id);
     const saved = getValidPratiqueInProgress(t.id);
     html += `
-      <div class="${cardClass}${count === 0 ? ' empty' : ''}" data-theme="${t.id}">
+      <div class="${cardClass}${count === 0 ? ' empty' : ''}${entry ? ' ' + classePalierPct(entry.best.pct) : ''}${entry && entry.best.difficulte === 'difficile' ? ' week-card--hardcore' : ''}" data-theme="${t.id}">
         <div class="week-num">${escapeHtml(t.label)}</div>
         <div class="week-meta">${count} mots</div>
         ${entry ? `<div class="week-score">${entry.best.points}/${entry.best.maxPoints} pts <span class="week-score-pct">(${formatPct(entry.best.pct)})</span></div>` : '<div class="week-score muted">—</div>'}
