@@ -17,6 +17,7 @@ let reviewVerbeFilter = 'tous'; // 'tous' | 'sans_verbe' | 'verbe_seul' — filt
 let dashboardMode = 'cursus';  // 'cursus' (S0-S6) ou 'jlpt' (modules JLPT) — bascule en haut à droite de l'Accueil
 let modalSemaineOuverte = null; // { semesterId, week } — modale de choix ouverte sur une carte du Tableau de bord (09/09/2026), voir renderDashboard()
 let modalMotsMasquesOuvert = false; // modale "Mots masqués" ouverte depuis Vocabulaire (17/09/2026), voir renderVocab()
+let modalTraceListe = null; // kanji de la semaine parcourue (page Vocabulaire) : permet les fleches precedent/suivant dans la modale de trace, ou null (pas de navigation)
 let modalTraceKanji = null; // caractere(s) kanji affiche(s) dans la modale de trace des traits (tache #13, KanjiVG), ou null si fermee
 
 // Semestres repliables sur le Tableau de bord (28/09/2026, demande de Paul :
@@ -2477,6 +2478,7 @@ function renderVocab() {
   $$('.btn-voir-trace-groupe').forEach(btn => {
     btn.addEventListener('click', () => {
       modalTraceKanji = btn.dataset.kanji;
+      modalTraceListe = groups.map(g => g.kanji);
       renderVocab();
     });
   });
@@ -2668,6 +2670,34 @@ function animerTraceKanji(svgEl) {
   }, dureeTotale);
 }
 
+// Fleches precedent/suivant dans la modale de trace (demande de Paul,
+// 03/10/2026) : on trace les kanji d'une semaine un par un, dans l'ordre,
+// donc on passe au kanji suivant sans fermer la modale. Seulement quand la
+// modale vient de la page Vocabulaire (modalTraceListe renseignee).
+function htmlNavTraceKanji() {
+  if (!modalTraceListe || modalTraceListe.length < 2) return '';
+  const i = modalTraceListe.indexOf(modalTraceKanji);
+  if (i < 0) return '';
+  const avant = i > 0, apres = i < modalTraceListe.length - 1;
+  return `
+    <div class="trace-nav">
+      <button class="secondary trace-nav-btn" id="btnTracePrec" aria-label="Kanji precedent" title="Kanji precedent (fleche gauche)" ${avant ? '' : 'disabled'}>←</button>
+      <span class="trace-nav-pos">${i + 1} / ${modalTraceListe.length}</span>
+      <button class="secondary trace-nav-btn" id="btnTraceSuiv" aria-label="Kanji suivant" title="Kanji suivant (fleche droite)" ${apres ? '' : 'disabled'}>→</button>
+    </div>
+  `;
+}
+
+// Passe au kanji voisin de la semaine (delta = -1 ou +1) ; sans effet aux extremites.
+function traceKanjiVoisin(delta) {
+  if (!modalTraceKanji || !modalTraceListe) return false;
+  const i = modalTraceListe.indexOf(modalTraceKanji);
+  const j = i + delta;
+  if (i < 0 || j < 0 || j >= modalTraceListe.length) return false;
+  modalTraceKanji = modalTraceListe[j];
+  return true;
+}
+
 function htmlModalTraceKanji() {
   if (!modalTraceKanji) return '';
   const caracteres = caracteresKanjiDistincts(modalTraceKanji);
@@ -2697,6 +2727,7 @@ function htmlModalTraceKanji() {
           <button class="modal-fermer" id="btnFermerModalTrace" title="Fermer" aria-label="Fermer">✕</button>
         </div>
         <div class="trace-blocs">${blocs}</div>
+        ${htmlNavTraceKanji()}
         <p class="trace-attribution">Traces : projet <a href="https://kanjivg.tagaini.net" target="_blank" rel="noopener">KanjiVG</a> (CC BY-SA 3.0).</p>
       </div>
     </div>
@@ -2732,9 +2763,28 @@ function animerTracesInline(prefixeId) {
 // ce modal s'ouvre depuis plusieurs vues (Kanji seul, Vocabulaire), donc
 // pas de vue "propriétaire" fixe a rappeler en dur (contrairement aux
 // autres modales du fichier qui n'ont qu'un seul point d'ouverture).
+let _kvtTraceToucheHandler = null;
 function wireModalTraceKanji(rerender) {
+  if (_kvtTraceToucheHandler) {
+    document.removeEventListener('keydown', _kvtTraceToucheHandler);
+    _kvtTraceToucheHandler = null;
+  }
   if (!modalTraceKanji) return;
-  const fermer = () => { modalTraceKanji = null; rerender(); };
+  const fermer = () => { modalTraceKanji = null; modalTraceListe = null; rerender(); };
+  const voisin = (delta) => { if (traceKanjiVoisin(delta)) rerender(); };
+  const btnPrec = $('#btnTracePrec'), btnSuiv = $('#btnTraceSuiv');
+  if (btnPrec) btnPrec.addEventListener('click', () => voisin(-1));
+  if (btnSuiv) btnSuiv.addEventListener('click', () => voisin(1));
+  if (modalTraceListe) {
+    _kvtTraceToucheHandler = (e) => {
+      const t = e.target;
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return;
+      if (e.key === 'ArrowLeft') { e.preventDefault(); voisin(-1); }
+      else if (e.key === 'ArrowRight') { e.preventDefault(); voisin(1); }
+      else if (e.key === 'Escape') { fermer(); }
+    };
+    document.addEventListener('keydown', _kvtTraceToucheHandler);
+  }
   const backdrop = $('#modalTraceKanjiBackdrop');
   if (backdrop) {
     $('#btnFermerModalTrace').addEventListener('click', fermer);
@@ -2959,6 +3009,7 @@ function renderKanjiQuizView(container) {
   if (btnVoirTrace) {
     btnVoirTrace.addEventListener('click', () => {
       modalTraceKanji = g.kanji;
+      modalTraceListe = null;
       renderReview();
     });
   }

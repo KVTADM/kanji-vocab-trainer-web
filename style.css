@@ -3742,3 +3742,9 @@ input.dessin-faux { animation: dessin-secoue .4s; border-color: var(--bad-bright
 /* Explication affichee apres la reponse (vocabulaire pratique, 02/10/2026) */
 .flashcard .back-note { margin: 12px auto 0; max-width: 460px; text-align: left; font-size: 14px; line-height: 1.5; padding: 10px 12px; border-left: 3px solid var(--accent-bright); background: rgba(91, 200, 245, 0.08); border-radius: 6px; }
 .flashcard .back-note strong { display: block; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--accent-bright); margin-bottom: 2px; }
+
+/* Fleches precedent/suivant dans la modale de trace (03/10/2026) */
+.trace-nav { display: flex; align-items: center; justify-content: center; gap: 18px; margin-top: 14px; }
+.trace-nav-btn { font-size: 22px; line-height: 1; min-width: 56px; min-height: 44px; padding: 6px 14px; }
+.trace-nav-btn:disabled { opacity: .35; cursor: default; }
+.trace-nav-pos { font-size: 14px; color: var(--muted); min-width: 56px; text-align: center; }

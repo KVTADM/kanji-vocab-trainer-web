@@ -332,3 +332,20 @@ essai('compteurs : le theme est coupe en deux parties sans recouvrement', () => 
   if (b.some(v => ids.has(v.id))) throw new Error('recouvrement entre les deux parties');
   if (a.some(v => /[度番線期代町杯点号]/.test(v.mot))) throw new Error('un compteur de la partie 2 est dans la partie 1');
 });
+
+essai('trace : fleches precedent/suivant parcourent les kanji de la semaine et s\'arretent aux bords', () => {
+  modalTraceListe = ['日', '月', '火'];
+  modalTraceKanji = '日';
+  if (traceKanjiVoisin(-1)) throw new Error('pas de precedent avant le premier');
+  if (!traceKanjiVoisin(1) || modalTraceKanji !== '月') throw new Error('suivant 日 -> 月');
+  if (!traceKanjiVoisin(1) || modalTraceKanji !== '火') throw new Error('suivant 月 -> 火');
+  if (traceKanjiVoisin(1)) throw new Error('pas de suivant apres le dernier');
+  if (!traceKanjiVoisin(-1) || modalTraceKanji !== '月') throw new Error('precedent 火 -> 月');
+  const html = htmlNavTraceKanji();
+  if (!html.includes('2 / 3')) throw new Error('position affichee incorrecte : ' + html);
+  if (html.includes('btnTracePrec" aria-label="Kanji precedent" title="Kanji precedent (fleche gauche)" disabled')) throw new Error('precedent ne devrait pas etre desactive au milieu');
+  modalTraceListe = null;
+  if (htmlNavTraceKanji() !== '') throw new Error('pas de fleches hors page Vocabulaire');
+  if (traceKanjiVoisin(1)) throw new Error('pas de navigation sans liste');
+  modalTraceKanji = null;
+});
