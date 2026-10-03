@@ -296,9 +296,9 @@ essai('rechercherVocab : kanji, kana, romaji et français (sans accents) ; mots 
 });
 
 
-essai('compteurs : les 14 compteurs de la feuille sont presents, chacun avec une explication', () => {
+essai('compteurs : les compteurs de la feuille (sauf 券, qui ne se compte pas) sont presents, chacun avec une explication', () => {
   const liste = getPratiqueList('compteurs').concat(getPratiqueList('compteurs2'));
-  '個券羽頭名度番線期代町杯点号'.split('').forEach(k => {
+  '個羽頭名度番線期代町杯点号'.split('').forEach(k => {
     const mots = liste.filter(v => v.mot.includes(k));
     if (mots.length < 3) throw new Error('compteur ' + k + ' : moins de 3 mots');
     if (mots.some(v => !v.note || v.note.length < 10)) throw new Error('compteur ' + k + ' : explication manquante');
@@ -317,7 +317,7 @@ essai('compteurs : pas de doublon mot+lecture, lectures en kana, notes en texte'
 });
 
 essai('compteurs : les formes irregulieres cles sont bien lues', () => {
-  const att = { '一個':'いっこ','三羽':'さんば','六羽':'ろっぱ','一頭':'いっとう','六杯':'ろっぱい','三杯':'さんばい','乾杯':'かんぱい','一点':'いってん','十点':'じゅってん','二十歳':'はたち','一人':'ひとり','四人':'よにん','三本':'さんぼん','三階':'さんがい' };
+  const att = { '一個':'いっこ','三羽':'さんば','六羽':'ろっぱ','一頭':'いっとう','六杯':'ろっぱい','三杯':'さんばい','一点':'いってん','十点':'じゅってん','二十歳':'はたち','一人':'ひとり','四人':'よにん','三本':'さんぼん','三階':'さんがい' };
   const liste = getPratiqueList('compteurs').concat(getPratiqueList('compteurs2'));
   Object.keys(att).forEach(m => {
     const v = liste.find(x => x.mot === m);
@@ -348,4 +348,11 @@ essai('trace : fleches precedent/suivant parcourent les kanji de la semaine et s
   if (htmlNavTraceKanji() !== '') throw new Error('pas de fleches hors page Vocabulaire');
   if (traceKanjiVoisin(1)) throw new Error('pas de navigation sans liste');
   modalTraceKanji = null;
+});
+
+essai('compteurs : aucun mot compose qui n\'est pas une forme de compteur', () => {
+  const interdits = ['回数券','入場券','乗車券','食券','商品券','羽毛','山手線','新幹線','前期','後期','学期','時代','電気代','代金','番号','電話番号','満点','乾杯'];
+  const liste = getPratiqueList('compteurs').concat(getPratiqueList('compteurs2'));
+  const trouve = liste.find(v => interdits.includes(v.mot));
+  if (trouve) throw new Error(trouve.mot + ' n\'est pas un compteur');
 });
