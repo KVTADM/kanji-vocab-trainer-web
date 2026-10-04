@@ -397,3 +397,91 @@ essai('reponse vide : chaque mode sait noter une reponse vide (0 point, pas d\'e
     if (!r || r.points !== 0) throw new Error('mode ' + i + ' : une reponse vide doit valoir 0 point');
   });
 });
+
+essai('temps : deux themes (jours / mois-annees), tous avec une explication, lectures cles correctes', () => {
+  const t1 = getPratiqueList('temps'), t2 = getPratiqueList('temps2');
+  if (t1.length < 30 || t2.length < 30) throw new Error('themes temps trop petits : ' + t1.length + '/' + t2.length);
+  const tous = t1.concat(t2);
+  const sansNote = tous.find(v => !v.note || v.note.length < 10);
+  if (sansNote) throw new Error('explication manquante : ' + sansNote.mot);
+  const att = { '二日':'ふつか', '二十日':'はつか', '今日':'きょう', '明日':'あした', '四月':'しがつ', '七月':'しちがつ', '九月':'くがつ', '今年':'ことし', '四年':'よねん', '一週間':'いっしゅうかん', '一か月':'いっかげつ' };
+  Object.keys(att).forEach(m => {
+    const v = tous.find(x => x.mot === m);
+    if (!v || v.lecture !== att[m]) throw new Error(m + ' devrait se lire ' + att[m]);
+  });
+  if (!tous.some(v => v.mot === '一日' && v.lecture === 'ついたち') || !tous.some(v => v.mot === '一日' && v.lecture === 'いちにち')) throw new Error('les deux lectures de 一日 attendues');
+  const vus = new Set();
+  tous.forEach(v => { const c = v.mot + '|' + v.lecture; if (vus.has(c)) throw new Error('doublon ' + c); vus.add(c); if (!/^[ぁ-ゟ゠-ヿ]+$/.test(v.lecture)) throw new Error('lecture non kana : ' + v.mot); });
+});
+
+essai('nombres : irreguliers cles (centaines, milliers, 万/億, yens) et explication partout', () => {
+  const l = getPratiqueList('nombres');
+  if (l.length < 50) throw new Error('theme nombres trop petit : ' + l.length);
+  const att = { '三百':'さんびゃく','六百':'ろっぴゃく','八百':'はっぴゃく','三千':'さんぜん','八千':'はっせん','一万':'いちまん','一億':'いちおく','四':'よん','七':'なな','九':'きゅう','三百円':'さんびゃくえん','一万円':'いちまんえん','千円':'せんえん' };
+  Object.keys(att).forEach(m => {
+    const v = l.find(x => x.mot === m);
+    if (!v || v.lecture !== att[m]) throw new Error(m + ' devrait se lire ' + att[m]);
+  });
+  const sans = l.find(v => !v.note || v.note.length < 10);
+  if (sans) throw new Error('explication manquante : ' + sans.mot);
+});
+
+essai('verbes : formes N5-N3 correctes (te, nai, potentiel, imperatif, volitif, ba, passif, causatif...)', () => {
+  const l = getPratiqueList('verbes1').concat(getPratiqueList('verbes2'));
+  if (getPratiqueList('verbes1').length < 30 || getPratiqueList('verbes2').length < 40) throw new Error('themes verbes trop petits');
+  const att = {
+    '書いて':'かいて','行って':'いって','泳いで':'およいで','話して':'はなして','死んで':'しんで','買って':'かって','来て':'きて','勉強して':'べんきょうして',
+    '買わない':'かわない','来ない':'こない','行った':'いった','書きたい':'かきたい',
+    '書ける':'かける','買える':'かえる','食べられる':'たべられる','来られる':'こられる','勉強できる':'べんきょうできる',
+    '書け':'かけ','食べろ':'たべろ','来い':'こい','勉強しろ':'べんきょうしろ',
+    '読もう':'よもう','食べよう':'たべよう','来よう':'こよう','食べれば':'たべれば','来れば':'くれば','勉強すれば':'べんきょうすれば',
+    '書かれる':'かかれる','書かせる':'かかせる','食べさせる':'たべさせる','来させる':'こさせる','書くな':'かくな','食べさせられる':'たべさせられる','書かされる':'かかされる'
+  };
+  Object.keys(att).forEach(m => {
+    const v = l.find(x => x.mot === m);
+    if (!v) throw new Error(m + ' absent');
+    if (v.lecture !== att[m]) throw new Error(m + ' devrait se lire ' + att[m] + ' (trouve ' + v.lecture + ')');
+  });
+  const sans = l.find(v => !v.rappel || v.rappel.length < 20 || !v.sens);
+  if (sans) throw new Error('sens/explication manquants : ' + sans.mot);
+  const vus = new Set();
+  l.forEach(v => { const c = v.mot + '|' + v.lecture; if (vus.has(c)) throw new Error('doublon ' + c); vus.add(c); });
+});
+
+essai('grammaire N5-N3 : themes verbes3, verbes4 et grammaire complets, avec lectures cles', () => {
+  const v3 = getPratiqueList('verbes3'), v4 = getPratiqueList('verbes4'), g = getPratiqueList('grammaire');
+  if (v3.length < 30 || v4.length < 40 || g.length < 40) throw new Error('themes trop petits : ' + [v3.length, v4.length, g.length]);
+  const tous = v3.concat(v4, g);
+  const sans = tous.find(v => !v.rappel || v.rappel.length < 20 || !v.sens);
+  if (sans) throw new Error('sens/explication manquants : ' + sans.mot);
+  const att = {
+    '書いたら':'かいたら','行ったら':'いったら','読んだら':'よんだら','来たら':'きたら','来なかったら':'こなかったら','食べなかったら':'たべなかったら',
+    '書くと':'かくと','来ると':'くると','食べなかった':'たべなかった','買わなかった':'かわなかった','来なかった':'こなかった',
+    '高くない':'たかくない','高かった':'たかかった','高くなかった':'たかくなかった','良くない':'よくない','良かった':'よかった','静かじゃない':'しずかじゃない','学生じゃなかった':'がくせいじゃなかった',
+    '書いている':'かいている','住んでいる':'すんでいる','知っている':'しっている','開けてある':'あけてある','買っておく':'かっておく','読んでしまう':'よんでしまう','行ってみる':'いってみる','持っていく':'もっていく','持ってくる':'もってくる','行ってもいい':'いってもいい','見てはいけない':'みてはいけない','来てほしい':'きてほしい','教えてあげる':'おしえてあげる','書いてくれる':'かいてくれる','書いてもらう':'かいてもらう','待ってください':'まってください',
+    '行くつもりだ':'いくつもりだ','行かないつもりだ':'いかないつもりだ','来るかもしれない':'くるかもしれない','雨かもしれない':'あめかもしれない','静かなはずだ':'しずかなはずだ','学生のはずだ':'がくせいのはずだ','来るはずがない':'くるはずがない','雨でしょう':'あめでしょう','食べているところだ':'たべているところだ','来たところだ':'きたところだ','食べたばかりだ':'たべたばかりだ','寝てばかりいる':'ねてばかりいる','肉ばかり':'にくばかり'
+  };
+  Object.keys(att).forEach(m => {
+    const x = tous.find(y => y.mot === m);
+    if (!x) throw new Error(m + ' absent');
+    if (x.lecture !== att[m]) throw new Error(m + ' devrait se lire ' + att[m] + ' (trouve ' + x.lecture + ')');
+  });
+  const vus = new Set();
+  const complet = getPratiqueList('verbes1').concat(getPratiqueList('verbes2'), tous);
+  complet.forEach(x => { const c = x.mot + '|' + x.lecture; if (vus.has(c)) throw new Error('doublon ' + c); vus.add(c); });
+  const ids = new Set(PRATIQUE_VOCAB.map(x => x.id));
+  if (ids.size !== PRATIQUE_VOCAB.length) throw new Error('ids dupliques');
+});
+
+essai('indications de cours : chaque mot a un sujet et un rappel courts, affiches avant la reponse', () => {
+  PRATIQUE_VOCAB.forEach(v => {
+    if (!v.sujet || v.sujet.length < 4 || v.sujet.length > 60) throw new Error('sujet invalide : ' + v.id + ' ' + v.sujet);
+    if (!v.rappel || v.rappel.length < 20 || v.rappel.length > 200) throw new Error('rappel invalide : ' + v.id);
+    if (/Nombre de base/.test(v.note || '')) throw new Error('note parasite : ' + v.id);
+  });
+  const h1 = htmlIndiceCours(PRATIQUE_VOCAB[0], true);
+  if (h1.indexOf('indice-cours__sujet') < 0 || h1.indexOf('indice-cours__rappel') < 0) throw new Error('sujet + rappel attendus');
+  const h2 = htmlIndiceCours(PRATIQUE_VOCAB[0], false);
+  if (h2.indexOf('indice-cours__rappel') >= 0) throw new Error('rappel masque attendu (mode difficile / apres reponse)');
+  if (htmlIndiceCours({ mot: 'x' }, true) !== '') throw new Error('entree sans sujet : rien a afficher');
+});
