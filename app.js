@@ -4068,7 +4068,7 @@ function renderPratiqueQuizView(container) {
         <div class="progress-bar"><div class="progress-fill" style="width:${progressPct}%"></div></div>
       </div>
       <div class="flashcard">
-        ${v.base ? `<div class="front-word${classeTailleMot(v.base)}">${escapeHtml(v.base)}</div><div class="verbe-base-lecture">${escapeHtml(v.baseLecture)}</div>` : `<div class="front-word${classeTailleMot(v.mot)}">${escapeHtml(v.mot)}</div>`}${indiceQuestionHtml(v)}${htmlIndiceCours(v, !quizSession.hardcore && !quizSession.submitted)}
+        ${v.base ? `<div class="front-word${classeTailleMot(v.base)}">${escapeHtml(v.base)}</div><div class="verbe-base-lecture">${escapeHtml(v.baseLecture)}</div>` : `<div class="front-word${classeTailleMot(v.mot)}">${escapeHtml(v.mot)}</div>`}${indiceQuestionHtml(v)}${v.base && !quizSession.submitted ? htmlIndiceCours(v, false) : ''}
         ${!quizSession.submitted ? `
           ${quizSession.warning ? `<div class="quiz-feedback bad" style="margin-top:12px;">${escapeHtml(quizSession.warning)}${htmlBoutonPasser()}</div>` : ''}
           <div class="answer-input-wrap">
@@ -4081,6 +4081,7 @@ function renderPratiqueQuizView(container) {
         ` : `
           ${v.base ? `<div class="front-word${classeTailleMot(v.mot)}">${escapeHtml(v.mot)}</div>` : ''}<div class="back-reading">${escapeHtml(v.lecture)}${registreBadge(v)}</div>
           ${v.sens ? `<div class="back-meaning">${escapeHtml(v.sens)}</div>` : ''}
+          ${v.rappel ? `<div class="back-note"><strong>Cours</strong> ${escapeHtml(v.sujet)} : ${escapeHtml(v.rappel)}</div>` : ''}
           ${v.note ? `<div class="back-note"><strong>À retenir</strong> ${escapeHtml(v.note)}</div>` : ''}
           <div class="quiz-feedback ${quizSession.lastResult.pct >= 0.99 ? 'good' : (quizSession.lastResult.pct >= 0.6 ? 'mid' : 'bad')}">
             Ta reponse : "${escapeHtml(quizSession.lastAnswer) || '(vide)'}" -- ${quizSession.lastResult.points}/${DB.settings.pointsPerWord} points (${Math.round(quizSession.lastResult.pct * 100)}% de similarite)
