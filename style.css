@@ -3777,3 +3777,5 @@ input.dessin-faux { animation: dessin-secoue .4s; border-color: var(--bad-bright
 .indice-cours { margin: 10px auto 0; max-width: 420px; text-align: center; }
 .indice-cours__sujet { display: inline-block; font-size: 12px; font-weight: 600; letter-spacing: .02em; color: var(--accent, #4f46e5); background: rgba(79,70,229,.10); border-radius: 999px; padding: 3px 10px; }
 .indice-cours__rappel { margin-top: 6px; font-size: 13px; line-height: 1.4; color: var(--muted, #6b7280); }
+
+.verbe-base-lecture { text-align:center; font-size:14px; color: var(--muted, #6b7280); margin-top:2px; }

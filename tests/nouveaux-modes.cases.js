@@ -485,3 +485,13 @@ essai('indications de cours : chaque mot a un sujet et un rappel courts, affiche
   if (h2.indexOf('indice-cours__rappel') >= 0) throw new Error('rappel masque attendu (mode difficile / apres reponse)');
   if (htmlIndiceCours({ mot: 'x' }, true) !== '') throw new Error('entree sans sujet : rien a afficher');
 });
+
+essai('Verbes 1 et 2 : on donne le verbe a la forme neutre, la reponse (forme conjuguee) n est pas affichee', () => {
+  const vs = getPratiqueList('verbes1').concat(getPratiqueList('verbes2'));
+  vs.forEach(v => {
+    if (!v.base || !v.baseLecture) throw new Error('base manquante : ' + v.id);
+    if (v.base === v.mot) throw new Error('la base ne doit pas etre la reponse : ' + v.mot);
+  });
+  const x = vs.find(v => v.mot === '書いて');
+  if (x.base !== '書く' || x.baseLecture !== 'かく') throw new Error('base de 書いて : ' + x.base);
+});
