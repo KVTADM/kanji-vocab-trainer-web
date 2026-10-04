@@ -3461,6 +3461,37 @@ function clearTraductionInProgress(semesterId, week) {
   if (DB.inProgressTraduction) delete DB.inProgressTraduction[weekKey(semesterId, week)];
 }
 
+// Affichage du sens (francais) a traduire (04/10/2026, demande de Paul) :
+// avant, "cohue, encombrement" etait rendu en 64px comme un kanji et les
+// mots etaient coupes au milieu ("encombrem/ent"). Le sens est decoupe sur
+// les virgules/points-virgules HORS parentheses, chaque definition prend sa
+// ligne, et la taille de police suit la plus longue definition.
+function decouperSens(sens) {
+  const t = String(sens || '').trim();
+  if (!t) return [];
+  const parts = [];
+  let prof = 0, cur = '';
+  for (const c of t) {
+    if (c === '(' || c === '\uff08') prof++;
+    else if (c === ')' || c === '\uff09') prof = Math.max(0, prof - 1);
+    if ((c === ',' || c === ';') && prof === 0) { parts.push(cur); cur = ''; }
+    else cur += c;
+  }
+  parts.push(cur);
+  return parts.map(p => p.trim()).filter(Boolean);
+}
+function classeTailleSens(parts) {
+  const max = parts.reduce((m, p) => Math.max(m, Array.from(p).length), 0);
+  if (max > 40) return 'sens-trad--tres-long';
+  if (max > 22) return 'sens-trad--long';
+  return '';
+}
+function htmlSensTraduction(sens) {
+  const parts = decouperSens(sens);
+  if (!parts.length) return '<div class="sens-trad"><div class="sens-trad-ligne">(sens manquant)</div></div>';
+  return `<div class="sens-trad ${classeTailleSens(parts)}" lang="fr">${parts.map(p => `<div class="sens-trad-ligne">${escapeHtml(p)}</div>`).join('')}</div>`;
+}
+
 function renderTraductionQuizView(container) {
   if (quizSession.index >= quizSession.queue.length) {
     const { points, maxPoints } = quizSession.totals;
@@ -3526,7 +3557,7 @@ function renderTraductionQuizView(container) {
         <div class="progress-bar"><div class="progress-fill" style="width:${progressPct}%"></div></div>
       </div>
       <div class="flashcard">
-        <div class="front-word">${escapeHtml(v.sens || '(sens manquant)')}</div>${indiceQuestionHtml(v)}
+        ${htmlSensTraduction(v.sens)}${indiceQuestionHtml(v)}
         ${!quizSession.submitted ? `
           ${quizSession.warning ? `<div class="quiz-feedback bad" style="margin-top:12px;">${escapeHtml(quizSession.warning)}</div>` : ''}
           <div class="answer-input-wrap">

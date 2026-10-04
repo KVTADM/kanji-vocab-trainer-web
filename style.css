@@ -3755,3 +3755,16 @@ input.dessin-faux { animation: dessin-secoue .4s; border-color: var(--bad-bright
 .review-week-card.palier-bon { border-top-color: var(--good-bright); background: rgba(95, 174, 95, 0.08); }
 .review-week-card.palier-parfait { border-color: var(--good-bright); border-top-color: var(--good-bright); background: rgba(95, 174, 95, 0.22); box-shadow: 0 0 0 1px var(--good-bright) inset; }
 .review-week-card.week-card--hardcore { border-color: var(--bad); box-shadow: 0 0 0 1px var(--bad) inset; }
+
+/* Sens francais a traduire (mode Traduction) -- 04/10/2026 : plus de coupure au milieu des mots,
+   une definition par ligne, taille selon la plus longue definition. */
+.flashcard .sens-trad { display: flex; flex-direction: column; gap: 6px; align-items: center; color: var(--cream); font-weight: 700; line-height: 1.2; }
+.flashcard .sens-trad-ligne { font-size: 44px; max-width: 100%; overflow-wrap: break-word; word-break: normal; hyphens: auto; text-wrap: balance; }
+.flashcard .sens-trad-ligne + .sens-trad-ligne { font-size: .8em; color: var(--accent-bright); font-weight: 600; }
+.flashcard .sens-trad--long .sens-trad-ligne { font-size: 32px; }
+.flashcard .sens-trad--tres-long .sens-trad-ligne { font-size: 24px; }
+@media (max-width: 640px) {
+  .flashcard .sens-trad-ligne { font-size: 34px; }
+  .flashcard .sens-trad--long .sens-trad-ligne { font-size: 26px; }
+  .flashcard .sens-trad--tres-long .sens-trad-ligne { font-size: 20px; }
+}

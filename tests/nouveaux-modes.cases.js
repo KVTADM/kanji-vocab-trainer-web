@@ -367,3 +367,16 @@ essai('cartes du vocabulaire pratique : couleur de palier selon le meilleur scor
   if (!carte('heure').includes('palier-moyen')) throw new Error('heure 60% devrait etre palier-moyen');
   if (carte('compteurs2').includes('palier')) throw new Error('un theme sans score ne doit pas avoir de palier');
 });
+
+essai('traduction : le sens est decoupe hors parentheses, une definition par ligne', () => {
+  const p = decouperSens('cohue, encombrement');
+  if (p.length !== 2 || p[0] !== 'cohue' || p[1] !== 'encombrement') throw new Error('decoupe : ' + JSON.stringify(p));
+  const q = decouperSens('un (objet, generique)');
+  if (q.length !== 1 || q[0] !== 'un (objet, generique)') throw new Error('virgule entre parentheses coupee : ' + JSON.stringify(q));
+  if (decouperSens('a; b, c').length !== 3) throw new Error('point-virgule');
+  if (decouperSens('').length !== 0) throw new Error('vide');
+  const h = htmlSensTraduction('cohue, encombrement');
+  if ((h.match(/sens-trad-ligne/g) || []).length !== 2) throw new Error('2 lignes attendues');
+  if (!htmlSensTraduction('<b>x</b>').includes('&lt;b&gt;')) throw new Error('echappement HTML');
+  if (classeTailleSens(['abc']) !== '' || classeTailleSens(['a'.repeat(30)]) !== 'sens-trad--long' || classeTailleSens(['a'.repeat(50)]) !== 'sens-trad--tres-long') throw new Error('classes de taille');
+});
