@@ -1045,9 +1045,21 @@ function aDesLettresLatines(str) {
   return /[A-Za-z]/.test(String(str || '').normalize('NFKC'));
 }
 
+// Reponse vide (04/10/2026, demande de Paul) : on affiche le message habituel
+// ET un bouton "Je ne sais pas -- voir la reponse" qui valide sans reponse
+// (0 point, la correction s'affiche) dans tous les modes a saisie.
+const MSG_REPONSE_VIDE = 'Écris une réponse avant de valider.';
+function htmlBoutonPasser() {
+  if (!quizSession || quizSession.warning !== MSG_REPONSE_VIDE) return '';
+  return '<div class="passer-wrap"><button class="secondary small btn-passer-sans-reponse" type="button">Je ne sais pas — voir la réponse</button></div>';
+}
+function brancherBoutonPasser(submit) {
+  const b = $('.btn-passer-sans-reponse');
+  if (b) b.addEventListener('click', () => submit(true));
+}
 function verifierSaisieJp(val) {
   const t = (val || '').trim();
-  if (!t) return 'Écris une réponse avant de valider.';
+  if (!t) return MSG_REPONSE_VIDE;
   if (aDesLettresLatines(t)) return "Ta réponse contient des lettres latines qui n'ont pas pu être converties en kana. Corrige-la (romaji accepté : ka, shi, tsu…).";
   return null;
 }
@@ -2937,7 +2949,7 @@ function renderKanjiQuizView(container) {
         <div class="front-word">${escapeHtml(g.kanji)}</div>
         <div class="hint">${labelType}${g.titre ? ' · ' + escapeHtml(g.titre) : ''}</div>
         ${!quizSession.submitted ? `
-          ${quizSession.warning ? `<div class="quiz-feedback bad" style="margin-top:12px;">${escapeHtml(quizSession.warning)}</div>` : ''}
+          ${quizSession.warning ? `<div class="quiz-feedback bad" style="margin-top:12px;">${escapeHtml(quizSession.warning)}${htmlBoutonPasser()}</div>` : ''}
           <div class="answer-input-wrap">
             <input id="answerInputKanji" type="text" placeholder="${item.type === 'onyomi' ? 'Écris une lecture onyomi (katakana)' : 'Écris une lecture kunyomi (hiragana)'}" style="margin-top:16px; width:280px; text-align:center; font-size:18px;"/>
           </div>
@@ -2963,9 +2975,9 @@ function renderKanjiQuizView(container) {
     const input = $('#answerInputKanji');
     input.focus();
     activerSaisieKanaDirecte(input, item.type === 'onyomi');
-    const submit = () => {
+    const submit = (passer) => {
       const val = finaliserKana(input.value, item.type === 'onyomi');
-      { const refus = verifierSaisieJp(val);
+      if (passer !== true) { const refus = verifierSaisieJp(val);
         if (refus) { quizSession.warning = refus; renderReview(); return; } }
       quizSession.warning = null;
       const result = scoreLectureKanji(val, blocLectures);
@@ -2978,7 +2990,8 @@ function renderKanjiQuizView(container) {
       saveKanjiInProgress();
       renderReview();
     };
-    $('#btnSubmitKanji').addEventListener('click', submit);
+    $('#btnSubmitKanji').addEventListener('click', () => submit());
+    brancherBoutonPasser(submit);
     input.addEventListener('keydown', (e) => {
       if (e.key !== 'Enter') return;
       if (e.isComposing || e.keyCode === 229) return;
@@ -3137,7 +3150,7 @@ function renderKanaQuizView(container) {
       <div class="flashcard">
         <div class="front-word">${escapeHtml(item.char)}</div>
         ${!quizSession.submitted ? `
-          ${quizSession.warning ? `<div class="quiz-feedback bad" style="margin-top:12px;">${escapeHtml(quizSession.warning)}</div>` : ''}
+          ${quizSession.warning ? `<div class="quiz-feedback bad" style="margin-top:12px;">${escapeHtml(quizSession.warning)}${htmlBoutonPasser()}</div>` : ''}
           <div class="answer-input-wrap">
             <input id="answerInputKana" type="text" placeholder="Écris en romaji (ex : ka, shi, tsu...)" style="margin-top:16px; width:280px; text-align:center; font-size:18px;"/>
           </div>
@@ -3559,7 +3572,7 @@ function renderTraductionQuizView(container) {
       <div class="flashcard">
         ${htmlSensTraduction(v.sens)}${indiceQuestionHtml(v)}
         ${!quizSession.submitted ? `
-          ${quizSession.warning ? `<div class="quiz-feedback bad" style="margin-top:12px;">${escapeHtml(quizSession.warning)}</div>` : ''}
+          ${quizSession.warning ? `<div class="quiz-feedback bad" style="margin-top:12px;">${escapeHtml(quizSession.warning)}${htmlBoutonPasser()}</div>` : ''}
           <div class="answer-input-wrap">
             <input id="answerInputTraduction" type="text" placeholder="Reponds en kanji ou en kana" style="margin-top:16px; width:280px; text-align:center; font-size:18px;"/>
           </div>
@@ -3590,9 +3603,9 @@ function renderTraductionQuizView(container) {
     // le 28/09/2026). Les kanji restent acceptes : un IME systeme actif
     // n'est pas touche pendant la composition (voir activerSaisieKanaDirecte).
     activerSaisieKanaDirecte(input, false);
-    const submit = () => {
+    const submit = (passer) => {
       const val = finaliserKana(input.value, false);
-      { const refus = verifierSaisieJp(val);
+      if (passer !== true) { const refus = verifierSaisieJp(val);
         if (refus) { quizSession.warning = refus; renderReview(); return; } }
       quizSession.warning = null;
       const result = scoreTraductionAnswer(val, v);
@@ -3609,7 +3622,8 @@ function renderTraductionQuizView(container) {
       saveTraductionInProgress();
       renderReview();
     };
-    $('#btnSubmitTraduction').addEventListener('click', submit);
+    $('#btnSubmitTraduction').addEventListener('click', () => submit());
+    brancherBoutonPasser(submit);
     input.addEventListener('keydown', (e) => {
       if (e.key !== 'Enter') return;
       if (e.isComposing || e.keyCode === 229) return;
@@ -3782,7 +3796,7 @@ function renderDoubleQuizView(container) {
         <div class="front-word${classeTailleMot(v.mot)}">${escapeHtml(v.mot)}</div>${indiceQuestionHtml(v)}
         <div class="hint">Lecture ET sens attendus -- les deux doivent etre justes pour marquer des points.</div>
         ${!quizSession.submitted ? `
-          ${quizSession.warning ? `<div class="quiz-feedback bad" style="margin-top:12px;">${escapeHtml(quizSession.warning)}</div>` : ''}
+          ${quizSession.warning ? `<div class="quiz-feedback bad" style="margin-top:12px;">${escapeHtml(quizSession.warning)}${htmlBoutonPasser()}</div>` : ''}
           <div class="answer-input-wrap double-answer-wrap">
             <input id="answerInputDoubleLecture" type="text" placeholder="Lecture (hiragana/katakana)" style="margin-top:16px; width:280px; text-align:center; font-size:18px;"/>
             <input id="answerInputDoubleSens" type="text" placeholder="Sens (en français)" style="margin-top:10px; width:280px; text-align:center; font-size:18px;"/>
@@ -3815,10 +3829,10 @@ function renderDoubleQuizView(container) {
     const inputSens = $('#answerInputDoubleSens');
     inputLecture.focus();
     activerSaisieKanaDirecte(inputLecture, false);
-    const submit = () => {
+    const submit = (passer) => {
       const valLecture = finaliserKana(inputLecture.value, false);
       const valSens = inputSens.value;
-      if (!valLecture.trim() && !valSens.trim()) { quizSession.warning = 'Écris une réponse avant de valider.'; renderReview(); return; }
+      if (passer !== true && !valLecture.trim() && !valSens.trim()) { quizSession.warning = MSG_REPONSE_VIDE; renderReview(); return; }
       if (aDesLettresLatines(valLecture)) { quizSession.warning = "Ta lecture contient des lettres latines qui n'ont pas pu être converties en kana. Corrige-la."; renderReview(); return; }
       quizSession.warning = null;
       const result = scoreDoubleAnswer(valLecture, valSens, v);
@@ -3849,7 +3863,8 @@ function renderDoubleQuizView(container) {
       if (e.isComposing || e.keyCode === 229) return;
       submit();
     });
-    $('#btnSubmitDouble').addEventListener('click', submit);
+    $('#btnSubmitDouble').addEventListener('click', () => submit());
+    brancherBoutonPasser(submit);
   } else {
     const nextBtn = $('#btnNextDouble');
     setTimeout(() => nextBtn.focus(), 0);
@@ -4042,7 +4057,7 @@ function renderPratiqueQuizView(container) {
       <div class="flashcard">
         <div class="front-word${classeTailleMot(v.mot)}">${escapeHtml(v.mot)}</div>${indiceQuestionHtml(v)}
         ${!quizSession.submitted ? `
-          ${quizSession.warning ? `<div class="quiz-feedback bad" style="margin-top:12px;">${escapeHtml(quizSession.warning)}</div>` : ''}
+          ${quizSession.warning ? `<div class="quiz-feedback bad" style="margin-top:12px;">${escapeHtml(quizSession.warning)}${htmlBoutonPasser()}</div>` : ''}
           <div class="answer-input-wrap">
             <input id="answerInputPratique" type="text" placeholder="Ecris la lecture en hiragana/katakana" style="margin-top:16px; width:280px; text-align:center; font-size:18px;"/>
           </div>
@@ -4072,9 +4087,9 @@ function renderPratiqueQuizView(container) {
     const input = $('#answerInputPratique');
     input.focus();
     activerSaisieKanaDirecte(input, false);
-    const submit = () => {
+    const submit = (passer) => {
       const val = finaliserKana(input.value, false);
-      { const refus = verifierSaisieJp(val);
+      if (passer !== true) { const refus = verifierSaisieJp(val);
         if (refus) { quizSession.warning = refus; renderReview(); return; } }
       if (containsKanji(val)) {
         quizSession.warning = 'Ta reponse contient du kanji -- la lecture doit etre en hiragana/katakana uniquement. Retape-la.';
@@ -4095,7 +4110,8 @@ function renderPratiqueQuizView(container) {
       savePratiqueInProgress();
       renderReview();
     };
-    $('#btnSubmitPratique').addEventListener('click', submit);
+    $('#btnSubmitPratique').addEventListener('click', () => submit());
+    brancherBoutonPasser(submit);
     input.addEventListener('keydown', (e) => {
       if (e.key !== 'Enter') return;
       if (e.isComposing || e.keyCode === 229) return;
@@ -4603,7 +4619,7 @@ function renderReview() {
            reste sans indice comme avant (!quizSession.hardcore). */ ''}
         ${!quizSession.hardcore && DB.settings.spectralMode ? `<div class="hint">${g ? escapeHtml(g.kanji) + (g.titre ? ' · ' + escapeHtml(g.titre) : '') : ''}</div>` : ''}
         ${!quizSession.submitted ? `
-          ${quizSession.warning ? `<div class="quiz-feedback bad" style="margin-top:12px;">${escapeHtml(quizSession.warning)}</div>` : ''}
+          ${quizSession.warning ? `<div class="quiz-feedback bad" style="margin-top:12px;">${escapeHtml(quizSession.warning)}${htmlBoutonPasser()}</div>` : ''}
           <div class="answer-input-wrap">
             <input id="answerInput" type="text" placeholder="Écris la lecture en hiragana/katakana" style="margin-top:16px; width:280px; text-align:center; font-size:18px;"/>
             ${!quizSession.hardcore && DB.settings.spectralMode ? `
@@ -4656,9 +4672,9 @@ function renderReview() {
       eyeBtn.addEventListener('mouseleave', hideGhost);
       eyeBtn.addEventListener('touchend', hideGhost);
     }
-    const submit = async () => {
+    const submit = async (passer) => {
       const val = finaliserKana(input.value, false);
-      { const refus = verifierSaisieJp(val);
+      if (passer !== true) { const refus = verifierSaisieJp(val);
         if (refus) { quizSession.warning = refus; renderReview(); return; } }
       if (containsKanji(val)) {
         // Le clavier japonais a converti la saisie en kanji au lieu de la
@@ -4695,7 +4711,8 @@ function renderReview() {
       saveInProgress();
       renderReview();
     };
-    $('#btnSubmitAnswer').addEventListener('click', submit);
+    $('#btnSubmitAnswer').addEventListener('click', () => submit());
+    brancherBoutonPasser(submit);
     // Sur Mac, taper en clavier japonais (romaji -> hiragana/katakana) passe par
     // un IME : la touche Entrée sert d'abord à valider la conversion en cours,
     // pas à valider la réponse. e.isComposing/keyCode 229 suffisent à détecter

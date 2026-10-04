@@ -380,3 +380,20 @@ essai('traduction : le sens est decoupe hors parentheses, une definition par lig
   if (!htmlSensTraduction('<b>x</b>').includes('&lt;b&gt;')) throw new Error('echappement HTML');
   if (classeTailleSens(['abc']) !== '' || classeTailleSens(['a'.repeat(30)]) !== 'sens-trad--long' || classeTailleSens(['a'.repeat(50)]) !== 'sens-trad--tres-long') throw new Error('classes de taille');
 });
+
+essai('reponse vide : message habituel + bouton "Je ne sais pas" seulement dans ce cas', () => {
+  if (verifierSaisieJp('') !== MSG_REPONSE_VIDE || verifierSaisieJp('   ') !== MSG_REPONSE_VIDE) throw new Error('message vide attendu');
+  quizSession = { warning: MSG_REPONSE_VIDE };
+  if (!htmlBoutonPasser().includes('btn-passer-sans-reponse')) throw new Error('bouton attendu apres une validation vide');
+  quizSession = { warning: 'Ta réponse contient du kanji' };
+  if (htmlBoutonPasser() !== '') throw new Error('pas de bouton pour un autre avertissement');
+  quizSession = null;
+  if (htmlBoutonPasser() !== '') throw new Error('pas de bouton sans session');
+});
+
+essai('reponse vide : chaque mode sait noter une reponse vide (0 point, pas d\'erreur)', () => {
+  const v = { mot: '学校', lecture: 'がっこう', sens: 'ecole' };
+  [scoreAnswer('', v.lecture), scoreTraductionAnswer('', v), scoreDoubleAnswer('', '', v)].forEach((r, i) => {
+    if (!r || r.points !== 0) throw new Error('mode ' + i + ' : une reponse vide doit valoir 0 point');
+  });
+});

@@ -3768,3 +3768,7 @@ input.dessin-faux { animation: dessin-secoue .4s; border-color: var(--bad-bright
   .flashcard .sens-trad--long .sens-trad-ligne { font-size: 26px; }
   .flashcard .sens-trad--tres-long .sens-trad-ligne { font-size: 20px; }
 }
+
+/* Bouton "Je ne sais pas" apres une validation sans reponse (04/10/2026) */
+.passer-wrap { margin-top: 10px; }
+.btn-passer-sans-reponse { font-weight: 600; }
