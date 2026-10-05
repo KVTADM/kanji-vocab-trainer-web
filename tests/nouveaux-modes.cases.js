@@ -495,3 +495,23 @@ essai('Verbes 1 et 2 : on donne le verbe a la forme neutre, la reponse (forme co
   const x = vs.find(v => v.mot === '書いて');
   if (x.base !== '書く' || x.baseLecture !== 'かく') throw new Error('base de 書いて : ' + x.base);
 });
+
+essai('Verbes 3/4 et Grammaire : le mot de base est donne, la reponse conjuguee n est pas affichee', () => {
+  const l = getPratiqueList('verbes3').concat(getPratiqueList('verbes4'), getPratiqueList('grammaire'));
+  const sans = l.filter(v => !v.base);
+  if (sans.length > 1) throw new Error('entrees sans base : ' + sans.map(v => v.mot).join(','));
+  const x = l.find(v => v.mot === '書いたら');
+  if (x.base !== '書く' || !x.montrerSens) throw new Error('base de 書いたら');
+  const y = l.find(v => v.mot === '行かないつもりだ');
+  if (y.base !== '行く' || y.variante !== 'négatif') throw new Error('variante de 行かないつもりだ : ' + y.variante);
+  if (l.some(v => v.base === v.mot)) throw new Error('base identique a la reponse');
+});
+essai('Ecriture : resultat perso = somme des notes 10/5/0, sans enregistrement', () => {
+  const r = calculerResultatEcriture([{ id: 'a', note: 10 }, { id: 'b', note: 5 }, { id: 'c', note: 0 }]);
+  if (r.total !== 15 || r.max !== 30 || r.pct !== 50) throw new Error(JSON.stringify(r));
+  if (calculerResultatEcriture([]).pct !== 0) throw new Error('liste vide');
+});
+essai('Fin de test : bouton semaine suivante seulement s il existe une semaine suivante non vide', () => {
+  if (htmlBoutonSemaineSuivante(null) !== '') throw new Error('sans session : rien');
+  if (htmlBoutonSemaineSuivante({ semesterId: 'inconnu', week: 1 }) !== '') throw new Error('semestre inconnu : rien');
+});
