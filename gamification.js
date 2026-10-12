@@ -292,6 +292,17 @@ function boostXpRestantMs() {
 
 // ---------- Gains ----------
 
+// Cumule les gains de la session en cours (XP, pieces) pour les montrer sur
+// l'ecran de fin (retour Lucien 05/10/2026 : "xp/gold gagner").
+function cumulerGainSession(type, gain) {
+  try {
+    if (typeof quizSession !== 'undefined' && quizSession && gain > 0) {
+      if (!quizSession.gains) quizSession.gains = { xp: 0, pieces: 0 };
+      quizSession.gains[type] = (quizSession.gains[type] || 0) + gain;
+    }
+  } catch (e) { /* purement informatif */ }
+}
+
 function gagnerXp(points, semesterId) {
   if (!points || points <= 0) return 0;
   const g = assurerGamification();
@@ -299,6 +310,7 @@ function gagnerXp(points, semesterId) {
   const gain = Math.round(points * multiplicateurDifficulte(semesterId) * multiplicateurModeDifficile() * boost * (gamifEstPro() ? GAMIF_BOOST_PRO : 1));
   const niveauAvant = niveauDepuisXp(g.xp);
   g.xp += gain;
+  cumulerGainSession('xp', gain);
   const niveauApres = niveauDepuisXp(g.xp);
   if (niveauApres > niveauAvant) {
     noterMonteeNiveau(niveauAvant, niveauApres);
@@ -363,6 +375,7 @@ function gagnerPieces(points, semesterId) {
   const g = assurerGamification();
   const gain = Math.round(GAMIF_PIECES_PAR_MOT * multiplicateurDifficulte(semesterId) * multiplicateurModeDifficile() * (gamifEstPro() ? GAMIF_BOOST_PRO : 1));
   g.pieces += gain;
+  cumulerGainSession('pieces', gain);
   return gain;
 }
 
@@ -371,6 +384,7 @@ function bonusFinSession(pctSession, semesterId) {
   const g = assurerGamification();
   const gain = Math.round(GAMIF_BONUS_SESSION * multiplicateurDifficulte(semesterId) * multiplicateurModeDifficile() * (gamifEstPro() ? GAMIF_BOOST_PRO : 1));
   g.pieces += gain;
+  cumulerGainSession('pieces', gain);
   return gain;
 }
 

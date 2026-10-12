@@ -225,8 +225,8 @@ function renderPartieLobby(el) {
   const n = joueursPartieCourante.length;
   const peutLancer = n >= infos.min && n <= infos.max;
   const joueursHtml = joueursPartieCourante.map(j => `
-    <div class="partie-joueur-chip">
-      <span>${escapeHtml(j.pseudo || 'Joueur')}${j.user_id === partieCourante.hote_id ? ' 👑' : ''}</span>
+    <div class="partie-joueur-chip${presentsPartie && !presentsPartie.has(j.user_id) ? ' partie-joueur-chip--absent' : ''}">
+      <span>${escapeHtml(j.pseudo || 'Joueur')}${j.user_id === partieCourante.hote_id ? ' 👑' : ''}${presentsPartie && !presentsPartie.has(j.user_id) ? ' <small>(hors ligne)</small>' : ''}</span>
       ${jeSuisHote && j.user_id !== window.accountUser.id ? `<button class="secondary small" data-retirer-joueur="${j.user_id}" title="Retirer du salon">✕</button>` : ''}
     </div>`).join('');
   el.innerHTML = `

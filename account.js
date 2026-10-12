@@ -453,7 +453,14 @@ window.kvtCompterHistorique = async function () {
 // dureeMs/nbEssais sont optionnels (undefined -> colonnes NULL) : certains
 // appelants (repoussee en masse depuis une sauvegarde importee, voir
 // kvtPushAllScores) n'ont pas forcement cette info sous la main.
-window.kvtPushScore = async function (semesterId, week, points, maxPoints, pct, mode, dureeMs, nbEssais, difficulte, verbeFilter) {
+// Garde la derniere promesse d'envoi : l'ecran de fin de session attend qu'elle
+// se termine avant d'afficher le classement (voir ajouterClassementResultat).
+window.kvtPushScore = function (...args) {
+  const p = kvtPushScoreInterne(...args);
+  window.kvtPushEnCours = p;
+  return p;
+};
+async function kvtPushScoreInterne(semesterId, week, points, maxPoints, pct, mode, dureeMs, nbEssais, difficulte, verbeFilter) {
   if (!window.accountUser || !window.accountUser.pseudo) return;
   await window.sb.from('scores').upsert({
     user_id: window.accountUser.id,
@@ -469,7 +476,7 @@ window.kvtPushScore = async function (semesterId, week, points, maxPoints, pct, 
     difficulte: difficulte || 'normal',
     verbe_filter: verbeFilter || 'tous'
   }, { onConflict: 'user_id,semester_id,week,mode' });
-};
+}
 
 // Graphique hexagonal de performance (deplace des Statistiques vers le
 // Profil public, demande de Paul le 23/09/2026) : pour qu'il soit visible

@@ -82,6 +82,10 @@ function renderLeaderboard() {
     }
   });
 
+  // L'onglet "Plus grosse progression" a ete retire (retour Lucien 05/10/2026 :
+  // toujours vide) ; la progression se voit maintenant sur l'ecran de fin de
+  // chaque quiz.
+  if (leaderboardMode === 'progression') leaderboardMode = 'global';
   const isProg = leaderboardMode === 'progression';
 
   el.innerHTML = `
@@ -91,7 +95,6 @@ function renderLeaderboard() {
         <button class="lb-tab ${leaderboardMode === 'global' ? 'is-active' : ''}" data-mode="global">Classement global</button>
         <button class="lb-tab ${leaderboardMode === 'apercu' ? 'is-active' : ''}" data-mode="apercu">Vue d'ensemble</button>
         <button class="lb-tab ${leaderboardMode === 'absolu' ? 'is-active' : ''}" data-mode="absolu">Une semaine en détail</button>
-        <button class="lb-tab ${leaderboardMode === 'progression' ? 'is-active' : ''}" data-mode="progression">Plus grosse progression</button>
       </div>
       ${leaderboardMode === 'absolu' ? `
       <div class="form-row">
@@ -522,7 +525,8 @@ function computeGlobal(rows) {
     essais: u.essais,
     // Difficulte moyenne (0 = Facile, 1 = Normal, 2 = Difficile), ne sert
     // qu'a departager deux % moyens egaux.
-    difficulteMoyenne: u.nbLignes ? u.sommeDiff / u.nbLignes : 1
+    difficulteMoyenne: u.nbLignes ? u.sommeDiff / u.nbLignes : 1,
+    nbSemaines: u.nbLignes || 0
   }));
 }
 
@@ -544,7 +548,11 @@ function agregerGlobal(rows) {
 function trierGlobal(rows, tri) {
   const copie = rows.slice();
   if (tri === 'classement') {
-    copie.sort((a, b) => ((b.pctMoyen ?? -1) - (a.pctMoyen ?? -1))
+    // Pondere par la couverture (retour Lucien 05/10/2026) : un seul quiz a
+    // 100 % ne place plus personne top 1 a vie. Plein effet a partir de
+    // KVT_SEMAINES_REF semaines classees.
+    const poids = (u) => (u.pctMoyen == null ? -1 : u.pctMoyen * Math.min(1, (u.nbSemaines || 0) / (typeof KVT_SEMAINES_REF !== 'undefined' ? KVT_SEMAINES_REF : 10)));
+    copie.sort((a, b) => (poids(b) - poids(a))
       || (b.difficulteMoyenne - a.difficulteMoyenne)
       || ((a.dureeMoyenne ?? Infinity) - (b.dureeMoyenne ?? Infinity) || 0));
   } else if (tri === 'temps') {
@@ -702,6 +710,18 @@ function renderClassementAccueilWidget() {
 // sa carte, le classement de cette semaine (meme mode) s'affiche a droite :
 // meme regle que partout (% > difficulte > temps, sessions completes).
 // ============================================================
+// Croix de fermeture du panneau de classement (retour Lucien 05/10/2026).
+function ajouterCroixPanneau(aside) {
+  if (!aside || aside.querySelector('.kvt-panneau-fermer')) return;
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'kvt-panneau-fermer';
+  b.setAttribute('aria-label', 'Fermer ce panneau');
+  b.textContent = '✕';
+  b.addEventListener('click', () => aside.remove());
+  aside.appendChild(b);
+}
+
 function ajouterClassementResultat(container, mode, semesterId, week) {
   if (!window.accountUser || !container || typeof document === 'undefined') return;
   const boite = container.querySelector('.kvt-result');
@@ -713,10 +733,15 @@ function ajouterClassementResultat(container, mode, semesterId, week) {
   const aside = document.createElement('aside');
   aside.className = 'kvt-result-classement';
   aside.innerHTML = '<h3>Classement de la semaine</h3><p class="kvt-result-classement__vide">Chargement…</p>';
+  ajouterCroixPanneau(aside);
   page.appendChild(aside);
   // Petit delai : le score de la session vient d'etre envoye, on lui laisse
   // le temps d'arriver pour que le joueur se voie dans la liste.
-  setTimeout(() => remplirClassementResultat(aside, mode, semesterId, week), 1400);
+  // On attend la fin de l'envoi du score (au lieu d'un delai fixe) pour que
+  // le resultat soit tout de suite dans la liste (retour Lucien 05/10/2026).
+  const envoi = Promise.resolve(window.kvtPushEnCours).catch(() => {});
+  const plafond = new Promise(r => setTimeout(r, 5000));
+  Promise.race([envoi, plafond]).then(() => setTimeout(() => remplirClassementResultat(aside, mode, semesterId, week), 150));
 }
 
 function htmlClassementResultat(lignes, monId) {
@@ -748,7 +773,8 @@ async function remplirClassementResultat(aside, mode, semesterId, week) {
     if (window.kvtProfils) await window.kvtProfils.chargerProfils(lignes.map(r => r.user_id));
     if (!aside.isConnected) return;
     aside.innerHTML = '<h3>Classement de la semaine</h3>' + htmlClassementResultat(lignes, window.accountUser && window.accountUser.id);
+    ajouterCroixPanneau(aside);
   } catch (e) {
-    if (aside.isConnected) aside.innerHTML = '<h3>Classement de la semaine</h3><p class="kvt-result-classement__vide">Classement indisponible pour le moment.</p>';
+    if (aside.isConnected) { aside.innerHTML = '<h3>Classement de la semaine</h3><p class="kvt-result-classement__vide">Classement indisponible pour le moment.</p>'; ajouterCroixPanneau(aside); }
   }
 }

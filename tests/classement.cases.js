@@ -297,3 +297,11 @@ essai('ecran de fin : sessions filtrees ignorees, et ma ligne ajoutee si je suis
 essai('ecran de fin : classement vide -> message, pas d\'erreur', () => {
   if (!htmlClassementResultat([], 'moi').includes('encore classé')) throw new Error('message manquant');
 });
+
+essai('classement global : un seul quiz parfait ne passe pas devant quelqu un qui a joue 10 semaines (retour Lucien 05/10/2026)', () => {
+  const trie = trierGlobal([
+    { user_id: 'a', pseudo: 'Nouveau', pctMoyen: 100, difficulteMoyenne: 0, dureeMoyenne: 1000, points: 10, nbSemaines: 1 },
+    { user_id: 'b', pseudo: 'Assidu', pctMoyen: 85, difficulteMoyenne: 1, dureeMoyenne: 5000, points: 900, nbSemaines: 10 }
+  ], 'classement');
+  if (trie[0].pseudo !== 'Assidu') throw new Error('classe premier : ' + trie[0].pseudo);
+});

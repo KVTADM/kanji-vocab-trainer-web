@@ -3821,3 +3821,37 @@ body.ecriture-etendu-actif { overflow: hidden; overscroll-behavior: none; }
 .auto-eval-revoir { margin-top: 12px; font-size: 14px; line-height: 1.5; }
 
 .verbe-base-sens { text-align:center; margin-top:8px; font-size:15px; color: var(--text, inherit); font-style: italic; }
+
+.partie-joueur-chip--absent { opacity: .45; }
+
+/* Corrections retours Lucien (05/10/2026) */
+/* Bordure hardcore : ne doit pas etre ecrasee par le palier "parfait" (100 %). */
+.week-card.week-card--hardcore, .week-card.palier-parfait.week-card--hardcore,
+.review-week-card.palier-parfait.week-card--hardcore { border-color: var(--bad); box-shadow: 0 0 0 2px var(--bad) inset; }
+/* Pas de barre de defilement horizontale quand la fenetre se reduit :
+   les largeurs fixes se plafonnent a la largeur disponible. */
+.flashcard, .session-progress { width: min(440px, 100%); box-sizing: border-box; }
+.week-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+.ecriture-zone { flex-wrap: wrap; justify-content: center; }
+@media (max-width: 860px) { .week-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.week-grid--pratique { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
+@media (max-width: 640px) { .week-grid--pratique { grid-template-columns: 1fr; } }
+.week-grid.week-grid--kana { grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); }
+
+/* Ecran de fin : gains, progression, barre, correction */
+.kvt-result__gains { margin-top: 6px; font-weight: 700; color: var(--accent-bright, var(--accent)); }
+.kvt-result__progression { margin-top: 6px; font-size: 14px; color: var(--muted); }
+.kvt-result__barre { margin: 10px auto 4px; max-width: 280px; }
+.kvt-result__barre-label { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+.kvt-result__btn--secondaire { background: var(--panel-alt); color: inherit; border: 1px solid var(--border); margin-right: 8px; }
+.recap-reponses { margin-top: 16px; overflow-x: auto; }
+.recap-reponses tr.recap-ok td:last-child { color: var(--good-bright); font-weight: 700; }
+.recap-reponses tr.recap-mid td:last-child { color: var(--warn-bright); font-weight: 700; }
+.recap-reponses tr.recap-bad td:last-child { color: var(--bad-bright); font-weight: 700; }
+
+.kvt-result-classement { position: relative; }
+.kvt-panneau-fermer { position: absolute; top: 6px; right: 8px; border: none; background: transparent; color: var(--muted); font-size: 16px; cursor: pointer; padding: 4px 8px; border-radius: 6px; }
+.kvt-panneau-fermer:hover { background: var(--panel-alt); color: inherit; }
+
+.difficulte-modal { margin: 12px 0; }
+.difficulte-modal__titre { font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin-bottom: 6px; }

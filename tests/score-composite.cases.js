@@ -76,9 +76,17 @@ essai('le score composite personnel moyenne les 4 modes synchronisés', () => {
   const attendu = Math.round((
     scoreComposite({ pct: 90, dureeMs: 60000, essais: 3, semesterId: 's1', mode: 'vocab' }) +
     scoreComposite({ pct: 70, dureeMs: 200000, essais: 1, semesterId: 's2', mode: 'kanji' })
-  ) / 2);
+  ) / 2 * Math.min(1, 2 / 10));
   const composite = getScoreCompositePersonnel();
   if (composite !== attendu) throw new Error('score composite personnel = ' + composite + ', attendu ' + attendu);
+});
+
+essai('un seul quiz parfait ne donne pas un score composite eleve (retour Lucien 05/10/2026)', () => {
+  fixerSemestres('s1', 's2');
+  DB.scores = { 's1-w1': { best: { pct: 100, dureeMs: 30000 }, history: [1] } };
+  DB.scoresKanji = {}; DB.scoresTraduction = {}; DB.scoresDouble = {};
+  const c = getScoreCompositePersonnel();
+  if (c > 15) throw new Error('un seul quiz ne doit pas depasser 15, obtenu ' + c);
 });
 
 // ---- formatDuree() : affichage de la duree d'une session ----

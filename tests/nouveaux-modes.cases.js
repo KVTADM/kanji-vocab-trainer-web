@@ -515,3 +515,33 @@ essai('Fin de test : bouton semaine suivante seulement s il existe une semaine s
   if (htmlBoutonSemaineSuivante(null) !== '') throw new Error('sans session : rien');
   if (htmlBoutonSemaineSuivante({ semesterId: 'inconnu', week: 1 }) !== '') throw new Error('semestre inconnu : rien');
 });
+
+essai('retours du 05/10 : le meilleur resultat affiche est celui du classement (sessions completes)', () => {
+  const entry = { best: null, history: [
+    { pct: 100, points: 10, maxPoints: 10, verbeFilter: 'kanji_groupe', dureeMs: 1000 },
+    { pct: 80, points: 8, maxPoints: 10, verbeFilter: 'tous', dureeMs: 2000 }
+  ] };
+  majMeilleurResultat(entry, entry.history[1]);
+  if (entry.best.pct !== 80) throw new Error('le meilleur doit venir d une session complete : ' + entry.best.pct);
+  const seul = { best: null, history: [{ pct: 90, verbeFilter: 'simple' }] };
+  majMeilleurResultat(seul, seul.history[0]);
+  if (seul.best.pct !== 90) throw new Error('sans session complete, on garde la meilleure');
+});
+essai('retours du 05/10 : 十分 en kanji ne sert plus pour les 10 minutes, heures en chiffres arabes', () => {
+  const h = getPratiqueList('heure');
+  if (h.some(v => v.mot === '十分' || /^[一二三四五六七八九十]+時$/.test(v.mot))) throw new Error('kanji restant dans heure');
+  const x = h.find(v => v.mot === '10分');
+  if (!x || x.lecture !== 'じゅっぷん') throw new Error('10分 attendu');
+  if (!h.find(v => v.mot === '4時' && v.lecture === 'よじ')) throw new Error('4時 = よじ');
+});
+essai('ecran de fin : correction complete, gains, progression et bouton recommencer', () => {
+  const rec = htmlRecapReponses({ answers: [{ mot: '書', lecture: 'か', sens: 'écrire', userAnswer: 'か', points: 5, pct: 1 }, { mot: '読', lecture: 'よ', sens: 'lire', userAnswer: '', points: 0, pct: 0 }] });
+  if (rec.indexOf('Correction complète') < 0 || rec.indexOf('recap-ok') < 0 || rec.indexOf('recap-bad') < 0) throw new Error('recap incomplet');
+  if (htmlRecapReponses({ answers: [] }) !== '') throw new Error('rien sans reponses');
+  const ex = htmlExtrasResultat({ gains: { xp: 120, pieces: 8 } }, { best: { pct: 90 }, history: [{ pct: 70, dureeMs: 90000 }, { pct: 90, dureeMs: 60000 }] });
+  if (ex.indexOf('+120 XP') < 0 || ex.indexOf('+20 %') < 0 || ex.indexOf('plus vite') < 0) throw new Error(ex);
+  if (htmlBoutonRecommencerFin().indexOf('btnRecommencerFin') < 0) throw new Error('bouton recommencer');
+});
+essai('Traduction : les cartes de semaine portent la couleur de palier', () => {
+  if (classePalierPct(100) !== 'palier-parfait' || classePalierPct(50) !== 'palier-moyen') throw new Error('paliers');
+});

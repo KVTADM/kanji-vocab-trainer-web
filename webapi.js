@@ -350,6 +350,18 @@ const JLPT_N4_SEED = {"kanjiGroups":[{"id":"kg-hu66go90952pa","semesterId":"jlpt
         if (fix && v.lecture === fix.old) v.lecture = fix.neuve;
       });
     }
+    // Retours de Lucien (rapport du 12/10/2026) : 寿命 = じゅみょう ; 天然の
+    // n'est pas un mot (-> 天然) ; 幕府 en hiragana ; 辛い (からい / つらい) et
+    // 日本橋 (にほんばし Tokyo / にっぽんばし Osaka) acceptent les deux lectures ;
+    // ころがす s'ecrit 転がす. Idempotent : n'agit que si l'ancienne valeur est
+    // encore en place.
+    const RETOURS_LUCIEN_12_10 = {"v-mrhvk4v49fz9x":{"old":{"lecture":"じみょう"},"neu":{"lecture":"じゅみょう"}},"v-mrhvk4v4yswvr":{"old":{"mot":"天然の","lecture":"てんねんの"},"neu":{"mot":"天然","lecture":"てんねん"}},"v-mrhvk4v4j9236":{"old":{"lecture":"バクフ"},"neu":{"lecture":"ばくふ"}},"v-mrhvk4uveg11l":{"old":{"lecture":"からい"},"neu":{"lecture":"からい / つらい"}},"v-mrhvk4uvl0imv":{"old":{"lecture":"つらい"},"neu":{"lecture":"つらい / からい"}},"v-mrhvk4van1kv7":{"old":{"lecture":"にほんばし"},"neu":{"lecture":"にほんばし / にっぽんばし","sens":"Nihonbashi (Tokyo) / Nipponbashi (Osaka)"}},"v-mrhvk4uvdpfgk":{"old":{"mot":"ころがす"},"neu":{"mot":"転がす"}}};
+    if (Array.isArray(data.vocab)) {
+      data.vocab.forEach(v => {
+        const f = RETOURS_LUCIEN_12_10[v.id];
+        if (f && Object.keys(f.old).every(k => v[k] === f.old[k])) Object.assign(v, f.neu);
+      });
+    }
     // Coquille dans le seed (30/09/2026) : la lecture kun de 港 etait
     // "みなo" (un "o" latin a la place de "と"), impossible a taper en kana.
     if (Array.isArray(data.kanjiGroups)) {
@@ -415,6 +427,18 @@ const JLPT_N4_SEED = {"kanjiGroups":[{"id":"kg-hu66go90952pa","semesterId":"jlpt
     if (Array.isArray(data.vocab)) {
       data.vocab.forEach(v => {
         const indice = INDICES_A_PRECISER[v.id];
+        if (indice && !v.indice) v.indice = indice;
+      });
+    }
+    // Kanji seuls a plusieurs lectures (rapport de Lucien, 12/10/2026) : le mot
+    // 木 peut se lire き (kun) ou もく (on), il faut preciser laquelle est
+    // attendue. Badge "kun'yomi" / "on'yomi" pose sur vocab.indice pour les mots
+    // d'un seul kanji dont le kanji a a la fois une lecture on et kun. Idempotent,
+    // n'ecrase jamais un indice deja present.
+    const INDICES_ON_KUN = {"v-mrhvk4uulvj0j":"kun","v-mrhvk4uuqa1cf":"kun","v-mrhvk4uunzxth":"kun","v-mrhvk4uuj2rm0":"kun","v-mrhvk4uu1wm26":"kun","v-mrhvk4uuhider":"kun","v-mrhvk4uub6p1n":"on","v-mrhvk4uulu1j3":"kun","v-mrhvk4uu37rwm":"kun","v-mrhvk4uuen2w0":"kun","v-mrhvk4uuglgrx":"kun","v-mrhvk4uumossf":"kun","v-mrhvk4uu76evb":"kun","v-mrhvk4uuwd7k0":"on","v-mrhvk4uuj826p":"kun","v-mrhvk4uu1hwip":"kun","v-mrhvk4uvnpscn":"kun","v-mrhvk4uvczz7l":"kun","v-mrhvk4uvegii2":"on","v-mrhvk4uvfax2s":"kun","v-mrhvk4uvabrxb":"kun","v-mrhvk4uvi63ie":"on","v-mrhvk4uvenc8a":"kun","v-mrhvk4uw63aki":"on","v-mrhvk4uwf74u8":"on","v-mrhvk4uwfwznm":"kun","v-mrhvk4ux7cnae":"kun","v-mrhvk4uxef50f":"kun","v-mrhvk4uxknhoa":"on","v-mrhvk4uxnemzb":"kun","v-mrhvk4uy9pizg":"on","v-mrhvk4uybjeah":"kun","v-mrhvk4uye3rji":"on","v-mrhvk4uyf06iw":"on","v-mrhvk4uyls1wi":"on","v-ubx76u1uvyksz":"on","v-mrhvk4uy9wtve":"on","v-mrhvk4uyvh0a1":"on","v-mrhvk4uyd703w":"kun","v-mrhvk4uzxahc8":"kun","v-mrhvk4v1xa5ou":"on","v-pz8w7yptryy67":"kun","v-mrhvk4v8hzjin":"kun","v-mrhvk4v91zi8i":"kun","v-mrhvk4ve8azcb":"kun","v-mrhvk4veitmtl":"kun","v-mrhvk4vf1xbzl":"on","v-mrhvk4vi16ltm":"kun","v-mrhvk4vi5d5a9":"kun","v-mrhvk4vjfy78g":"kun","v-mrhvk4vkq023y":"kun","v-mrhvk4vk6eugx":"kun","v-mrhvk4vs0u3am":"kun","v-mrhvk4vt4n2oc":"kun","v-mrhvk4vvv8bfl":"kun","v-mrhvk4vvd2led":"kun","v-mrhvk4vxhc69v":"kun","v-mrhvk4vychyaq":"kun","v-mrhvk4w3dqlww":"kun","v-mrhvk4w3gy7oh":"kun","v-mrhvk4w3hjhmi":"kun","v-mrhvk4w4hb76s":"kun","v-mrhvk4w5atwub":"kun","v-mrhvk4w6m3umv":"kun","v-cmpdkzp4pzys3":"kun","v-4o1s4ftr0q0hf":"kun","v-5mhp8u47n9cyq":"kun","v-pyk7acohol5gz":"kun","v-9g0hj83c7e5zv":"kun","v-sle7ehb06gz7r":"kun","v-n38oq9tib2gvv":"kun","v-iz35qon50rdbt":"kun","v-78wi7wgae5ylv":"kun","v-8t6tr79a694k5":"kun","v-kdwkwcaybe6km":"kun","v-jtxhm0zj8exd7":"kun","v-v1eyb2f0swc4y":"on","v-llb31pgakm4oh":"kun","v-rq9fiop2f6uwo":"kun","v-au8vijdk1r8n4":"kun","v-rpx7erqzvy4ey":"on","v-ea0q0adgpbthg":"kun","v-qigb8ntczy87k":"kun","v-fef5tqoku169v":"kun","v-ohrubn36rxf9m":"kun","v-348bjuibgzfk8":"kun","v-ukgoyiv8zn9t8":"kun","v-zh3w7g0putage":"kun","v-wpj23g91ifb31":"kun","v-q87p1gwkajtq1":"kun","v-hc74wlzimtlt1":"kun","v-37e9irrzalzfx":"kun","v-5skvyu56m4g5z":"kun","v-jbtjzxefylzv8":"kun","v-4up3c4mb6ad8y":"kun","v-u0ycl19p2vr3r":"kun","v-59k0wwctn5qta":"kun","v-zh79gqtmm2zbc":"kun","v-oj9ivb5dfq0x2":"kun","v-qicsbse7bwovc":"kun","v-c9pcnsxrovj2v":"on","v-1j06v3ihndxg1":"kun","v-op1zwm7zt9im4":"kun","v-4kqok7z704cpy":"kun","v-ocmva8vur2c8t":"kun","v-jwiqb080pao5s":"kun","v-5cpen0jsoi5yb":"kun","v-l0s1-w1-01-03":"kun","v-l0s1-w1-02-01":"on","v-l0s1-w1-02-02":"kun","v-l0s1-w1-03-04":"kun","v-l0s1-w1-07-04":"kun","v-l0s1-w1-10-02":"kun","v-l0s1-w2-01-05":"kun","v-l0s1-w2-04-02":"kun","v-l0s1-w2-05-03":"kun","v-l0s1-w2-06-03":"kun","v-l0s1-w2-07-02":"kun","v-l0s1-w2-08-02":"kun","v-l0s1-w2-09-02":"kun","v-l0s1-w2-10-02":"kun","v-l0s1-w3-01-02":"kun","v-l0s1-w3-02-03":"kun","v-l0s1-w3-03-03":"kun","v-l0s1-w3-04-02":"kun","v-l0s1-w3-05-02":"kun","v-l0s1-w3-06-02":"kun","v-l0s1-w3-07-05":"kun","v-l0s1-w3-09-01":"kun","v-l0s1-w4-01-01":"on","v-l0s1-w4-02-01":"on","v-l0s1-w4-03-01":"on","v-l0s1-w4-04-01":"on","v-l0s1-w4-05-01":"on","v-l0s1-w5-01-01":"on","v-l0s1-w5-02-01":"on","v-l0s1-w5-03-01":"on","v-l0s1-w5-04-01":"on","v-l0s1-w5-05-01":"on","v-l0s1-w5-05-05":"kun","v-l0s1-w5-07-01":"on","v-l0s1-w5-09-02":"kun","v-l0s1-w5-10-02":"kun","v-l0s1-w7-01-04":"kun","v-l0s1-w7-02-03":"kun","v-l0s1-w7-03-02":"kun","v-l0s1-w7-04-03":"kun","v-l0s1-w7-05-03":"kun","v-l0s1-w8-01-04":"kun","v-l0s1-w8-03-02":"kun","v-l0s1-w8-04-02":"kun","v-l0s1-w8-05-03":"kun","v-l0s1-w8-06-04":"kun","v-l0s1-w8-09-05":"kun","v-l0s1-w8-10-05":"kun","v-l0s2-w1-03-04":"kun","v-l0s2-w1-06-04":"kun","v-l0s2-w1-07-03":"kun","v-l0s2-w1-08-02":"kun","v-l0s2-w1-09-01":"on","v-l0s2-w1-10-03":"kun","v-l0s2-w2-03-02":"kun","v-l0s2-w2-04-02":"kun","v-l0s2-w2-05-02":"kun","v-l0s2-w2-06-02":"kun","v-l0s2-w2-08-04":"kun","v-l0s2-w2-09-04":"kun","v-l0s2-w2-11-02":"kun","v-l0s2-w3-01-04":"kun","v-l0s2-w3-02-04":"kun","v-l0s2-w3-05-04":"kun","v-l0s2-w3-10-03":"kun","v-l0s2-w3-11-04":"kun","v-l0s2-w4-03-03":"kun","v-l0s2-w4-04-03":"on","v-l0s2-w4-05-03":"kun","v-l0s2-w5-06-01":"on","v-l0s2-w5-07-01":"on","v-l0s2-w6-07-04":"kun","v-l0s2-w6-08-02":"kun","v-l0s2-w6-09-03":"kun","v-l0s2-w6-10-03":"kun","v-l0s2-w6-11-04":"kun","v-l0s2-w7-01-02":"kun","v-l0s2-w7-03-05":"kun","v-l0s2-w8-03-02":"kun","v-l0s2-w8-04-03":"kun","v-l0s2-w8-05-02":"kun","v-l0s2-w8-06-02":"kun","v-l0s2-w8-07-01":"kun","v-l0s2-w9-01-06":"kun","v-l0s2-w9-05-04":"kun","v-l0s2-w9-08-04":"kun","v-l0s2-w9-09-02":"kun","v-l0s2-w9-10-03":"kun","v-l0s2-w9-11-05":"kun","v-l0s2-w10-07-05":"kun"};
+    if (Array.isArray(data.vocab)) {
+      data.vocab.forEach(v => {
+        const indice = INDICES_ON_KUN[v.id];
         if (indice && !v.indice) v.indice = indice;
       });
     }

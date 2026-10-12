@@ -29,6 +29,7 @@
 let partieCourante = null;      // ligne `parties` du salon où on se trouve, ou null
 let joueursPartieCourante = []; // lignes `parties_joueurs` de ce salon
 let partiesOuvertes = [];       // salons publics en attente, pour le navigateur
+let presentsPartie = null;      // ids des joueurs reellement connectes au salon (Realtime Presence), null tant qu'inconnu
 let canalPartie = null;         // canal Supabase Realtime abonné au salon courant
 let enTraitementTourBombe = false;
 let minuteurHotePartie = null;
@@ -89,6 +90,9 @@ async function chargerPartiesOuvertes() {
     .select('id, code, nom, jeu, config, hote_id, hote_pseudo, created_at, parties_joueurs(count)')
     .eq('prive', false)
     .eq('etat', 'attente')
+    // Salons fantomes (retour Lucien 05/10/2026) : un salon dont l'hote a ferme
+    // l'onglet restait ouvert indefiniment. On n'affiche que les salons recents.
+    .gte('created_at', new Date(Date.now() - 2 * 3600 * 1000).toISOString())
     .order('created_at', { ascending: false })
     .limit(30);
   if (error) { partiesOuvertes = []; return; }
@@ -114,7 +118,13 @@ function seDesabonnerPartie() {
 
 function sabonnerPartie(partieId) {
   seDesabonnerPartie();
-  canalPartie = window.sb.channel('partie-' + partieId)
+  presentsPartie = null;
+  canalPartie = window.sb.channel('partie-' + partieId, { config: { presence: { key: window.accountUser.id } } })
+    .on('presence', { event: 'sync' }, () => {
+      if (!canalPartie) return;
+      presentsPartie = new Set(Object.keys(canalPartie.presenceState()));
+      renderParties();
+    })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'parties', filter: `id=eq.${partieId}` }, (payload) => {
       if (payload.eventType === 'DELETE') {
         showToast('Le salon a été fermé.');
@@ -143,7 +153,32 @@ function sabonnerPartie(partieId) {
     .on('broadcast', { event: 'effacer' }, (m) => { if (typeof dessinRecevoir === 'function') dessinRecevoir('effacer', m.payload); })
     .on('broadcast', { event: 'demande' }, (m) => { if (typeof dessinRecevoir === 'function') dessinRecevoir('demande', m.payload); })
     .on('broadcast', { event: 'sync' }, (m) => { if (typeof dessinRecevoir === 'function') dessinRecevoir('sync', m.payload); })
-    .subscribe();
+    .subscribe((statut) => {
+      if (statut === 'SUBSCRIBED' && canalPartie) canalPartie.track({ user_id: window.accountUser.id });
+    });
+}
+
+// Retire du salon les joueurs qui ne sont plus connectes (onglet ferme sans
+// quitter). Seulement par l'hote, et seulement si la presence est connue ET
+// qu'il s'y voit lui-meme : sinon on risquerait de vider un salon sain.
+async function retirerJoueursAbsents() {
+  if (!partieCourante || partieCourante.hote_id !== window.accountUser.id) return;
+  if (!presentsPartie || !presentsPartie.has(window.accountUser.id)) return;
+  const absents = joueursPartieCourante.filter(j => !presentsPartie.has(j.user_id));
+  for (const j of absents) {
+    await window.sb.from('parties_joueurs').delete().eq('partie_id', partieCourante.id).eq('user_id', j.user_id);
+  }
+  if (absents.length) joueursPartieCourante = await chargerJoueursPartie(partieCourante.id);
+}
+if (typeof window !== 'undefined' && window.addEventListener) {
+  // Fermer l'onglet = quitter le salon (au mieux : le navigateur peut couper la requete).
+  window.addEventListener('pagehide', () => {
+    try {
+      if (partieCourante && window.sb && window.accountUser && partieCourante.hote_id !== window.accountUser.id) {
+        window.sb.from('parties_joueurs').delete().eq('partie_id', partieCourante.id).eq('user_id', window.accountUser.id);
+      }
+    } catch (e) { /* au mieux */ }
+  });
 }
 
 function arreterMinuteursPartie() {
@@ -271,6 +306,7 @@ async function retirerJoueurPartie(userId) {
 // Démarre le jeu du salon, quel qu'il soit.
 async function demarrerPartie() {
   if (!partieCourante) return;
+  await retirerJoueursAbsents();
   if (partieCourante.jeu === 'bombe' || !partieCourante.jeu) return demarrerPartieBombe();
   return demarrerPartieJeu();
 }
