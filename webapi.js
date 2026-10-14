@@ -362,6 +362,18 @@ const JLPT_N4_SEED = {"kanjiGroups":[{"id":"kg-hu66go90952pa","semesterId":"jlpt
         if (f && Object.keys(f.old).every(k => v[k] === f.old[k])) Object.assign(v, f.neu);
       });
     }
+    // Retours de Lucien (14/10/2026) : « (Tr) » / « (Intr) » n'etaient jamais
+    // expliques -> ecrits en toutes lettres ; 側 (がわ) accepte aussi そば ;
+    // 一、二、三杯 accepte aussi いち. Idempotent.
+    if (Array.isArray(data.vocab)) {
+      data.vocab.forEach(v => {
+        if (typeof v.sens === 'string' && /\((Tr|Intr)\)/.test(v.sens)) {
+          v.sens = v.sens.replace(/\(Tr\)/g, '(transitif)').replace(/\(Intr\)/g, '(intransitif)');
+        }
+        if (v.id === 'v-fmgiyyiq6mlgm' && v.lecture === 'がわ') v.lecture = 'がわ / そば';
+        if (v.id === 'v-mrhvk4va9eoce' && v.lecture === 'いっ、に、さんばい') v.lecture = 'いっ、に、さんばい / いち、に、さんばい';
+      });
+    }
     // Coquille dans le seed (30/09/2026) : la lecture kun de 港 etait
     // "みなo" (un "o" latin a la place de "と"), impossible a taper en kana.
     if (Array.isArray(data.kanjiGroups)) {
