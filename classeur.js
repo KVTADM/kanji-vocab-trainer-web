@@ -265,12 +265,18 @@ function classeurBrancherCoffres(container) {
   });
 }
 
+// Sens du kanji en francais (classeur-sens.js), 1 a 3 mots.
+function classeurSens(k) {
+  const t = typeof window !== 'undefined' && window.KVT_CLASSEUR_SENS;
+  return (t && t[k]) || '';
+}
+
 function classeurHtmlCase(e, etat) {
   const n = etat.kanji[e.k] || 0;
   const r = classeurRarete(e.rarete);
   const nouveau = classeurNouveaux.has(e.k);
   if (!n) return `<div class="classeur-case classeur-case--vide" style="--r:${r.couleur}" title="Pas encore découvert"><span>?</span></div>`;
-  return `<button class="classeur-case classeur-case--possede ${classeurSelection === e.k ? 'classeur-case--selection' : ''}" style="--r:${r.couleur}" data-classeur-kanji="${escapeHtml(e.k)}" title="${escapeHtml(r.nom)}"><span class="classeur-case__kanji">${escapeHtml(e.k)}</span>${n > 1 ? `<span class="classeur-case__n">×${n}</span>` : ''}${nouveau ? '<span class="classeur-case__nouveau">Nouveau</span>' : ''}</button>`;
+  return `<button class="classeur-case classeur-case--possede ${classeurSelection === e.k ? 'classeur-case--selection' : ''}" style="--r:${r.couleur}" data-classeur-kanji="${escapeHtml(e.k)}" title="${escapeHtml(r.nom)}${classeurSens(e.k) ? ' · ' + escapeHtml(classeurSens(e.k)) : ''}"><span class="classeur-case__kanji">${escapeHtml(e.k)}</span>${classeurSens(e.k) ? `<span class="classeur-case__sens">${escapeHtml(classeurSens(e.k))}</span>` : ''}${n > 1 ? `<span class="classeur-case__n">×${n}</span>` : ''}${nouveau ? '<span class="classeur-case__nouveau">Nouveau</span>' : ''}</button>`;
 }
 
 function classeurHtmlDetail(etat) {
@@ -284,6 +290,7 @@ function classeurHtmlDetail(etat) {
     <div class="classeur-detail__kanji">${escapeHtml(e.k)}</div>
     <div class="classeur-detail__texte">
       <div><span class="classeur-badge" style="background:${r.couleur}">${escapeHtml(r.nom)}</span> <span class="classeur-detail__niveau">JLPT ${escapeHtml(e.niveau.toUpperCase())}</span> · ${etat.kanji[e.k]} exemplaire${etat.kanji[e.k] > 1 ? 's' : ''}</div>
+      ${classeurSens(e.k) ? `<div class="classeur-detail__sens">${escapeHtml(classeurSens(e.k))}</div>` : ''}
       <div class="classeur-detail__rang">${rang}</div>
       ${info ? `<div class="classeur-detail__lectures">${info.onyomi ? `<span>ON ${escapeHtml(info.onyomi)}</span>` : ''}${info.kunyomi ? `<span>KUN ${escapeHtml(info.kunyomi)}</span>` : ''}</div>${info.titre ? `<div>${escapeHtml(info.titre)}</div>` : ''}` : '<div class="classeur-detail__rang">Ce kanji n\'est pas encore dans ton cours : tu l\'as découvert grâce à un coffre.</div>'}
     </div></div>`;
@@ -381,6 +388,7 @@ function classeurHtmlFicheCarte(c, i, total) {
     <div class="coffre-solo__carte">
       ${c.nouveau ? '<span class="coffre-flip__nouveau">Nouveau</span>' : '<span class="coffre-solo__doublon">Doublon</span>'}
       <div class="coffre-solo__kanji">${escapeHtml(c.k)}</div>
+      ${classeurSens(c.k) ? `<div class="coffre-solo__sens">${escapeHtml(classeurSens(c.k))}</div>` : ''}
       <div class="coffre-solo__pastilles"><span class="classeur-badge" style="background:${r.couleur}">${escapeHtml(r.nom)}</span><span class="coffre-solo__niveau">JLPT ${escapeHtml(c.niveau.toUpperCase())}</span></div>
       ${f ? `<dl class="coffre-solo__lectures">
         ${f.on ? `<div><dt>On'yomi</dt><dd>${escapeHtml(f.on)}</dd></div>` : ''}

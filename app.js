@@ -79,13 +79,37 @@ function indiceBadge(v) {
   if (!v || !v.indice || !INDICE_LABELS[v.indice]) return '';
   return `<span class="registre-badge indice-badge indice-${escapeHtml(v.indice)}" title="${v.indice === 'compteur' ? 'Ce mot est un compteur : pense à la lecture propre à ce compteur.' : (v.indice === 'kun' ? 'Ce kanji a plusieurs lectures : ici on attend la lecture japonaise (kun\'yomi).' : v.indice === 'on' ? 'Ce kanji a plusieurs lectures : ici on attend la lecture chinoise (on\'yomi).' : v.indice === 'chiffre' ? 'Ce mot est un chiffre (nombre), pas un compteur.' : 'La lecture de ce mot est particulière : elle ne se déduit pas des kanji.')}">${INDICE_LABELS[v.indice]}</span>`;
 }
+function boutonAudioMot(v) { return v ? boutonAudio(String(v.lecture || v.mot).split(/\s*[\/,]\s*/)[0], 'Écouter le mot') : ''; }
+// Audio (voix du navigateur, japonais). Aucun fichier : speechSynthesis.
+function boutonAudio(texte, titre) {
+  if (typeof window === 'undefined' || !('speechSynthesis' in window) || !texte) return '';
+  return `<button type="button" class="btn-audio" data-audio="${escapeHtml(texte)}" title="${titre}" aria-label="${titre}"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9.5v5h3.5L12 18.5v-13L7.5 9.5z" fill="currentColor" stroke="none"/><path d="M15.5 9a4 4 0 0 1 0 6"/><path d="M18 6.5a7.5 7.5 0 0 1 0 11"/></svg></button>`;
+}
+function lireAudio(texte) {
+  try {
+    const synth = window.speechSynthesis;
+    synth.cancel();
+    const u = new SpeechSynthesisUtterance(texte);
+    u.lang = 'ja-JP';
+    u.rate = 0.9;
+    const voix = synth.getVoices().find(x => /^ja/i.test(x.lang));
+    if (voix) u.voice = voix;
+    synth.speak(u);
+  } catch (e) { /* pas de voix disponible */ }
+}
+if (typeof document !== 'undefined') {
+  document.addEventListener('click', ev => {
+    const b = ev.target.closest && ev.target.closest('[data-audio]');
+    if (b) { ev.preventDefault(); ev.stopPropagation(); lireAudio(b.getAttribute('data-audio')); }
+  }, true);
+}
 // Phrase d'exemple d'un mot (cursus L0), affichee apres la reponse. Donnees
 // dans phrases-l0-data.js : id du mot -> [phrase, lecture, traduction].
 function htmlPhraseExemple(v) {
   const tous = (typeof window !== 'undefined' && window.KVT_PHRASES) || null;
   const p = tous && v && tous[v.id];
   if (!p) return '';
-  return `<div class="phrase-exemple"><div class="phrase-exemple__titre">Exemple</div><div class="phrase-exemple__jp">${escapeHtml(p[0])}</div><div class="phrase-exemple__lecture">${escapeHtml(p[1])}</div><div class="phrase-exemple__tr">${escapeHtml(p[2])}</div></div>`;
+  return `<div class="phrase-exemple"><div class="phrase-exemple__titre">Exemple</div><div class="phrase-exemple__jp">${escapeHtml(p[0])} ${boutonAudio(p[0], 'Écouter la phrase')}</div><div class="phrase-exemple__lecture">${escapeHtml(p[1])}</div><div class="phrase-exemple__tr">${escapeHtml(p[2])}</div></div>`;
 }
 
 function registreBadge(v) {
@@ -2559,7 +2583,7 @@ function renderVocab() {
             <tbody>
               ${vocabList.map(v => `
                 <tr>
-                  <td>${escapeHtml(v.mot)}${registreBadge(v)}</td>
+                  <td>${escapeHtml(v.mot)}${registreBadge(v)} ${boutonAudio(String(v.lecture || v.mot).split(/\s*[\/,]\s*/)[0], 'Écouter')}</td>
                   <td>${escapeHtml(v.lecture)}</td>
                   <td>${escapeHtml(v.sens)}</td>
                   <td>${jishoLienHtml(v.mot)} <button class="secondary small btn-masquer-vocab" data-vocab="${v.id}" title="Masquer ce mot (reversible, voir Mots masques)">Masquer</button></td>
@@ -3573,7 +3597,7 @@ function renderEcritureQuizView(container) {
               const liste = confondables.map(c => `${escapeHtml(c.mot)}${c.sens ? ' (' + escapeHtml(c.sens) + ')' : ''}`).join(', ');
               return `<div class="anti-confusion">⚠ Ne pas confondre avec : ${liste} — meme lecture, kanji different.</div>`;
             })()}
-            <div class="back-reading back-reading--grand">${escapeHtml(v.mot)}${registreBadge(v)}</div>
+            <div class="back-reading back-reading--grand">${escapeHtml(v.mot)}${registreBadge(v)} ${boutonAudioMot(v)}</div>
             ${htmlTraceInline(v.mot, 'svgTraceEcritureInline')}
             ${v.sens ? `<div class="back-meaning">${escapeHtml(v.sens)}</div>` : ''}
             ${htmlPhraseExemple(v)}
@@ -3831,7 +3855,7 @@ function renderTraductionQuizView(container) {
             Reponse enregistree. Correction disponible a la fin de la session.
           </div>
         ` : `
-          <div class="back-reading">${escapeHtml(v.mot)} (${escapeHtml(v.lecture)})${registreBadge(v)}</div>
+          <div class="back-reading">${escapeHtml(v.mot)} (${escapeHtml(v.lecture)})${registreBadge(v)} ${boutonAudioMot(v)}</div>
           ${htmlPhraseExemple(v)}
           <div class="quiz-feedback ${quizSession.lastResult.pct >= 0.99 ? 'good' : (quizSession.lastResult.pct >= 0.6 ? 'mid' : 'bad')}">
             Ta reponse : "${escapeHtml(quizSession.lastAnswer) || '(vide)'}" -- ${quizSession.lastResult.points}/${DB.settings.pointsPerWord} points (${Math.round(quizSession.lastResult.pct * 100)}% de similarite)
@@ -4063,7 +4087,7 @@ function renderDoubleQuizView(container) {
             Reponses enregistrees. Correction disponible a la fin de la session.
           </div>
         ` : `
-          <div class="back-reading">${escapeHtml(v.lecture)}${registreBadge(v)}</div>
+          <div class="back-reading">${escapeHtml(v.lecture)}${registreBadge(v)} ${boutonAudioMot(v)}</div>
           <div class="back-meaning">${escapeHtml(v.sens)}</div>
           ${htmlPhraseExemple(v)}
           <div class="quiz-feedback ${quizSession.lastResult.pct >= 0.99 ? 'good' : (quizSession.lastResult.pct >= 0.6 ? 'mid' : 'bad')}">
@@ -4904,7 +4928,7 @@ function renderReview() {
             Mode facile utilisé — 0/${DB.settings.pointsPerWord} points, cette réponse ne compte pas.
           </div>
         ` : `
-          <div class="back-reading">${escapeHtml(v.lecture)}${registreBadge(v)}</div>
+          <div class="back-reading">${escapeHtml(v.lecture)}${registreBadge(v)} ${boutonAudioMot(v)}</div>
           ${v.sens ? `<div class="back-meaning">${escapeHtml(v.sens)}</div>` : ''}
           ${htmlPhraseExemple(v)}
           <div class="quiz-feedback ${quizSession.lastResult.pct >= 0.99 ? 'good' : (quizSession.lastResult.pct >= 0.6 ? 'mid' : 'bad')}">

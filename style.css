@@ -3989,3 +3989,14 @@ body.ecriture-etendu-actif { overflow: hidden; overscroll-behavior: none; }
 .phrase-exemple__jp { font-size: 18px; color: var(--ink); }
 .phrase-exemple__lecture { font-size: 13px; color: var(--accent-bright); margin-top: 2px; }
 .phrase-exemple__tr { font-size: 13px; color: var(--muted); margin-top: 4px; }
+
+.btn-audio{background:none;border:1px solid var(--border,#ccc);border-radius:999px;padding:0 6px;font-size:13px;line-height:20px;cursor:pointer;vertical-align:middle}
+.btn-audio:hover{background:rgba(127,127,127,.15)}
+
+.btn-audio{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;padding:0;color:var(--accent,#6cb8ff)}
+.btn-audio svg{display:block}
+
+.coffre-solo__sens{font-size:18px;font-weight:600;text-align:center;margin:2px 0 6px}
+.classeur-detail__sens{font-size:16px;font-weight:600;margin:2px 0}
+.classeur-case__sens{position:absolute;left:2px;right:2px;bottom:2px;font-size:9px;line-height:1.1;text-align:center;color:var(--muted);overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.classeur-case__n{bottom:12px}
