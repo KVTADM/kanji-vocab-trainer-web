@@ -79,6 +79,15 @@ function indiceBadge(v) {
   if (!v || !v.indice || !INDICE_LABELS[v.indice]) return '';
   return `<span class="registre-badge indice-badge indice-${escapeHtml(v.indice)}" title="${v.indice === 'compteur' ? 'Ce mot est un compteur : pense à la lecture propre à ce compteur.' : (v.indice === 'kun' ? 'Ce kanji a plusieurs lectures : ici on attend la lecture japonaise (kun\'yomi).' : v.indice === 'on' ? 'Ce kanji a plusieurs lectures : ici on attend la lecture chinoise (on\'yomi).' : v.indice === 'chiffre' ? 'Ce mot est un chiffre (nombre), pas un compteur.' : 'La lecture de ce mot est particulière : elle ne se déduit pas des kanji.')}">${INDICE_LABELS[v.indice]}</span>`;
 }
+// Phrase d'exemple d'un mot (cursus L0), affichee apres la reponse. Donnees
+// dans phrases-l0-data.js : id du mot -> [phrase, lecture, traduction].
+function htmlPhraseExemple(v) {
+  const tous = (typeof window !== 'undefined' && window.KVT_PHRASES) || null;
+  const p = tous && v && tous[v.id];
+  if (!p) return '';
+  return `<div class="phrase-exemple"><div class="phrase-exemple__titre">Exemple</div><div class="phrase-exemple__jp">${escapeHtml(p[0])}</div><div class="phrase-exemple__lecture">${escapeHtml(p[1])}</div><div class="phrase-exemple__tr">${escapeHtml(p[2])}</div></div>`;
+}
+
 function registreBadge(v) {
   const registre = (!v || !v.registre || !REGISTRE_LABELS[v.registre]) ? ''
     : `<span class="registre-badge registre-${escapeHtml(v.registre)}">${REGISTRE_LABELS[v.registre]}</span>`;
@@ -1208,9 +1217,16 @@ function sansPonctuationJp(str) {
   return nette.length > 0 ? nette : nfkc;
 }
 
+// づ/ぢ se prononcent comme ず/じ, et un clavier japonais ne donne づ/ぢ qu'avec
+// "du"/"di" : taper "つずく" pour "つづく" ne doit pas couter de points
+// (audit du 15/10/2026, 27 mots concernes). Symetrique, comme le reste.
+function uniformiserDzu(str) {
+  return str.replace(/づ/g, 'ず').replace(/ぢ/g, 'じ');
+}
+
 function similarity(input, correct) {
-  const a = toHiragana(sansEspaces(sansPonctuationJp((input || '').trim())));
-  const b = toHiragana(sansEspaces(sansPonctuationJp((correct || '').trim())));
+  const a = uniformiserDzu(toHiragana(sansEspaces(sansPonctuationJp((input || '').trim()))));
+  const b = uniformiserDzu(toHiragana(sansEspaces(sansPonctuationJp((correct || '').trim()))));
   if (a.length === 0 && b.length === 0) return 1;
   if (b.length === 0) return a.length === 0 ? 1 : 0;
   const dist = levenshtein(a, b);
@@ -1724,6 +1740,7 @@ function renderCurrentView() {
   else if (currentView === 'creation' && typeof renderCreation === 'function') renderCreation();
   else if (currentView === 'admin' && typeof renderAdmin === 'function') renderAdmin();
   else if (currentView === 'boutique' && typeof renderBoutique === 'function') renderBoutique();
+  else if (currentView === 'classeur' && typeof renderClasseur === 'function') renderClasseur();
   else if (currentView === 'parties' && typeof renderParties === 'function') renderParties();
   else if (currentView === 'aide' && typeof renderAide === 'function') renderAide();
   else if (currentView === 'historique' && typeof renderHistorique === 'function') renderHistorique(null);
@@ -3559,6 +3576,7 @@ function renderEcritureQuizView(container) {
             <div class="back-reading back-reading--grand">${escapeHtml(v.mot)}${registreBadge(v)}</div>
             ${htmlTraceInline(v.mot, 'svgTraceEcritureInline')}
             ${v.sens ? `<div class="back-meaning">${escapeHtml(v.sens)}</div>` : ''}
+            ${htmlPhraseExemple(v)}
           ` : ''}
         </div>
         <div class="ecriture-dessin${quizSession.dessinEtendu ? ' ecriture-dessin--etendu' : ''}" id="zoneDessinEcriture">
@@ -3814,6 +3832,7 @@ function renderTraductionQuizView(container) {
           </div>
         ` : `
           <div class="back-reading">${escapeHtml(v.mot)} (${escapeHtml(v.lecture)})${registreBadge(v)}</div>
+          ${htmlPhraseExemple(v)}
           <div class="quiz-feedback ${quizSession.lastResult.pct >= 0.99 ? 'good' : (quizSession.lastResult.pct >= 0.6 ? 'mid' : 'bad')}">
             Ta reponse : "${escapeHtml(quizSession.lastAnswer) || '(vide)'}" -- ${quizSession.lastResult.points}/${DB.settings.pointsPerWord} points (${Math.round(quizSession.lastResult.pct * 100)}% de similarite)
           </div>
@@ -4046,6 +4065,7 @@ function renderDoubleQuizView(container) {
         ` : `
           <div class="back-reading">${escapeHtml(v.lecture)}${registreBadge(v)}</div>
           <div class="back-meaning">${escapeHtml(v.sens)}</div>
+          ${htmlPhraseExemple(v)}
           <div class="quiz-feedback ${quizSession.lastResult.pct >= 0.99 ? 'good' : (quizSession.lastResult.pct >= 0.6 ? 'mid' : 'bad')}">
             Lecture : "${escapeHtml(quizSession.lastAnswer.lecture) || '(vide)'}" (${Math.round(quizSession.lastResult.lecture.pct * 100)}%) ·
             Sens : "${escapeHtml(quizSession.lastAnswer.sens) || '(vide)'}" (${Math.round(quizSession.lastResult.sens.pct * 100)}%)
@@ -4886,6 +4906,7 @@ function renderReview() {
         ` : `
           <div class="back-reading">${escapeHtml(v.lecture)}${registreBadge(v)}</div>
           ${v.sens ? `<div class="back-meaning">${escapeHtml(v.sens)}</div>` : ''}
+          ${htmlPhraseExemple(v)}
           <div class="quiz-feedback ${quizSession.lastResult.pct >= 0.99 ? 'good' : (quizSession.lastResult.pct >= 0.6 ? 'mid' : 'bad')}">
             Ta réponse : "${escapeHtml(quizSession.lastAnswer) || '(vide)'}" — ${quizSession.lastResult.points}/${DB.settings.pointsPerWord} points (${Math.round(quizSession.lastResult.pct * 100)}% de similarité)
           </div>

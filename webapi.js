@@ -292,6 +292,8 @@ const JLPT_N4_SEED = {"kanjiGroups":[{"id":"kg-hu66go90952pa","semesterId":"jlpt
       data.gamification = { xp: 0, pieces: 0, streak: { compte: 0, record: 0, dernierJour: null }, inventaire: [], titreActif: null, collationActive: null, banniereActive: null, boostXpJusqua: null };
     }
     if (typeof data.gamification.collationActive === 'undefined') data.gamification.collationActive = null;
+    // Classeur de kanji (coffres, 15/10/2026) : kanji obtenus et nombre d'exemplaires.
+    if (!data.gamification.classeur || typeof data.gamification.classeur !== 'object') data.gamification.classeur = { kanji: {}, ouvertures: 0, pieces: 0 };
     if (typeof data.gamification.banniereActive === 'undefined') data.gamification.banniereActive = null;
     if (typeof data.gamification.boostXpJusqua === 'undefined') data.gamification.boostXpJusqua = null;
     if (typeof data.gamification.bordureActive === 'undefined') data.gamification.bordureActive = null;
@@ -372,6 +374,17 @@ const JLPT_N4_SEED = {"kanjiGroups":[{"id":"kg-hu66go90952pa","semesterId":"jlpt
         }
         if (v.id === 'v-fmgiyyiq6mlgm' && v.lecture === 'がわ') v.lecture = 'がわ / そば';
         if (v.id === 'v-mrhvk4va9eoce' && v.lecture === 'いっ、に、さんばい') v.lecture = 'いっ、に、さんばい / いち、に、さんばい';
+      });
+    }
+    // Audit du vocabulaire (15/10/2026) : lectures ecrites avec des kanji (お守り,
+    // 正しい), lectures fausses (不運, 大鎌, ごま塩, 石庭, 隣の人, 的にあたる,
+    // 羽毛布団, 剣の舞) et abreviations (adj)/(adv) dans le sens. Idempotent :
+    // n'agit que si l'ancienne valeur est encore en place.
+    const AUDIT_15_10 = {"v-mrhvk4uurapea":{"old":{"lecture":"お守り"},"neu":{"lecture":"おまもり"}},"v-mrhvk4uwk6a3l":{"old":{"lecture":"正しい"},"neu":{"lecture":"ただしい"}},"v-mrhvk4uxu20v9":{"old":{"lecture":"ふううん"},"neu":{"lecture":"ふうん"}},"v-mrhvk4uzmbb2b":{"old":{"lecture":"おおかま"},"neu":{"lecture":"おおがま"}},"v-mrhvk4vkx2fy6":{"old":{"lecture":"ごまじお"},"neu":{"lecture":"ごましお"}},"v-mrhvk4uz91exi":{"old":{"lecture":"いしてい"},"neu":{"lecture":"せきてい"}},"v-mrhvk4uw590q0":{"old":{"lecture":"となりのおひと"},"neu":{"lecture":"となりのひと"}},"v-mrhvk4v5n5cjy":{"old":{"lecture":"まとにおたる"},"neu":{"lecture":"まとにあたる"}},"v-mrhvk4v4ueync":{"old":{"lecture":"うもうふとん"},"neu":{"lecture":"うもうぶとん"}},"v-mrhvk4vbek6g4":{"old":{"lecture":"つるぎのまい"},"neu":{"lecture":"けんのまい"}},"v-mrhvk4uvjaz2p":{"old":{"sens":"Détesté (adj)"},"neu":{"sens":"Détesté"}},"v-mrhvk4uvobe7d":{"old":{"sens":"Épais (adv)"},"neu":{"sens":"Épais (adverbe)"}},"v-n2-w10-12-2":{"old":{"sens":"jaune (adj.)"},"neu":{"sens":"jaune"}}};
+    if (Array.isArray(data.vocab)) {
+      data.vocab.forEach(v => {
+        const f = AUDIT_15_10[v.id];
+        if (f && Object.keys(f.old).every(k => v[k] === f.old[k])) Object.assign(v, f.neu);
       });
     }
     // Coquille dans le seed (30/09/2026) : la lecture kun de 港 etait

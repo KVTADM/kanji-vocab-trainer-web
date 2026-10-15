@@ -3855,3 +3855,137 @@ body.ecriture-etendu-actif { overflow: hidden; overscroll-behavior: none; }
 
 .difficulte-modal { margin: 12px 0; }
 .difficulte-modal__titre { font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin-bottom: 6px; }
+
+/* ---------- Classeur de kanji et coffres (15/10/2026) ---------- */
+.coffre-grille { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px; margin-bottom: 8px; }
+.coffre-carte-boutique { text-align: center; margin-bottom: 0; border-top: 4px solid var(--coffre); display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.coffre-boutique__visuel { width: 132px; filter: drop-shadow(0 6px 10px rgba(0,0,0,.35)); }
+.coffre-svg { width: 100%; height: auto; display: block; }
+.coffre-boutique__nom { font-weight: 700; font-size: 17px; }
+.coffre-boutique__prix { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; }
+.coffre-boutique__nb { font-size: 12px; color: var(--muted); }
+.coffre-chances { list-style: none; padding: 0; margin: 4px 0 6px; width: 100%; font-size: 12.5px; }
+.coffre-chances li { display: flex; align-items: center; gap: 8px; padding: 2px 4px; }
+.coffre-chances b { margin-left: auto; font-variant-numeric: tabular-nums; }
+.coffre-puce { display: inline-block; width: 10px; height: 10px; border-radius: 50%; flex: none; }
+.coffre-ouvrir { width: 100%; margin-top: auto; }
+.coffre-ouvrir:disabled { opacity: .55; cursor: not-allowed; }
+
+.classeur-bilan { margin-bottom: 12px; }
+.classeur-bilan__haut { margin-bottom: 8px; }
+.classeur-barre { height: 10px; border-radius: 999px; background: var(--panel-alt); overflow: hidden; }
+.classeur-barre__plein { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent-bright)); border-radius: 999px; transition: width .4s; }
+.classeur-legende { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 10px; font-size: 12.5px; color: var(--muted); }
+.classeur-legende span { display: inline-flex; align-items: center; gap: 6px; }
+.classeur-onglets { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 12px; }
+.classeur-onglet { background: var(--panel); border: 1px solid var(--border); color: var(--ink); border-radius: 10px; padding: 8px 14px; cursor: pointer; display: flex; flex-direction: column; align-items: center; line-height: 1.2; font-weight: 700; }
+.classeur-onglet small { font-weight: 400; font-size: 11px; color: var(--muted); }
+.classeur-onglet.actif { border-color: var(--accent-bright); box-shadow: 0 0 0 1px var(--accent-bright) inset; }
+.classeur-onglets select { margin-left: auto; }
+.classeur-grille { display: grid; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); gap: 8px; }
+.classeur-case { position: relative; aspect-ratio: 1; border-radius: 10px; border: 2px solid var(--r); background: var(--panel); display: flex; align-items: center; justify-content: center; color: var(--ink); padding: 0; font-family: inherit; }
+.classeur-case--vide { border-style: dashed; border-color: color-mix(in srgb, var(--r) 35%, var(--border)); background: var(--panel-alt); color: var(--muted); font-size: 22px; opacity: .8; }
+.classeur-case--possede { cursor: pointer; }
+.classeur-case--possede:hover, .classeur-case--selection { transform: translateY(-2px); }
+.classeur-case__kanji { font-size: 30px; }
+.classeur-case__n { position: absolute; right: 4px; bottom: 2px; font-size: 11px; font-weight: 700; color: var(--muted); }
+.classeur-case__nouveau { position: absolute; left: 3px; top: 3px; font-size: 9px; font-weight: 700; background: var(--pink); color: #fff; border-radius: 6px; padding: 1px 5px; }
+.classeur-detail { display: flex; gap: 16px; align-items: center; border-left: 5px solid var(--r); margin-bottom: 12px; }
+.classeur-detail__kanji { font-size: 64px; line-height: 1; }
+.classeur-detail__texte { display: flex; flex-direction: column; gap: 4px; font-size: 14px; }
+.classeur-detail__rang, .classeur-detail__niveau { color: var(--muted); font-size: 13px; }
+.classeur-detail__lectures { display: flex; gap: 12px; flex-wrap: wrap; font-weight: 600; }
+.classeur-badge { display: inline-block; color: #14142a; font-weight: 700; font-size: 12px; border-radius: 999px; padding: 2px 10px; }
+
+.coffre-ouvert { overflow: hidden; }
+.coffre-overlay { position: fixed; inset: 0; z-index: 9999; background: rgba(8,8,20,.88); display: flex; align-items: center; justify-content: center; padding: 16px; overflow-y: auto; }
+.coffre-scene { text-align: center; max-width: 720px; width: 100%; color: #fff; }
+.coffre-scene h3 { margin: 0 0 4px; }
+.coffre-scene__texte { color: #c7c7e6; margin: 6px 0 14px; }
+.coffre-boite { width: 200px; margin: 0 auto 14px; filter: drop-shadow(0 0 22px var(--coffre)); }
+.coffre-boite--secoue { animation: coffre-secoue .5s ease-in-out 2; }
+@keyframes coffre-secoue { 0%,100% { transform: rotate(0) scale(1); } 20% { transform: rotate(-9deg) scale(1.05); } 40% { transform: rotate(8deg) scale(1.08); } 60% { transform: rotate(-6deg) scale(1.1); } 80% { transform: rotate(5deg) scale(1.06); } }
+.coffre-cartes { display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 12px; margin: 10px 0 16px; }
+.coffre-flip { position: relative; aspect-ratio: 3 / 4; border: none; background: none; padding: 0; cursor: pointer; transform-style: preserve-3d; transition: transform .6s; font-family: inherit; }
+.coffre-flip.retournee { transform: rotateY(180deg); cursor: default; }
+.coffre-flip__dos, .coffre-flip__face { position: absolute; inset: 0; border-radius: 12px; backface-visibility: hidden; -webkit-backface-visibility: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; }
+.coffre-flip__dos { background: linear-gradient(145deg, #2a2a50, #1a1a36); border: 2px solid var(--coffre); font-size: 32px; color: var(--coffre); }
+.coffre-flip__face { transform: rotateY(180deg); background: #1c1c34; border: 3px solid var(--r); }
+.coffre-flip__face--legendaire { background: radial-gradient(circle, #3a2c10, #1c1c34 70%); }
+.coffre-flip__face--epique { background: radial-gradient(circle, #2c1a44, #1c1c34 70%); }
+@keyframes coffre-legende { from { box-shadow: 0 0 14px var(--r); } to { box-shadow: 0 0 34px var(--r), 0 0 8px #fff3; } }
+.coffre-flip__kanji { font-size: 40px; color: #fff; line-height: 1; }
+.coffre-flip__rarete { font-size: 11px; font-weight: 700; color: var(--r); text-transform: uppercase; letter-spacing: .5px; }
+.coffre-flip__niveau { font-size: 11px; color: #a9a9d0; }
+.coffre-flip__nouveau { position: absolute; top: 5px; right: 5px; font-size: 9px; font-weight: 700; background: var(--pink); color: #fff; border-radius: 6px; padding: 1px 5px; }
+.coffre-bilan { color: #fff; font-weight: 600; margin: 0 0 12px; }
+.coffre-actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+@media (prefers-reduced-motion: reduce) {
+  .coffre-boite--secoue, .coffre-flip__face--legendaire { animation: none; }
+  .coffre-flip { transition: none; }
+}
+@media (max-width: 520px) {
+  .classeur-detail { flex-direction: column; text-align: center; }
+  .classeur-onglets select { margin-left: 0; width: 100%; }
+}
+
+/* Coffre en perspective : le couvercle se leve et la lumiere sort (15/10/2026) */
+.coffre-couvercle { transition: transform .45s cubic-bezier(.3,1.4,.5,1); transform-box: view-box; transform-origin: 80px 32px; }
+.coffre-lueur { opacity: 0; transition: opacity .4s ease; }
+.coffre-boite--ouvre .coffre-couvercle { transform: translate(0, -20px) rotate(-7deg); }
+.coffre-boite--ouvre .coffre-lueur { opacity: 1; }
+.coffre-boite--ouvre { filter: drop-shadow(0 0 34px var(--coffre)); }
+@media (prefers-reduced-motion: reduce) { .coffre-couvercle, .coffre-lueur { transition: none; } }
+
+/* Ouverture carte par carte, fiche du kanji (15/10/2026) */
+.coffre-scene--solo { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.coffre-solo { width: min(320px, 100%); }
+.coffre-solo__compteur { font-size: 13px; color: #cfd0ee; margin-bottom: 8px; letter-spacing: .04em; text-transform: uppercase; }
+.coffre-solo__carte { position: relative; background: linear-gradient(160deg, #26264a, #15152c); border: 2px solid var(--r); border-radius: 18px; padding: 26px 20px 20px; box-shadow: none; display: flex; flex-direction: column; align-items: center; gap: 12px; animation: coffre-solo-entree .55s cubic-bezier(.2,1.2,.4,1) both; }
+@keyframes coffre-solo-entree { from { opacity: 0; transform: perspective(700px) rotateY(-80deg) scale(.85); } to { opacity: 1; transform: perspective(700px) rotateY(0) scale(1); } }
+.coffre-solo__kanji { font-size: 96px; line-height: 1.05; color: #fff; }
+.coffre-solo__pastilles { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: center; }
+.coffre-solo__niveau { font-size: 13px; color: #cfd0ee; font-weight: 600; }
+.coffre-solo__lectures { margin: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 8px 16px; width: 100%; text-align: left; }
+.coffre-solo__lectures > div:only-child { grid-column: 1 / -1; text-align: center; }
+.coffre-solo__lectures dt { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: #9a9bcb; }
+.coffre-solo__lectures dd { margin: 2px 0 0; font-size: 16px; color: #fff; }
+.coffre-solo__mot { width: 100%; border-top: 1px solid rgba(255,255,255,.14); padding-top: 12px; display: grid; gap: 2px; }
+.coffre-solo__mot-jp { font-size: 26px; color: #fff; }
+.coffre-solo__mot-lecture { font-size: 14px; color: var(--r); }
+.coffre-solo__mot-sens { font-size: 13px; color: #cfd0ee; }
+.coffre-solo__doublon { position: absolute; top: 10px; right: 12px; font-size: 11px; color: #cfd0ee; background: rgba(255,255,255,.1); border-radius: 999px; padding: 2px 8px; }
+.coffre-solo .coffre-flip__nouveau { top: 10px; right: 12px; }
+.coffre-flip--fixe { cursor: default; }
+@media (prefers-reduced-motion: reduce) { .coffre-solo__carte, .coffre-solo--legendaire .coffre-solo__carte { animation: none; } }
+
+/* Coffres dans la Boutique : trois cote a cote, animation au survol (15/10/2026) */
+.coffre-rangee { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-bottom: 8px; perspective: 900px; }
+.coffre-rangee .coffre-carte-boutique { transition: transform .3s cubic-bezier(.2,1.2,.4,1), box-shadow .3s ease, border-color .3s ease; padding: 14px 12px; }
+.coffre-rangee .coffre-boutique__visuel { width: min(100%, 170px); transition: transform .35s cubic-bezier(.2,1.2,.4,1), filter .35s ease; }
+.coffre-rangee .coffre-carte-boutique:hover, .coffre-rangee .coffre-carte-boutique:focus-within { transform: translateY(-8px); box-shadow: 0 16px 30px rgba(0,0,0,.4), 0 0 24px -4px var(--coffre); border-color: var(--coffre); }
+.coffre-rangee .coffre-carte-boutique:hover .coffre-boutique__visuel, .coffre-rangee .coffre-carte-boutique:focus-within .coffre-boutique__visuel { transform: perspective(500px) rotateY(-10deg) scale(1.1) translateY(-4px); filter: drop-shadow(0 10px 16px rgba(0,0,0,.45)) drop-shadow(0 0 14px var(--coffre)); }
+.coffre-rangee .coffre-carte-boutique:hover .coffre-couvercle, .coffre-rangee .coffre-carte-boutique:focus-within .coffre-couvercle { transform: translate(0, -9px) rotate(-4deg); }
+.coffre-rangee .coffre-carte-boutique:hover .coffre-lueur, .coffre-rangee .coffre-carte-boutique:focus-within .coffre-lueur { opacity: .9; }
+.coffre-chances-det { width: 100%; font-size: 12.5px; }
+.coffre-chances-det summary { cursor: pointer; color: var(--muted); text-align: center; list-style: none; padding: 2px 0; }
+.coffre-chances-det summary::-webkit-details-marker { display: none; }
+.coffre-chances-det summary:hover { color: var(--ink); }
+.coffre-chances-det[open] summary { margin-bottom: 2px; }
+.classeur-lien-boutique { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.coffre-bilan--liste { font-size: 20px; letter-spacing: .04em; margin-top: 4px; }
+@media (max-width: 560px) {
+  .coffre-rangee { gap: 8px; }
+  .coffre-rangee .coffre-carte-boutique { padding: 10px 6px; gap: 4px; }
+  .coffre-rangee .coffre-boutique__nom { font-size: 13px; }
+  .coffre-rangee .coffre-boutique__nb { font-size: 11px; text-align: center; }
+  .coffre-rangee .coffre-ouvrir { font-size: 12px; padding: 8px 4px; }
+}
+@media (prefers-reduced-motion: reduce) { .coffre-rangee .coffre-carte-boutique, .coffre-rangee .coffre-boutique__visuel { transition: none; } .coffre-rangee .coffre-carte-boutique:hover { transform: none; } }
+
+/* Phrase d'exemple apres la reponse (L0, 15/10/2026) */
+.phrase-exemple { margin: 12px 0 4px; padding: 10px 14px; border-left: 3px solid var(--accent-bright); background: var(--panel-alt); border-radius: 0 10px 10px 0; text-align: left; }
+.phrase-exemple__titre { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin-bottom: 4px; }
+.phrase-exemple__jp { font-size: 18px; color: var(--ink); }
+.phrase-exemple__lecture { font-size: 13px; color: var(--accent-bright); margin-top: 2px; }
+.phrase-exemple__tr { font-size: 13px; color: var(--muted); margin-top: 4px; }

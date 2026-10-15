@@ -839,6 +839,7 @@ function renderBoutique() {
       <span class="gamif-piece">${iconePiece(18)} ${g.pieces} pièce${g.pieces > 1 ? 's' : ''} d'or</span>
       <span style="color:var(--muted); font-size:13px;">Gagnées en révisant — deux pièces d'or par mot correct, un bonus si tu finis une session à 80% ou plus, davantage sur les semestres avancés. Purement décoratif : aucun avantage sur le classement.</span>
     </div>
+    ${typeof classeurHtmlSectionCoffres === 'function' ? classeurHtmlSectionCoffres(g) : ''}
     ${sections}
     <div class="gamif-retirer-liste">
       ${g.titreActif ? `<button class="lien-retour" data-retirer-titre>Ne plus afficher de titre</button>` : ''}
@@ -849,6 +850,7 @@ function renderBoutique() {
     </div>
   `;
 
+  if (typeof classeurBrancherCoffres === 'function') classeurBrancherCoffres(container);
   $$('[data-apercu-theme]', container).forEach(b => {
     b.onclick = () => {
       boutiqueApercuTheme = b.dataset.apercuTheme;

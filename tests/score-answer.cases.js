@@ -112,3 +112,14 @@ essai('une reponse vide ou faite d\'espaces est refusee', () => {
   if (!verifierSaisieJp('')) throw new Error('vide accepte');
   if (!verifierSaisieJp('   ')) throw new Error('espaces acceptes');
 });
+
+// Audit du 15/10/2026 : "つずく" pour "つづく" donnait 83 %.
+essai('づ et ず, ぢ et じ sont acceptes l\'un pour l\'autre', () => {
+  [['つずく', 'つづく'], ['つづく', 'つずく'], ['はなじ', 'はなぢ'], ['かいずか', 'かいづか']].forEach(([saisie, attendu]) => {
+    const r = scoreAnswer(saisie, attendu);
+    if (r.pct !== 1) throw new Error(saisie + ' vs ' + attendu + ' : ' + JSON.stringify(r));
+  });
+});
+essai('づ/ぢ ne rend pas une vraie faute juste', () => {
+  if (scoreAnswer('つくく', 'つづく').pct >= 1) throw new Error('faute acceptee');
+});
