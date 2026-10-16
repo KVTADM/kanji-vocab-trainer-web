@@ -85,31 +85,129 @@ function boutonAudio(texte, titre) {
   if (typeof window === 'undefined' || !('speechSynthesis' in window) || !texte) return '';
   return `<button type="button" class="btn-audio" data-audio="${escapeHtml(texte)}" title="${titre}" aria-label="${titre}"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9.5v5h3.5L12 18.5v-13L7.5 9.5z" fill="currentColor" stroke="none"/><path d="M15.5 9a4 4 0 0 1 0 6"/><path d="M18 6.5a7.5 7.5 0 0 1 0 11"/></svg></button>`;
 }
-function lireAudio(texte) {
+// Choisit la voix japonaise la plus naturelle disponible : les voix « Natural »,
+// « Neural », « Online », « Premium » ou « Enhanced » sonnent bien mieux que les
+// voix compactes par defaut.
+function meilleureVoixJaponaise(voix) {
+  const ja = (voix || []).filter(x => /^ja/i.test(x.lang));
+  const note = x => {
+    const n = x.name || '';
+    let sc = 0;
+    if (/natural|neural|online/i.test(n)) sc += 10;
+    if (/premium|enhanced|améliorée|ameliorée/i.test(n)) sc += 8;
+    if (/google/i.test(n)) sc += 6;
+    if (/kyoko|o-ren|nanami|keita|otoya|haruka|ayumi/i.test(n)) sc += 3;
+    if (/compact/i.test(n)) sc -= 5;
+    if (x.localService === false) sc += 2;
+    return sc;
+  };
+  return ja.sort((a, b) => note(b) - note(a))[0] || null;
+}
+// Fichiers MP3 (voix ElevenLabs, dossier audio/mots/) : l'index associe une lecture en kana a son fichier.
+// S'il n'y a pas de fichier pour le texte (ou pas encore d'index), on retombe sur la voix du navigateur.
+let indexAudioMots = null, chargementIndexAudio = null, lecteurAudio = null;
+function chargerIndexAudio() {
+  if (chargementIndexAudio || typeof fetch === 'undefined') return;
+  chargementIndexAudio = fetch('/audio/mots/index.json', { cache: 'no-cache' })
+    .then(r => (r.ok ? r.json() : {}))
+    .then(j => { indexAudioMots = j && typeof j === 'object' ? j : {}; })
+    .catch(() => { indexAudioMots = {}; });
+}
+function fichierAudioMot(texte) {
+  if (!indexAudioMots || !Object.prototype.hasOwnProperty.call(indexAudioMots, texte)) return null;
+  return '/audio/mots/' + encodeURIComponent(indexAudioMots[texte]);
+}
+function lireVoixNavigateur(texte) {
   try {
     const synth = window.speechSynthesis;
     synth.cancel();
     const u = new SpeechSynthesisUtterance(texte);
     u.lang = 'ja-JP';
-    u.rate = 0.9;
-    const voix = synth.getVoices().find(x => /^ja/i.test(x.lang));
+    u.rate = 0.85;
+    const voix = meilleureVoixJaponaise(synth.getVoices());
     if (voix) u.voice = voix;
     synth.speak(u);
   } catch (e) { /* pas de voix disponible */ }
 }
+function lireAudio(texte) {
+  chargerIndexAudio();
+  const url = fichierAudioMot(texte);
+  if (!url) { lireVoixNavigateur(texte); return; }
+  try {
+    if (lecteurAudio) lecteurAudio.pause();
+    if (window.speechSynthesis) window.speechSynthesis.cancel();
+    lecteurAudio = new Audio(url);
+    const secours = () => lireVoixNavigateur(texte);
+    lecteurAudio.addEventListener('error', secours, { once: true });
+    const p = lecteurAudio.play();
+    if (p && p.catch) p.catch(secours);
+  } catch (e) { lireVoixNavigateur(texte); }
+}
+if (typeof window !== 'undefined') setTimeout(chargerIndexAudio, 3000);
 if (typeof document !== 'undefined') {
   document.addEventListener('click', ev => {
     const b = ev.target.closest && ev.target.closest('[data-audio]');
     if (b) { ev.preventDefault(); ev.stopPropagation(); lireAudio(b.getAttribute('data-audio')); }
   }, true);
 }
+// Furigana : place la lecture de chaque suite de kanji au-dessus d'elle. Les kana de la phrase servent
+// de reperes dans la lecture complete ; l'alignement retenu est celui qui donne des longueurs de lecture
+// plausibles (environ deux kana par kanji). Renvoie null si l'alignement echoue (on affiche alors la lecture).
+function furiganaPhrase(phrase, lecture) {
+  if (!phrase || !lecture) return null;
+  const enHira = s => s.replace(/[ァ-ヶ]/g, c => String.fromCharCode(c.charCodeAt(0) - 0x60));
+  const RUN = /[一-鿿々〻ヵヶ0-9A-Za-z０-９Ａ-Ｚａ-ｚ]/;
+  const FACULT = /[「」『』（）()・＝=、。，…\s]/;
+  const morceaux = [];
+  for (const ch of phrase) {
+    const type = RUN.test(ch) ? 'run' : FACULT.test(ch) ? 'opt' : 'lit';
+    const d = morceaux[morceaux.length - 1];
+    if (d && d.type === 'run' && type === 'run') d.t += ch;
+    else morceaux.push({ type, t: ch });
+  }
+  if (!morceaux.some(m => m.type === 'run')) return null;
+  const lec = [...enHira(lecture).replace(/\s+/g, '')];
+  const n = morceaux.length, L = lec.length;
+  const INF = 1e9;
+  const cout = Array.from({ length: n + 1 }, () => new Array(L + 1).fill(INF));
+  const choix = Array.from({ length: n + 1 }, () => new Array(L + 1).fill(null));
+  cout[0][0] = 0;
+  for (let i = 0; i < n; i++) {
+    const m = morceaux[i];
+    const cible = [...enHira(m.t)];
+    for (let p = 0; p <= L; p++) {
+      const c0 = cout[i][p];
+      if (c0 >= INF) continue;
+      if (m.type === 'run') {
+        const nb = [...m.t].length;
+        for (let q = p + 1; q <= L && q - p <= nb * 6; q++) {
+          const len = q - p;
+          const c = c0 + Math.abs(len - 2 * nb) + (len < nb ? 5 : 0);
+          if (c < cout[i + 1][q]) { cout[i + 1][q] = c; choix[i + 1][q] = p; }
+        }
+      } else {
+        if (p + cible.length <= L && cible.every((x, k) => lec[p + k] === x) && c0 < cout[i + 1][p + cible.length]) {
+          cout[i + 1][p + cible.length] = c0; choix[i + 1][p + cible.length] = p;
+        }
+        if (m.type === 'opt' && c0 < cout[i + 1][p]) { cout[i + 1][p] = c0; choix[i + 1][p] = p; }
+      }
+    }
+  }
+  if (cout[n][L] >= INF) return null;
+  const parts = new Array(n);
+  let p = L;
+  for (let i = n; i > 0; i--) { const q = choix[i][p]; parts[i - 1] = lec.slice(q, p).join(''); p = q; }
+  return morceaux.map((m, i) => m.type === 'run' ? `<ruby>${escapeHtml(m.t)}<rt>${escapeHtml(parts[i])}</rt></ruby>` : escapeHtml(m.t)).join('');
+}
+
 // Phrase d'exemple d'un mot (cursus L0), affichee apres la reponse. Donnees
 // dans phrases-l0-data.js : id du mot -> [phrase, lecture, traduction].
 function htmlPhraseExemple(v) {
   const tous = (typeof window !== 'undefined' && window.KVT_PHRASES) || null;
   const p = tous && v && tous[v.id];
   if (!p) return '';
-  return `<div class="phrase-exemple"><div class="phrase-exemple__titre">Exemple</div><div class="phrase-exemple__jp">${escapeHtml(p[0])} ${boutonAudio(p[0], 'Écouter la phrase')}</div><div class="phrase-exemple__lecture">${escapeHtml(p[1])}</div><div class="phrase-exemple__tr">${escapeHtml(p[2])}</div></div>`;
+  const furi = furiganaPhrase(p[0], p[1]);
+  return `<div class="phrase-exemple"><div class="phrase-exemple__jp"><span class="phrase-exemple__texte">${furi || escapeHtml(p[0])}</span>${boutonAudio(p[0], 'Écouter la phrase')}</div><div class="phrase-exemple__sous">${furi ? '' : `<span class="phrase-exemple__lecture">${escapeHtml(p[1])}</span>`}<span class="phrase-exemple__tr">${escapeHtml(p[2])}</span></div></div>`;
 }
 
 function registreBadge(v) {

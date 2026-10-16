@@ -2,7 +2,7 @@
 // fois ouverte au moins une fois. Les données de l'utilisateur (vocabulaire,
 // scores) vivent dans IndexedDB (voir webapi.js), pas ici — le cache ne
 // contient que le "coquille" de l'app.
-const CACHE_NAME = 'kanji-vocab-trainer-v188';
+const CACHE_NAME = 'kanji-vocab-trainer-v191';
 const ASSETS = [
   '/',
   '/app/',
@@ -68,6 +68,9 @@ self.addEventListener('fetch', (event) => {
   // Les installeurs sont sur les Releases GitHub depuis le 02/08 : on ne
   // touche pas aux requêtes qui sortent du site.
   if (event.request.url.includes('/downloads/')) return;
+  // Les MP3 d'audio (voix ElevenLabs) ne passent pas par le cache du service worker :
+  // le navigateur gere lui-meme leur cache et les requetes partielles (Safari).
+  if (event.request.url.includes('/audio/')) return;
   if (new URL(event.request.url).origin !== self.location.origin) return;
   event.respondWith(
     caches.match(event.request).then((cached) => {

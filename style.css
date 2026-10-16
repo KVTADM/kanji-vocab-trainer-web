@@ -4000,3 +4000,15 @@ body.ecriture-etendu-actif { overflow: hidden; overscroll-behavior: none; }
 .classeur-detail__sens{font-size:16px;font-weight:600;margin:2px 0}
 .classeur-case__sens{position:absolute;left:2px;right:2px;bottom:2px;font-size:9px;line-height:1.1;text-align:center;color:var(--muted);overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
 .classeur-case__n{bottom:12px}
+
+/* Phrase d'exemple compacte (15/10/2026) : sans titre, lecture et traduction sur une ligne. */
+.phrase-exemple { margin: 8px 0 2px; padding: 6px 12px; }
+.phrase-exemple__jp { font-size: 16px; display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+.phrase-exemple__sous { display: flex; flex-wrap: wrap; column-gap: 12px; row-gap: 0; align-items: baseline; margin-top: 1px; }
+.phrase-exemple__sous .phrase-exemple__lecture { font-size: 12px; margin-top: 0; }
+.phrase-exemple__sous .phrase-exemple__tr { font-size: 12px; margin-top: 0; }
+.phrase-exemple .btn-audio { width: 22px; height: 22px; }
+
+.phrase-exemple__jp ruby { ruby-position: over; }
+.phrase-exemple__jp rt { font-size: 0.5em; color: var(--accent-bright); letter-spacing: 0; }
+.phrase-exemple__jp { line-height: 2; }

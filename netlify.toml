@@ -56,3 +56,14 @@
 # Volontairement PAS de catch-all "/* -> /index.html" : une adresse inconnue
 # doit donner un vrai 404, pas la page de présentation. Un catch-all masquerait
 # les liens cassés au lieu de les révéler.
+
+# Audio des mots (MP3 ElevenLabs, voix Kenzo) : mis en cache par le navigateur pour une semaine.
+# L'index.json reste a jour (revalidation a chaque fois).
+[[headers]]
+  for = "/audio/mots/*.mp3"
+  [headers.values]
+    Cache-Control = "public, max-age=604800"
+[[headers]]
+  for = "/audio/mots/index.json"
+  [headers.values]
+    Cache-Control = "no-cache"
