@@ -351,3 +351,23 @@ essai('relais : saisie en hiragana seul, acceptée si un mot du bon kanji se lit
   ok(!relaisValider(ENTREES, ej, '', 'せいかつ').ok, 'déjà utilisé refusé');
   ok(!relaisValider(ENTREES, ej, '', 'にほん').ok, 'mot hors chaîne refusé');
 });
+
+essai('historique de fin de partie : le duel garde chaque manche avec les réponses, les stats se calculent', () => {
+  let ej = ouvrirQuestion(duelDepart());
+  ej = duelReponse(ej, 'a', false, 'x');
+  ej = duelReponse(ej, 'b', true, 'y');
+  ej = duelFinPhase(ej);
+  ok(ej.journal.length === 1 && ej.journal[0].gagnant === 'b' && ej.journal[0].rep.a.s === 'x', 'manche 1 journalisée');
+  const st = statsPartie(ej);
+  ok(st.par.a.faux === 1 && st.par.b.ok === 1, 'stats duel');
+  ok(htmlHistoriquePartie(ej, (u) => u).includes('Manche 1'), 'html historique');
+});
+essai('historique : relais et dessin alimentent le journal', () => {
+  const r = relaisAppliquer({ ...relaisDepart() }, 'a', { ok: false, raison: 'test' }, ENTREES);
+  ok(r.journal.length === 1 && r.journal[0].ok === false, 'relais journal');
+  let d = dessinDepart();
+  d = dessinTrouve(d, 'b', 30000);
+  d = dessinFinPhase(dessinFinPhase(d));
+  ok(d.journal.length === 1 && d.journal[0].u === 'a' && d.journal[0].trouves.b > 0, 'dessin journal');
+  ok(statsPartie(d).par.b.devines === 1, 'stats dessin');
+});

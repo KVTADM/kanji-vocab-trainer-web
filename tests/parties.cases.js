@@ -227,3 +227,15 @@ essai('appliquerTourBombe garde le mot, la lecture et la réponse tapée pour l\
   if (r.saisie !== 'ぬ' || r.issue !== 'rate') throw new Error('réponse non conservée');
   if (DB.vocab.find(v => v.id === motId) && r.lecture !== DB.vocab.find(v => v.id === motId).lecture) throw new Error('lecture non conservée');
 });
+
+essai('bombe : pas de réponse acceptée pendant le décompte de départ', async () => {
+  const { sb, lire } = fabriquerSbCapture();
+  window.sb = sb;
+  DB.vocab = [{ id: 'v1', mot: '猫', lecture: 'あ' }, { id: 'v2', mot: '犬', lecture: 'い' }, { id: 'v3', mot: '鳥', lecture: 'う' }];
+  partieCourante = etatDeBase();
+  partieCourante.etat_jeu.debutA = Date.now() + 3000;
+  partieCourante.etat_jeu.motActuelId = 'v1';
+  window.accountUser = { id: partieCourante.etat_jeu.ordre[partieCourante.etat_jeu.joueurActifIndex] };
+  await soumettreReponseBombe('あ');
+  if (lire()) throw new Error('une réponse ne doit pas partir pendant le décompte');
+});

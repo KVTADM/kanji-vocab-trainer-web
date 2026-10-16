@@ -329,6 +329,10 @@ function renderPartieJeu(el) {
   const detailBombe = r && r.lecture
     ? `<div class="bombe-derniere bombe-derniere--${r.issue === 'reussi' ? 'ok' : 'faux'}">Manche précédente — <strong>${escapeHtml(pseudoDe(r.joueurId))}</strong> sur ${escapeHtml(r.mot)} (${escapeHtml(r.lecture)}) : ${r.saisie ? escapeHtml(r.saisie) : '<em>pas de réponse (temps écoulé)</em>'} ${r.issue === 'reussi' ? '✔' : '✘'}</div>`
     : '';
+  const decompte = !!(ej.debutA && ej.debutA > Date.now());
+  const decompteHtml = decompte
+    ? `<div class="bombe-decompte" id="bombeDecompte"><div class="bombe-decompte__qui">${escapeHtml(pseudoDe(ej.ordre[ej.joueurActifIndex]))}${ej.ordre[ej.joueurActifIndex] === monId ? ' (toi)' : ''} commence !</div><div class="bombe-decompte__n" id="bombeDecompteN">${Math.ceil((ej.debutA - Date.now()) / 1000)}</div></div>`
+    : '';
   let flash = '';
   if (r && cleFlash !== bombeCleFlash) {
     flash = r.issue === 'reussi'
@@ -346,6 +350,7 @@ function renderPartieJeu(el) {
           <div class="partie-mot-actif bombe-mot">${mot ? escapeHtml(mot.mot) : '…'}</div>
         </div>
         ${flash}
+        ${decompteHtml}
       </div>
       ${detailBombe}
       <div class="partie-minuteur">
@@ -355,7 +360,7 @@ function renderPartieJeu(el) {
       ${monTour ? `
         <p class="bombe-consigne"><strong>À toi de jouer !</strong> Tape la lecture du mot avant l'explosion.</p>
         <div class="partie-actions bombe-saisie">
-          <input type="text" id="partieReponseInput" autocomplete="off" placeholder="Lecture (hiragana)" autofocus>
+          <input type="text" id="partieReponseInput" autocomplete="off" placeholder="Lecture (hiragana)" ${decompte ? 'disabled' : 'autofocus'}>
           <button class="primary" id="btnValiderReponsePartie">Valider</button>
         </div>` : `<p class="bombe-consigne" style="color:var(--muted);">Tour de ${escapeHtml(pseudoDe(ej.ordre[ej.joueurActifIndex]))}…</p>`}
       <div class="partie-actions" style="margin-top:14px;"><button class="secondary small" id="btnQuitterPartieJeu">Quitter la partie</button></div>
@@ -363,7 +368,7 @@ function renderPartieJeu(el) {
   if (monTour) {
     const input = $('#partieReponseInput');
     activerSaisieKanaDirecte(input, false);
-    input.focus();
+    if (!decompte) input.focus();
     const valider = () => { const v = input.value; input.value = ''; input.disabled = true; soumettreReponseBombe(v); };
     $('#btnValiderReponsePartie').onclick = valider;
     input.addEventListener('keydown', (e) => { if (e.key === 'Enter') valider(); });
@@ -392,6 +397,7 @@ function renderPartieFin(el) {
     <div class="card jeu-carte jeu-carte--fin">
       <h2>Partie terminée</h2>
       ${corps}
+      ${typeof htmlHistoriquePartie === 'function' ? htmlHistoriquePartie(ej, pseudoDe) : ''}
       <div class="partie-actions" style="margin-top:14px;">
         ${jeSuisHote ? `<button class="primary" id="btnRejouerPartie">Rejouer avec le même salon</button>` : `<p style="color:var(--muted);">En attente que l'hôte relance une manche…</p>`}
         <button class="secondary" id="btnQuitterPartieFin">Quitter le salon</button>

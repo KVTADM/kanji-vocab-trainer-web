@@ -42,6 +42,8 @@ const PARTIES_RELAIS_TEMPS_OPTIONS = [15000, 20000, 30000, 45000];
 const PARTIES_DUEL_MANCHES_OPTIONS = [5, 10, 15];
 const PARTIES_DUEL_TEMPS_OPTIONS = [5000, 10000, 15000, 20000];
 const PARTIES_DESSIN_TEMPS_OPTIONS = [45000, 60000, 90000];
+// Decompte avant le premier tour du jeu de la bombe (annonce du premier joueur).
+const PARTIE_BOMBE_DECOMPTE_MS = 5000;
 const PARTIES_DESSIN_NB_OPTIONS = [3, 5, 8, 10, 15];
 
 // Les jeux disponibles dans un salon (02/10/2026). `pool` : le jeu utilise la
@@ -329,7 +331,8 @@ async function demarrerPartieBombe() {
     poolIds,
     motActuelId,
     motsUtilisesIds: [motActuelId],
-    finTourA: Date.now() + (partieCourante.config.tempsTourMs || 15000),
+    debutA: Date.now() + PARTIE_BOMBE_DECOMPTE_MS,
+    finTourA: Date.now() + PARTIE_BOMBE_DECOMPTE_MS + (partieCourante.config.tempsTourMs || 15000),
     vainqueurId: null,
     dernierResultat: null
   };
@@ -353,6 +356,7 @@ async function soumettreReponseBombe(valeurBrute) {
   const ej = partieCourante.etat_jeu;
   const monId = window.accountUser.id;
   if (!ej || ej.ordre[ej.joueurActifIndex] !== monId) return; // pas mon tour
+  if (ej.debutA && Date.now() < ej.debutA) return; // decompte en cours
   const mot = DB.vocab.find(v => v.id === ej.motActuelId);
   if (!mot) return;
   const val = finaliserKana(valeurBrute || '', false);
@@ -404,6 +408,7 @@ async function appliquerTourBombe(issue, details) {
       motsUtilisesIds: [...motsUtilisesIds, motActuelId],
       finTourA: Date.now() + (partieCourante.config.tempsTourMs || 15000),
       vainqueurId,
+      journal: (ej.journal || []).concat({ joueurId: joueurActifId, issue, mot: (DB.vocab.find(v => v.id === ej.motActuelId) || {}).mot || '', lecture: (DB.vocab.find(v => v.id === ej.motActuelId) || {}).lecture || '', saisie: details && details.saisie ? String(details.saisie).slice(0, 60) : '' }).slice(-80),
       dernierResultat: (() => {
         const m = DB.vocab.find(v => v.id === ej.motActuelId);
         return {
@@ -436,6 +441,23 @@ function demarrerMinuteurAffichagePartie() {
     const texte = $('#partieMinuteurTexte');
     const barre = $('#partieMinuteurBarre');
     if (!texte || !partieCourante || !partieCourante.etat_jeu || !partieCourante.etat_jeu.finTourA) return;
+    const debut = partieCourante.etat_jeu.debutA || 0;
+    const decompteMs = debut - Date.now();
+    const overlay = $('#bombeDecompte');
+    if (decompteMs > 0 && overlay) {
+      const n = $('#bombeDecompteN');
+      if (n) n.textContent = String(Math.ceil(decompteMs / 1000));
+      const tTotal = (partieCourante.config && partieCourante.config.tempsTourMs) || 15000;
+      texte.textContent = Math.ceil(tTotal / 1000) + 's';
+      if (barre) barre.style.width = '100%';
+      if (typeof majMecheBombe === 'function') majMecheBombe(1);
+      return;
+    }
+    if (overlay) {
+      overlay.remove();
+      const inp = $('#partieReponseInput');
+      if (inp && inp.disabled) { inp.disabled = false; inp.focus(); }
+    }
     const resteMs = Math.max(0, partieCourante.etat_jeu.finTourA - Date.now());
     texte.textContent = Math.ceil(resteMs / 1000) + 's';
     const total = (partieCourante.config && partieCourante.config.tempsTourMs) || 15000;

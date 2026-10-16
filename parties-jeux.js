@@ -239,6 +239,11 @@ function creerEtatDuel(joueurs, config, entrees) {
 
 function duelMotCourant(ej) { return ej.mots[ej.manche - 1] || null; }
 
+// Journal des manches (historique affiché à la fin de la partie, 16/10/2026).
+function jeuxJournalAjouter(ej, entree) {
+  return (ej.journal || []).concat(entree).slice(-80);
+}
+
 function duelReponse(ej, uid, correct, saisie) {
   if (ej.phase !== 'question' || !ej.joueurs.includes(uid) || ej.essais[uid]) return null;
   const essais = { ...ej.essais, [uid]: correct ? 'ok' : 'faux' };
@@ -255,6 +260,10 @@ function duelFinPhase(ej) {
   if (ej.phase === 'compte') return { ...ej, phase: 'question', essais: {}, reponses: {}, phaseId: ej.phaseId + 1 };
   if (ej.phase === 'question') return { ...ej, phase: 'resultat', gagnantManche: ej.gagnantManche || 'aucun', phaseId: ej.phaseId + 1 };
   if (ej.phase === 'resultat') {
+    const mj = duelMotCourant(ej);
+    const rep = {};
+    ej.joueurs.forEach(u => { rep[u] = { s: (ej.reponses || {})[u] || '', e: ej.essais[u] || '' }; });
+    ej = { ...ej, journal: jeuxJournalAjouter(ej, { n: ej.manche, mot: mj ? mj.mot : '', lecture: mj ? mj.lectures.join(' / ') : '', sens: mj ? mj.sens : '', gagnant: ej.gagnantManche || 'aucun', rep }) };
     const [a, b] = ej.joueurs;
     const sa = ej.scores[a] || 0, sb = ej.scores[b] || 0;
     const egalite = sa === sb;
@@ -405,6 +414,7 @@ function relaisAppliquer(ej, uid, resultat, entrees) {
     }
     return {
       ...ej, mot, dernierKanji, utilises, historique: historique.slice(-RELAIS_HISTORIQUE_MAX),
+      journal: jeuxJournalAjouter(ej, { u: uid, ok: true, mot: e.mot, lecture: e.lecture }),
       actifIndex: (ej.actifIndex + 1) % n, phaseId: ej.phaseId + 1,
       dernierResultat: { joueurId: uid, issue: 'ok', mot: e.mot, lecture: e.lecture, sens: e.sens, redemarrage }
     };
@@ -417,6 +427,7 @@ function relaisAppliquer(ej, uid, resultat, entrees) {
   }
   const base = {
     ...ej, vies, ordre, actifIndex, phaseId: ej.phaseId + 1,
+    journal: jeuxJournalAjouter(ej, { u: uid, ok: false, timeout: !!resultat.timeout, raison: resultat.raison || '' }),
     dernierResultat: { joueurId: uid, issue: resultat.timeout ? 'timeout' : 'rate', raison: resultat.raison || '', elimine: vies[uid] <= 0 }
   };
   if (ordre.length <= 1) return { ...base, phase: 'fin', termine: true, vainqueurId: ordre[0] || null };
@@ -527,6 +538,8 @@ function dessinClassement(ej) {
 function dessinFinPhase(ej) {
   if (ej.phase === 'dessin') return { ...ej, phase: 'revele', phaseId: ej.phaseId + 1 };
   if (ej.phase === 'revele') {
+    const mj = dessinMotCourant(ej);
+    ej = { ...ej, journal: jeuxJournalAjouter(ej, { n: ej.tour + 1, u: dessinDessinateur(ej), mot: mj ? mj.mot : '', lecture: mj ? mj.lectures.join(' / ') : '', sens: mj ? mj.sens : '', trouves: ej.trouves || {} }) };
     if (ej.tour + 1 >= (ej.total || ej.ordre.length) || !ej.mots[ej.tour + 1]) {
       const c = dessinClassement(ej);
       const egalite = c.length > 1 && c[0][1] === c[1][1];
@@ -809,4 +822,58 @@ function htmlFinJeu(ej) {
       <div class="relais-chaine">${(ej.historique || []).map(h => `<span class="relais-maillon">${escapeHtml(h.mot)}</span>`).join('<span class="relais-fleche">→</span>')}</div>`;
   }
   return '';
+}
+
+
+// ---------------------------------------------------------------------------
+// Historique et statistiques de fin de partie (tous jeux, journal dans etat_jeu)
+// ---------------------------------------------------------------------------
+
+function statsPartie(ej) {
+  const j = ej.journal || [];
+  const par = {};
+  const s = (u) => (par[u] = par[u] || {});
+  const add = (u, k, v) => { s(u)[k] = (s(u)[k] || 0) + (v == null ? 1 : v); };
+  let colonnes = [];
+  if (ej.jeu === 'duel') {
+    colonnes = [['pts', 'Points'], ['ok', 'Bonnes'], ['faux', 'Ratées'], ['aucune', 'Sans réponse']];
+    (ej.joueurs || []).forEach(u => { s(u).pts = ej.scores ? (ej.scores[u] || 0) : 0; });
+    j.forEach(m => Object.keys(m.rep || {}).forEach(u => add(u, m.rep[u].e === 'ok' ? 'ok' : m.rep[u].e === 'faux' ? 'faux' : 'aucune')));
+  } else if (ej.jeu === 'relais') {
+    colonnes = [['ok', 'Mots valides'], ['faux', 'Erreurs'], ['temps', 'Temps écoulé']];
+    j.forEach(m => { if (m.ok) add(m.u, 'ok'); else { add(m.u, 'faux'); if (m.timeout) add(m.u, 'temps'); } });
+  } else if (ej.jeu === 'dessin') {
+    colonnes = [['pts', 'Points'], ['dessins', 'Dessins'], ['devines', 'Mots devinés']];
+    Object.keys(ej.scores || {}).forEach(u => { s(u).pts = ej.scores[u] || 0; });
+    j.forEach(m => { add(m.u, 'dessins'); Object.keys(m.trouves || {}).forEach(u => add(u, 'devines')); });
+  } else {
+    colonnes = [['ok', 'Désamorcées'], ['faux', 'Ratées']];
+    j.forEach(m => add(m.joueurId, m.issue === 'reussi' ? 'ok' : 'faux'));
+  }
+  return { par, colonnes };
+}
+
+function htmlHistoriquePartie(ej, pseudoDe) {
+  const nom = pseudoDe || ((u) => jeuxPseudoDe(u));
+  const j = (ej && ej.journal) || [];
+  if (!j.length) return '';
+  const { par, colonnes } = statsPartie(ej);
+  const joueurs = Object.keys(par);
+  const stats = `<div class="fin-stats"><table><thead><tr><th>Joueur</th>${colonnes.map(c => `<th>${c[1]}</th>`).join('')}</tr></thead><tbody>${
+    joueurs.map(u => `<tr><td>${escapeHtml(nom(u))}</td>${colonnes.map(c => `<td>${par[u][c[0]] || 0}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
+  let lignes;
+  if (ej.jeu === 'duel') {
+    lignes = j.map(m => `<li><div class="fin-hist__titre"><strong>Manche ${m.n}</strong> · ${escapeHtml(m.mot)} = ${escapeHtml(m.lecture)} <span>${escapeHtml(m.sens || '')}</span></div>${
+      Object.keys(m.rep || {}).map(u => `<div class="fin-hist__rep fin-hist__rep--${m.rep[u].e === 'ok' ? 'ok' : m.rep[u].e === 'faux' ? 'faux' : 'aucune'}">${m.rep[u].e === 'ok' ? '✔' : m.rep[u].e === 'faux' ? '✘' : '–'} ${escapeHtml(nom(u))} : ${m.rep[u].s ? escapeHtml(m.rep[u].s) : '<em>pas de réponse</em>'}</div>`).join('')}</li>`).join('');
+  } else if (ej.jeu === 'relais') {
+    lignes = j.map((m, i) => `<li class="fin-hist__rep fin-hist__rep--${m.ok ? 'ok' : 'faux'}">${i + 1}. ${m.ok ? '✔' : '✘'} <strong>${escapeHtml(nom(m.u))}</strong> : ${m.ok ? `${escapeHtml(m.mot)} (${escapeHtml(m.lecture)})` : escapeHtml(m.raison || (m.timeout ? 'temps écoulé' : 'erreur'))}</li>`).join('');
+  } else if (ej.jeu === 'dessin') {
+    lignes = j.map(m => {
+      const t = Object.keys(m.trouves || {});
+      return `<li><div class="fin-hist__titre"><strong>Dessin ${m.n}</strong> · ${escapeHtml(nom(m.u))} a dessiné ${escapeHtml(m.mot)} = ${escapeHtml(m.lecture)}</div><div class="fin-hist__rep">${t.length ? t.map(u => `${escapeHtml(nom(u))} +${m.trouves[u]}`).join(' · ') : '<em>personne n\'a trouvé</em>'}</div></li>`;
+    }).join('');
+  } else {
+    lignes = j.map((m, i) => `<li class="fin-hist__rep fin-hist__rep--${m.issue === 'reussi' ? 'ok' : 'faux'}">${i + 1}. ${m.issue === 'reussi' ? '✔' : '✘'} <strong>${escapeHtml(nom(m.joueurId))}</strong> sur ${escapeHtml(m.mot || '')} (${escapeHtml(m.lecture || '')}) : ${m.saisie ? escapeHtml(m.saisie) : '<em>pas de réponse</em>'}</li>`).join('');
+  }
+  return `<div class="fin-historique"><h3>Statistiques</h3>${stats}<details open><summary>Historique de la partie (${j.length})</summary><ol class="fin-hist">${lignes}</ol></details></div>`;
 }
