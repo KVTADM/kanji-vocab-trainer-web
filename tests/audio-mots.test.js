@@ -3,7 +3,7 @@
 // Lancer : node tests/audio-mots.test.js
 const fs = require('fs');
 const R = __dirname + '/../';
-const { listeMots, premiereLecture } = require(R + 'outils/generer-audio.js');
+const { listeMots, premiereLecture, parler, nomFichier } = require(R + 'outils/generer-audio.js');
 let ko = 0;
 const ok = (c, m) => { if (!c) { ko++; console.log('ECHEC : ' + m); } };
 
@@ -11,9 +11,11 @@ for (const n of ['L0', 'L1', 'L2', 'L3']) {
   const { lectures } = listeMots(n);
   ok(lectures.length > 300, n + ' : trop peu de mots (' + lectures.length + ')');
   ok(new Set(lectures).size === lectures.length, n + ' : doublons');
-  ok(lectures.every(l => /^[ぁ-ゟァ-ヿー]+$/.test(l)), n + ' : lecture hors kana');
+  ok(lectures.every(l => /^[ぁ-ゟァ-ヿー]+$/.test(parler(l))), n + ' : lecture hors kana');
+  ok(lectures.every(l => !/[\/\\:*?"<>|\s]/.test(nomFichier(l))), n + ' : nom de fichier douteux');
 }
 ok(listeMots('L2').ignores.length === 0, 'L2 : des lectures sont ignorees : ' + listeMots('L2').ignores.join(' '));
+ok(parler('ねむく なる') === 'ねむくなる' && parler('〜けいゆ') === 'けいゆ' && parler('いちど、にど') === 'いちど', 'texte prononce');
 ok(premiereLecture({ lecture: 'きょう / こんにち', mot: '今日' }) === 'きょう', 'premiere lecture');
 
 // Comportement de lireAudio : on extrait le code de app.js et on le rejoue avec de faux objets.

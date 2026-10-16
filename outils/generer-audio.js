@@ -18,6 +18,10 @@ const VOIX_KENZO = 'b34JylakFZPlGS0BnwyY';
 const NIVEAUX = { L0: ['l0-s1', 'l0-s2', 'jlpt-n5'], L1: ['s1', 's2'], L2: ['s3', 's4'], L3: ['s5'] };
 
 function premiereLecture(v) { return String(v.lecture || v.mot).split(/\s*[\/,]\s*/)[0].trim(); }
+// Texte reellement prononce : sans espaces ni symboles (〜 ！ ・), et seulement le premier element d'une liste « a、b、c ».
+function parler(lecture) {
+  return String(lecture).split('、')[0].replace(/[\s〜～！？!?・.。]/g, '');
+}
 
 // Renvoie { lectures: [lecture, ...] sans doublon, ignores: [lecture, ...] non lisibles tels quels }.
 function listeMots(niveau) {
@@ -37,11 +41,12 @@ function listeMots(niveau) {
     const l = premiereLecture(v);
     if (!l || vus.has(l)) continue;
     vus.add(l);
-    (/^[ぁ-ゟァ-ヿー]+$/.test(l) ? lectures : ignores).push(l);
+    (/^[ぁ-ゟァ-ヿー]+$/.test(parler(l)) ? lectures : ignores).push(l);
   }
   return { lectures, ignores };
 }
-function nomFichier(lecture) { return lecture + '.mp3'; }
+// Nom de fichier sur : la lecture sans espaces ni symboles. L'index relie la lecture exacte (celle que demande l'app) au fichier.
+function nomFichier(lecture) { return parler(lecture) + '.mp3'; }
 function lireIndex() {
   try { return JSON.parse(fs.readFileSync(path.join(DOSSIER, 'index.json'), 'utf8')); } catch (e) { return {}; }
 }
@@ -50,6 +55,15 @@ function ecrireIndex(index) {
   fs.writeFileSync(path.join(DOSSIER, 'index.json'), JSON.stringify(tri));
 }
 const attendre = ms => new Promise(r => setTimeout(r, ms));
+// Demande la cle dans le terminal, sans l'afficher et sans la garder (ni historique, ni fichier).
+function demanderCle() {
+  return new Promise(resolve => {
+    const rl = require('readline').createInterface({ input: process.stdin, output: process.stdout, terminal: true });
+    rl._writeToOutput = () => {};
+    process.stdout.write('Colle ta cle ElevenLabs (elle commence par sk_, rien ne s\'affiche), puis Entree : ');
+    rl.question('', rep => { rl.close(); process.stdout.write('\n'); resolve(String(rep).trim()); });
+  });
+}
 
 async function genere(lecture, cle, voix, modele) {
   const url = `https://api.elevenlabs.io/v1/text-to-speech/${voix}?output_format=mp3_44100_64`;
@@ -57,7 +71,7 @@ async function genere(lecture, cle, voix, modele) {
     const r = await fetch(url, {
       method: 'POST',
       headers: { 'xi-api-key': cle, 'Content-Type': 'application/json', Accept: 'audio/mpeg' },
-      body: JSON.stringify({ text: lecture, model_id: modele })
+      body: JSON.stringify({ text: parler(lecture), model_id: modele })
     });
     if (r.ok) return Buffer.from(await r.arrayBuffer());
     const corps = (await r.text()).slice(0, 300);
@@ -81,13 +95,13 @@ async function main() {
   const index = lireIndex();
   const existe = l => { try { return fs.statSync(path.join(DOSSIER, nomFichier(l))).size > 0; } catch (e) { return false; } };
   const aFaire = lectures.filter(l => !existe(l));
-  const credits = aFaire.reduce((s, l) => s + l.length, 0);
+  const credits = aFaire.reduce((s, l) => s + parler(l).length, 0);
   console.log(`${niveau} : ${lectures.length} mots uniques, ${lectures.length - aFaire.length} deja generes, ${aFaire.length} a generer (~${credits} credits).`);
-  if (ignores.length) console.log(`A voir a la main (lecture avec caracteres hors kana, ignores) : ${ignores.join(' ')}`);
+  if (ignores.length) console.log(`A voir a la main (lecture avec chiffres ou caracteres hors kana, ignores, l'app garde la voix du navigateur) : ${ignores.join(' ')}`);
   lectures.filter(existe).forEach(l => { index[l] = nomFichier(l); });
   if (dry) { ecrireIndex(index); return; }
-  const cle = process.env.ELEVENLABS_API_KEY;
-  if (!cle) { console.error('Definis ELEVENLABS_API_KEY dans ton terminal (export ELEVENLABS_API_KEY="...").'); process.exit(1); }
+  const cle = (process.env.ELEVENLABS_API_KEY || '').trim() || await demanderCle();
+  if (!/^sk_[A-Za-z0-9_-]{10,}$/.test(cle)) { console.error('Cle invalide : une cle ElevenLabs commence par sk_ (environ 51 caracteres). Recu : ' + cle.length + ' caracteres, debut "' + cle.slice(0, 3) + '". Rien n\'a ete depense.'); process.exit(1); }
   const file = aFaire.slice(0, limite);
   let fait = 0, stop = false;
   async function ouvrier() {
@@ -110,4 +124,4 @@ async function main() {
   console.log(`Termine : ${fait} fichiers generes. Index : audio/mots/index.json (${Object.keys(index).length} mots).`);
 }
 if (require.main === module) main().catch(e => { console.error(e); process.exit(1); });
-module.exports = { listeMots, premiereLecture, nomFichier };
+module.exports = { listeMots, premiereLecture, nomFichier, parler };
