@@ -147,3 +147,17 @@ essai('rattrapage : les 4 semaines absentes reviennent, une semaine déjà connu
   if (!data.scoresDouble['s1-w1']) throw new Error('mode double non rattrapé');
   if (rattraperScoresDepuisClassement(data, lignes) !== 0) throw new Error('second passage : doublons');
 });
+
+essai('fusion : le classeur (cartes de kanji) n\'est jamais écrasé par un appareil sans cartes', () => {
+  const cloud = sauvegardeTest(70000, 400, {});
+  cloud.gamification.classeur = { kanji: { '日': 2, '月': 1 }, ouvertures: 5, pieces: 1500 };
+  const local = sauvegardeTest(71000, 450, {});
+  local.gamification.classeur = { kanji: { '月': 3, '火': 1 }, ouvertures: 0, pieces: 0 };
+  const f = fusionnerSauvegardes(local, cloud, { xp: 70000, pieces: 400 });
+  const c = f.gamification.classeur;
+  if (c.kanji['日'] !== 2 || c.kanji['月'] !== 3 || c.kanji['火'] !== 1) throw new Error('cartes perdues : ' + JSON.stringify(c.kanji));
+  if (c.ouvertures !== 5 || c.pieces !== 1500) throw new Error('compteurs perdus');
+  const sansLocal = sauvegardeTest(71000, 450, {});
+  const g = fusionnerSauvegardes(sansLocal, cloud, null);
+  if (g.gamification.classeur.ouvertures !== 5) throw new Error('classeur cloud perdu quand le local n\'en a pas');
+});

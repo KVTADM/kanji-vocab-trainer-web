@@ -4012,3 +4012,12 @@ body.ecriture-etendu-actif { overflow: hidden; overscroll-behavior: none; }
 .phrase-exemple__jp ruby { ruby-position: over; }
 .phrase-exemple__jp rt { font-size: 0.5em; color: var(--accent-bright); letter-spacing: 0; }
 .phrase-exemple__jp { line-height: 2; }
+
+.duel-reponses { list-style: none; margin: 10px 0; padding: 0; display: grid; gap: 6px; }
+.duel-reponse { padding: 8px 12px; border-radius: 10px; background: var(--card-bg, rgba(127,127,127,.12)); }
+.duel-reponse--ok { border-left: 4px solid #4caf50; }
+.duel-reponse--faux { border-left: 4px solid #e5533d; }
+.duel-reponse--aucune { border-left: 4px solid var(--muted); }
+.bombe-derniere { margin: 8px 0; padding: 8px 12px; border-radius: 10px; font-size: 14px; background: rgba(127,127,127,.12); }
+.bombe-derniere--ok { border-left: 4px solid #4caf50; }
+.bombe-derniere--faux { border-left: 4px solid #e5533d; }

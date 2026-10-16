@@ -151,6 +151,20 @@ function fusionnerSauvegardes(local, cloud, base) {
       g.pieces = gc.pieces || 0;
     }
     g.inventaire = Array.from(new Set([].concat(gc.inventaire || [], gl.inventaire || [])));
+    // Classeur (coffres de kanji) : jamais perdre une carte. Les pieces depensees
+    // sont deja fusionnees ci-dessus ; les cartes doivent l'etre aussi, sinon
+    // un appareil sans classeur efface celui de l'autre (bug du 16/10/2026 :
+    // pieces debitees, cartes disparues). Les compteurs ne font que monter : max.
+    if (gl.classeur || gc.classeur) {
+      const cl = gl.classeur || {}, cc = gc.classeur || {};
+      const kanji = Object.assign({}, cc.kanji || {});
+      Object.keys(cl.kanji || {}).forEach(k => { kanji[k] = Math.max(kanji[k] || 0, cl.kanji[k] || 0); });
+      g.classeur = Object.assign({}, cc, cl, {
+        kanji,
+        ouvertures: Math.max(cl.ouvertures || 0, cc.ouvertures || 0),
+        pieces: Math.max(cl.pieces || 0, cc.pieces || 0)
+      });
+    }
     const sl = gl.streak || {}, sc = gc.streak || {};
     const plusRecente = (sc.dernierJour || '') > (sl.dernierJour || '') ? sc : sl;
     g.streak = Object.assign({}, plusRecente, { record: Math.max(sl.record || 0, sc.record || 0) });

@@ -321,3 +321,33 @@ essai('jeuxDureePhase : durées par jeu et par phase', () => {
   ok(jeuxDureePhase({ jeu: 'dessin', phase: 'revele' }) === DESSIN_REVELE_MS, 'révélation');
   ok(jeuxDureePhase({ jeu: 'duel', phase: 'fin', termine: true }) === 0, 'fin sans minuteur');
 });
+
+essai('duel : la réponse tapée de chaque joueur est conservée pour l\'affichage du résultat', () => {
+  let ej = ouvrirQuestion(duelDepart());
+  ej = duelReponse(ej, 'a', false, 'まちがい');
+  ok(ej.reponses.a === 'まちがい' && ej.phase === 'question', 'réponse de a mémorisée');
+  ej = duelReponse(ej, 'b', true, 'せいかい');
+  ok(ej.phase === 'resultat' && ej.reponses.b === 'せいかい' && ej.reponses.a === 'まちがい', 'les deux réponses visibles');
+  ej = duelFinPhase(ej);
+  ok(Object.keys(ej.reponses).length === 0, 'réinitialisées à la manche suivante');
+});
+
+essai('dessin : option du nombre de dessins (les joueurs se relaient au-delà du nombre de joueurs)', () => {
+  let ej = creerEtatDessin(['a', 'b'], { tempsMs: 60000, nbDessins: 5 }, entreesPlus(20));
+  ok(ej.total === 5 && ej.mots.length === 5, '5 dessins prévus');
+  const dessinateurs = [];
+  for (let i = 0; i < 5; i++) {
+    dessinateurs.push(dessinDessinateur(ej));
+    ej = dessinFinPhase(dessinFinPhase(ej));
+  }
+  ok(dessinateurs.join('') === 'ababa', 'alternance a/b : ' + dessinateurs.join(''));
+  ok(ej.phase === 'fin' && ej.termine, 'partie finie après 5 dessins');
+  ok(configPartiePourJeu('dessin', { nbDessins: 8 }).nbDessins === 8 && configPartiePourJeu('dessin', {}).nbDessins === 0, 'config');
+});
+
+essai('relais : saisie en hiragana seul, acceptée si un mot du bon kanji se lit ainsi', () => {
+  const ej = { ...relaisDepart(), mot: ENTREES[0], dernierKanji: '生', utilises: ['学生', '生活'] };
+  ok(relaisValider(ENTREES, ej, '', 'せいぶつ').ok, 'せいぶつ accepté');
+  ok(!relaisValider(ENTREES, ej, '', 'せいかつ').ok, 'déjà utilisé refusé');
+  ok(!relaisValider(ENTREES, ej, '', 'にほん').ok, 'mot hors chaîne refusé');
+});

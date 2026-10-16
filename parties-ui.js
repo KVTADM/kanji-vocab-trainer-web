@@ -88,7 +88,7 @@ function libelleContenuPartie(config) {
 function libelleReglagesPartie(jeu, c) {
   if (jeu === 'duel') return `${c.manches || 10} manches · ${(c.tempsMs || 10000) / 1000} s par mot`;
   if (jeu === 'relais') return `${(c.tempsTourMs || 20000) / 1000} s par tour · 3 vies`;
-  if (jeu === 'dessin') return `${(c.tempsMs || 60000) / 1000} s par dessin`;
+  if (jeu === 'dessin') return `${c.nbDessins > 0 ? c.nbDessins + ' dessins' : 'un dessin par joueur'} · ${(c.tempsMs || 60000) / 1000} s par dessin`;
   return `${(c.tempsTourMs || 15000) / 1000} s par tour · ${c.vies || 3} vies`;
 }
 
@@ -149,10 +149,17 @@ function renderPartiesAccueil(el) {
         </div>
         <div data-jeu-options="dessin" hidden>
           <label>Temps par dessin<select id="partieDessinTemps">${optionsHtmlPartie(PARTIES_DESSIN_TEMPS_OPTIONS, 60000, ' secondes', 1000)}</select></label>
+          <label>Nombre de dessins<select id="partieDessinNb"><option value="0">Un par joueur</option>${PARTIES_DESSIN_NB_OPTIONS.map(n => `<option value="${n}">${n} dessins</option>`).join('')}</select></label>
         </div>
-        <label class="partie-form__case"><input type="checkbox" id="partiePriveInput"> Salon privé (absent du navigateur de salons)</label>
-        <label class="partie-form__case"><input type="checkbox" id="partieAmisInput"> Réservé à mes amis</label>
-        <label>Mot de passe (optionnel)<input type="text" id="partieMdpInput" placeholder="Laisser vide = aucun"></label>
+        <label>Visibilité<select id="partieVisibiliteInput">
+          <option value="public">Salon public — visible dans la liste, tout le monde peut rejoindre sans code</option>
+          <option value="restreint">Salon restreint — par code, avec options ci-dessous</option>
+        </select></label>
+        <div id="partieRestreintOptions" hidden>
+          <label class="partie-form__case"><input type="checkbox" id="partiePriveInput" checked> Salon privé (absent de la liste des salons)</label>
+          <label class="partie-form__case"><input type="checkbox" id="partieAmisInput"> Réservé à mes amis</label>
+          <label>Mot de passe (optionnel)<input type="text" id="partieMdpInput" placeholder="Laisser vide = aucun"></label>
+        </div>
         <button class="primary" id="btnCreerPartie">Créer et entrer dans le salon</button>
       </div>
     </div>
@@ -170,12 +177,14 @@ function renderPartiesAccueil(el) {
   $$('input[name="partieJeu"]', el).forEach(r => { r.onchange = majOptions; });
   majOptions();
   brancherSelectionSemaines($('#partieBlocSelection'));
+  $('#partieVisibiliteInput').onchange = () => { $('#partieRestreintOptions').hidden = $('#partieVisibiliteInput').value === 'public'; };
 
   $('#btnRejoindreParCode').onclick = () => {
     rejoindrePartieParCode($('#partieCodeInput').value, $('#partieCodeMdp').value);
   };
   $('#btnCreerPartie').onclick = () => {
     const jeu = jeuChoisi();
+    const publicPartie = $('#partieVisibiliteInput').value === 'public';
     creerPartie({
       jeu,
       nom: $('#partieNomInput').value.trim(),
@@ -184,9 +193,12 @@ function renderPartiesAccueil(el) {
       vies: parseInt($('#partieViesInput').value, 10),
       manches: parseInt($('#partieDuelManches').value, 10),
       tempsMs: jeu === 'duel' ? parseInt($('#partieDuelTemps').value, 10) : parseInt($('#partieDessinTemps').value, 10),
-      prive: $('#partiePriveInput').checked,
-      amisUniquement: $('#partieAmisInput').checked,
-      motDePasse: $('#partieMdpInput').value.trim() || null
+      nbDessins: parseInt($('#partieDessinNb').value, 10) || 0,
+      ...(publicPartie ? { prive: false, amisUniquement: false, motDePasse: null } : {
+        prive: $('#partiePriveInput').checked,
+        amisUniquement: $('#partieAmisInput').checked,
+        motDePasse: $('#partieMdpInput').value.trim() || null
+      })
     });
   };
 
@@ -314,6 +326,9 @@ function renderPartieJeu(el) {
     </div>`).join('');
   const r = ej.dernierResultat;
   const cleFlash = r ? ej.finTourA : null;
+  const detailBombe = r && r.lecture
+    ? `<div class="bombe-derniere bombe-derniere--${r.issue === 'reussi' ? 'ok' : 'faux'}">Manche précédente — <strong>${escapeHtml(pseudoDe(r.joueurId))}</strong> sur ${escapeHtml(r.mot)} (${escapeHtml(r.lecture)}) : ${r.saisie ? escapeHtml(r.saisie) : '<em>pas de réponse (temps écoulé)</em>'} ${r.issue === 'reussi' ? '✔' : '✘'}</div>`
+    : '';
   let flash = '';
   if (r && cleFlash !== bombeCleFlash) {
     flash = r.issue === 'reussi'
@@ -332,6 +347,7 @@ function renderPartieJeu(el) {
         </div>
         ${flash}
       </div>
+      ${detailBombe}
       <div class="partie-minuteur">
         <div class="partie-minuteur-barre"><div class="partie-minuteur-barre__remplissage" id="partieMinuteurBarre"></div></div>
         <span id="partieMinuteurTexte" class="partie-minuteur-texte">…</span>

@@ -239,9 +239,11 @@ function creerEtatDuel(joueurs, config, entrees) {
 
 function duelMotCourant(ej) { return ej.mots[ej.manche - 1] || null; }
 
-function duelReponse(ej, uid, correct) {
+function duelReponse(ej, uid, correct, saisie) {
   if (ej.phase !== 'question' || !ej.joueurs.includes(uid) || ej.essais[uid]) return null;
   const essais = { ...ej.essais, [uid]: correct ? 'ok' : 'faux' };
+  const reponses = { ...(ej.reponses || {}), [uid]: String(saisie == null ? '' : saisie).slice(0, 60) };
+  ej = { ...ej, reponses };
   if (correct) {
     return { ...ej, essais, scores: { ...ej.scores, [uid]: (ej.scores[uid] || 0) + 1 }, phase: 'resultat', gagnantManche: uid, phaseId: ej.phaseId + 1 };
   }
@@ -250,7 +252,7 @@ function duelReponse(ej, uid, correct) {
 }
 
 function duelFinPhase(ej) {
-  if (ej.phase === 'compte') return { ...ej, phase: 'question', essais: {}, phaseId: ej.phaseId + 1 };
+  if (ej.phase === 'compte') return { ...ej, phase: 'question', essais: {}, reponses: {}, phaseId: ej.phaseId + 1 };
   if (ej.phase === 'question') return { ...ej, phase: 'resultat', gagnantManche: ej.gagnantManche || 'aucun', phaseId: ej.phaseId + 1 };
   if (ej.phase === 'resultat') {
     const [a, b] = ej.joueurs;
@@ -258,7 +260,7 @@ function duelFinPhase(ej) {
     const egalite = sa === sb;
     const fin = (ej.manche >= ej.mancheMax && !egalite) || ej.manche >= ej.mots.length;
     if (fin) return { ...ej, phase: 'fin', termine: true, vainqueurId: egalite ? null : (sa > sb ? a : b), phaseId: ej.phaseId + 1 };
-    return { ...ej, manche: ej.manche + 1, phase: 'compte', essais: {}, gagnantManche: null, phaseId: ej.phaseId + 1 };
+    return { ...ej, manche: ej.manche + 1, phase: 'compte', essais: {}, reponses: {}, gagnantManche: null, phaseId: ej.phaseId + 1 };
   }
   return null;
 }
@@ -269,7 +271,7 @@ async function soumettreReponseDuel(saisie) {
   const phaseId = ej.phaseId;
   const mot = duelMotCourant(ej);
   const ok = !!mot && jeuxLectureCorrecte(saisie, mot.lectures);
-  await ecrireEtatJeu((e) => (e.phaseId !== phaseId ? null : duelReponse(e, window.accountUser.id, ok)));
+  await ecrireEtatJeu((e) => (e.phaseId !== phaseId ? null : duelReponse(e, window.accountUser.id, ok, saisie)));
 }
 
 function renderDuel(el, ej) {
@@ -304,6 +306,12 @@ function renderDuel(el, ej) {
     centre = `
       <div class="partie-mot-actif duel-mot">${escapeHtml(mot ? mot.mot : '')}</div>
       <div class="duel-revele">${escapeHtml(mot ? mot.lectures.join(' / ') : '')} <span>· ${escapeHtml(mot ? mot.sens : '')}</span></div>
+      <ul class="duel-reponses">${[a, b].map(u => {
+        const rep = (ej.reponses || {})[u];
+        const etat = ej.essais[u];
+        const txt = rep ? escapeHtml(rep) : '<em>pas de réponse</em>';
+        return `<li class="duel-reponse duel-reponse--${etat === 'ok' ? 'ok' : etat === 'faux' ? 'faux' : 'aucune'}">${etat === 'ok' ? '✔' : etat === 'faux' ? '✘' : '–'} <strong>${escapeHtml(jeuxPseudoDe(u))}</strong> : ${txt}</li>`;
+      }).join('')}</ul>
       <div class="duel-verdict ${gagnant === 'aucun' ? 'duel-verdict--aucun' : ''}">${gagnant === 'aucun' ? 'Personne ne marque ce point.' : `Point pour ${escapeHtml(jeuxPseudoDe(gagnant))} !`}</div>`;
   }
   el.innerHTML = `
@@ -358,7 +366,16 @@ function creerEtatRelais(ordre, config, entrees) {
 // Contrôle d'une proposition : renvoie { ok, entree } ou { ok:false, raison }.
 function relaisValider(entrees, ej, motSaisi, lectureSaisie) {
   const mot = String(motSaisi || '').trim();
-  if (!mot) return { ok: false, raison: 'aucun mot saisi' };
+  if (!mot) {
+    // Saisie en hiragana seul : on cherche un mot du vocabulaire qui commence par
+    // le bon kanji et se lit comme la saisie.
+    if (!String(lectureSaisie || '').trim()) return { ok: false, raison: 'aucun mot saisi' };
+    const lus = entrees.filter(e => e.mot[0] === ej.dernierKanji && jeuxLectureCorrecte(lectureSaisie, [e.lecture]));
+    if (!lus.length) return { ok: false, raison: `aucun mot en ${ej.dernierKanji}… ne se lit « ${String(lectureSaisie).trim()} »` };
+    const libre = lus.find(e => !ej.utilises.includes(e.mot));
+    if (!libre) return { ok: false, raison: `${lus[0].mot} a déjà été utilisé` };
+    return { ok: true, entree: libre };
+  }
   if (mot[0] !== ej.dernierKanji) return { ok: false, raison: `le mot doit commencer par ${ej.dernierKanji}` };
   const candidats = entrees.filter(e => e.mot === mot);
   if (!candidats.length) return { ok: false, raison: `${mot} n'est pas dans le vocabulaire` };
@@ -454,20 +471,19 @@ function renderRelais(el, ej) {
       </div>
       ${monTour ? `
         <div class="relais-saisie">
-          <input type="text" id="relaisMotInput" data-garde autocomplete="off" placeholder="Mot en kanji (ex. ${escapeHtml(ej.dernierKanji || '')}…)">
-          <input type="text" id="partieReponseInput" data-garde autocomplete="off" placeholder="Lecture (hiragana)">
+          <input type="text" id="partieReponseInput" data-garde autocomplete="off" placeholder="Un mot en ${escapeHtml(ej.dernierKanji || '')}… écrit en hiragana">
           <button class="primary" id="btnValiderReponsePartie">Valider</button>
         </div>`
         : `<p class="duel-attente">Tour de ${escapeHtml(jeuxPseudoDe(actifId))}…</p>`}
       <div class="partie-actions" style="margin-top:14px;"><button class="secondary small" id="btnQuitterPartieJeu">Quitter la partie</button></div>
     </div>`;
   if (monTour) {
-    const inMot = $('#relaisMotInput'), inLect = $('#partieReponseInput');
+    const inLect = $('#partieReponseInput');
     activerSaisieKanaDirecte(inLect, false);
-    if (!inMot.value) inMot.focus();
-    const valider = () => { const m = inMot.value, l = inLect.value; inMot.disabled = true; inLect.disabled = true; soumettreReponseRelais(m, l); };
+    inLect.focus();
+    const valider = () => { const l = inLect.value; if (!l.trim()) return; inLect.disabled = true; soumettreReponseRelais('', l); };
     $('#btnValiderReponsePartie').onclick = valider;
-    [inMot, inLect].forEach(i => i.addEventListener('keydown', (e) => { if (e.key === 'Enter') valider(); }));
+    inLect.addEventListener('keydown', (e) => { if (e.key === 'Enter') valider(); });
   }
 }
 
@@ -476,16 +492,18 @@ function renderRelais(el, ej) {
 // ---------------------------------------------------------------------------
 
 function creerEtatDessin(ordre, config, entrees) {
-  const mots = jeuxTirerMots(entrees, ordre.length, e => jeuxContientKanji(e.mot) && e.mot.length <= 3);
+  const total = config.nbDessins > 0 ? config.nbDessins : ordre.length; // 0 = un dessin par joueur
+  const mots = jeuxTirerMots(entrees, total, e => jeuxContientKanji(e.mot) && e.mot.length <= 3);
   return {
     jeu: 'dessin', v: 0, phaseId: 1, phase: 'dessin',
-    ordre: ordre.slice(), tour: 0, mots,
+    ordre: ordre.slice(), tour: 0, mots, total: mots.length,
     dureeMs: config.tempsMs || 60000,
     scores: Object.fromEntries(ordre.map(u => [u, 0])), trouves: {},
     vainqueurId: null, termine: false
   };
 }
 
+function dessinDessinateur(ej) { return ej.ordre[ej.tour % ej.ordre.length]; }
 function dessinMotCourant(ej) { return ej.mots[ej.tour] || null; }
 
 function dessinPointsDevinette(resteMs, dureeMs) {
@@ -493,9 +511,9 @@ function dessinPointsDevinette(resteMs, dureeMs) {
 }
 
 function dessinTrouve(ej, uid, resteMs) {
-  if (ej.phase !== 'dessin' || uid === ej.ordre[ej.tour] || !ej.ordre.includes(uid) || ej.trouves[uid] != null) return null;
+  if (ej.phase !== 'dessin' || uid === dessinDessinateur(ej) || !ej.ordre.includes(uid) || ej.trouves[uid] != null) return null;
   const pts = dessinPointsDevinette(resteMs, ej.dureeMs);
-  const dessinateur = ej.ordre[ej.tour];
+  const dessinateur = dessinDessinateur(ej);
   const scores = { ...ej.scores, [uid]: (ej.scores[uid] || 0) + pts, [dessinateur]: (ej.scores[dessinateur] || 0) + 3 };
   const trouves = { ...ej.trouves, [uid]: pts };
   const tousTrouves = ej.ordre.filter(u => u !== dessinateur).every(u => trouves[u] != null);
@@ -509,7 +527,7 @@ function dessinClassement(ej) {
 function dessinFinPhase(ej) {
   if (ej.phase === 'dessin') return { ...ej, phase: 'revele', phaseId: ej.phaseId + 1 };
   if (ej.phase === 'revele') {
-    if (ej.tour + 1 >= ej.ordre.length || !ej.mots[ej.tour + 1]) {
+    if (ej.tour + 1 >= (ej.total || ej.ordre.length) || !ej.mots[ej.tour + 1]) {
       const c = dessinClassement(ej);
       const egalite = c.length > 1 && c[0][1] === c[1][1];
       return { ...ej, phase: 'fin', termine: true, vainqueurId: egalite ? null : c[0][0], phaseId: ej.phaseId + 1 };
@@ -617,7 +635,7 @@ function dessinRecevoir(evenement, payload) {
   if (!ej || ej.jeu !== 'dessin' || !payload) return;
   const maCle = dessinCleActuelle(ej);
   if (payload.cle !== maCle) return;
-  const moiDessinateur = ej.ordre[ej.tour] === window.accountUser.id;
+  const moiDessinateur = dessinDessinateur(ej) === window.accountUser.id;
   if (evenement === 'trait' && !moiDessinateur) {
     let t = dessinTraits.find(x => x.id === payload.id);
     if (!t) { t = { id: payload.id, pts: [] }; dessinTraits.push(t); }
@@ -659,7 +677,7 @@ function dessinMajIndice(ej, reste) {
 
 function dessinHtmlInfos(ej) {
   const monId = window.accountUser.id;
-  const dessinateur = ej.ordre[ej.tour];
+  const dessinateur = dessinDessinateur(ej);
   const lignes = ej.ordre.map(u => `
     <div class="partie-joueur-chip ${u === dessinateur ? 'partie-joueur-chip--actif' : ''}">
       <span>${u === dessinateur ? '✏️ ' : ''}${escapeHtml(jeuxPseudoDe(u))}${u === monId ? ' (toi)' : ''}${ej.trouves[u] != null ? ' ✔' : ''}</span>
@@ -670,7 +688,7 @@ function dessinHtmlInfos(ej) {
 
 function renderDessin(el, ej) {
   const monId = window.accountUser.id;
-  const dessinateur = ej.ordre[ej.tour];
+  const dessinateur = dessinDessinateur(ej);
   const moiDessinateur = dessinateur === monId;
   const mot = dessinMotCourant(ej);
   const cle = dessinCleActuelle(ej) + ':' + ej.phase;
@@ -699,7 +717,7 @@ function renderDessin(el, ej) {
   }
   el.innerHTML = `
     <div class="card jeu-carte jeu-carte--dessin">
-      <h2>✏️ Dessin de kanji <span class="jeu-manche">Dessin ${ej.tour + 1}/${ej.ordre.length}</span></h2>
+      <h2>✏️ Dessin de kanji <span class="jeu-manche">Dessin ${ej.tour + 1}/${ej.total || ej.ordre.length}</span></h2>
       <div id="dessinInfos">${dessinHtmlInfos(ej)}</div>
       <div class="partie-minuteur"><div class="partie-minuteur-barre"><div class="partie-minuteur-barre__remplissage" id="partieMinuteurBarre"></div></div><span id="partieMinuteurTexte" class="partie-minuteur-texte">…</span></div>
       ${zone}

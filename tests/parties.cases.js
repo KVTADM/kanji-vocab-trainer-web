@@ -215,3 +215,15 @@ essai('soumettreReponseBombe applique le seuil strict (pct >= 0.99) pour juger u
   window.accountUser = { id: 'moi', pseudo: 'Moi' };
   scoreAnswer = (input, correct) => ({ pct: input === correct ? 1 : 0, points: 0 });
 });
+
+essai('appliquerTourBombe garde le mot, la lecture et la réponse tapée pour l\'affichage', async () => {
+  const { sb, lire } = fabriquerSbCapture();
+  window.sb = sb;
+  DB.vocab = [{ id: 'v1', mot: '猫', lecture: 'あ' }, { id: 'v2', mot: '犬', lecture: 'い' }, { id: 'v3', mot: '鳥', lecture: 'う' }];
+  partieCourante = etatDeBase();
+  const motId = partieCourante.etat_jeu.motActuelId;
+  await appliquerTourBombe('rate', { saisie: 'ぬ' });
+  const r = lire().etat_jeu.dernierResultat;
+  if (r.saisie !== 'ぬ' || r.issue !== 'rate') throw new Error('réponse non conservée');
+  if (DB.vocab.find(v => v.id === motId) && r.lecture !== DB.vocab.find(v => v.id === motId).lecture) throw new Error('lecture non conservée');
+});

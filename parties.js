@@ -42,6 +42,7 @@ const PARTIES_RELAIS_TEMPS_OPTIONS = [15000, 20000, 30000, 45000];
 const PARTIES_DUEL_MANCHES_OPTIONS = [5, 10, 15];
 const PARTIES_DUEL_TEMPS_OPTIONS = [5000, 10000, 15000, 20000];
 const PARTIES_DESSIN_TEMPS_OPTIONS = [45000, 60000, 90000];
+const PARTIES_DESSIN_NB_OPTIONS = [3, 5, 8, 10, 15];
 
 // Les jeux disponibles dans un salon (02/10/2026). `pool` : le jeu utilise la
 // sélection de semaines ; le Relais prend tout le vocabulaire, sans choix.
@@ -89,6 +90,8 @@ async function chargerPartiesOuvertes() {
     .from('parties')
     .select('id, code, nom, jeu, config, hote_id, hote_pseudo, created_at, parties_joueurs(count)')
     .eq('prive', false)
+    .eq('amis_uniquement', false)
+    .is('mot_de_passe', null)
     .eq('etat', 'attente')
     // Salons fantomes (retour Lucien 05/10/2026) : un salon dont l'hote a ferme
     // l'onglet restait ouvert indefiniment. On n'affiche que les salons recents.
@@ -196,7 +199,7 @@ function configPartiePourJeu(jeu, o) {
   const selection = PARTIES_JEUX[jeu].pool && Array.isArray(o.selection) && o.selection.length ? o.selection.slice() : null;
   if (jeu === 'duel') return { semesterId: 'tout', selection, manches: o.manches || 10, tempsMs: o.tempsMs || 10000 };
   if (jeu === 'relais') return { tempsTourMs: o.tempsTourMs || 20000 };
-  if (jeu === 'dessin') return { semesterId: 'tout', selection, tempsMs: o.tempsMs || 60000 };
+  if (jeu === 'dessin') return { semesterId: 'tout', selection, tempsMs: o.tempsMs || 60000, nbDessins: o.nbDessins > 0 ? o.nbDessins : 0 };
   return { semesterId: o.semesterId || 'tout', selection, tempsTourMs: o.tempsTourMs || 15000, vies: o.vies || 3 };
 }
 
@@ -356,10 +359,10 @@ async function soumettreReponseBombe(valeurBrute) {
   const resultat = scoreAnswer(val, mot.lecture);
   // Seuil strict (comme le badge "bon" du quiz normal, pct >= 0.99) : un jeu
   // à plusieurs doit juger tout le monde pareil, pas de tolérance floue ici.
-  await appliquerTourBombe(resultat.pct >= 0.99 ? 'reussi' : 'rate');
+  await appliquerTourBombe(resultat.pct >= 0.99 ? 'reussi' : 'rate', { saisie: val, motId: mot.id });
 }
 
-async function appliquerTourBombe(issue) {
+async function appliquerTourBombe(issue, details) {
   if (enTraitementTourBombe || !partieCourante || partieCourante.etat !== 'en_cours') return;
   enTraitementTourBombe = true;
   try {
@@ -401,7 +404,14 @@ async function appliquerTourBombe(issue) {
       motsUtilisesIds: [...motsUtilisesIds, motActuelId],
       finTourA: Date.now() + (partieCourante.config.tempsTourMs || 15000),
       vainqueurId,
-      dernierResultat: { joueurId: joueurActifId, issue }
+      dernierResultat: (() => {
+        const m = DB.vocab.find(v => v.id === ej.motActuelId);
+        return {
+          joueurId: joueurActifId, issue,
+          mot: m ? m.mot : '', lecture: m ? m.lecture : '',
+          saisie: details && details.saisie ? String(details.saisie).slice(0, 60) : ''
+        };
+      })()
     };
     const { error } = await window.sb.from('parties').update({ etat_jeu: nouvelEtatJeu, etat: nouvelEtatGlobal }).eq('id', partieCourante.id);
     if (error) showToast('Erreur de synchronisation de la partie.');
