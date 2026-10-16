@@ -53,3 +53,34 @@ seed.vocab.forEach(v => {
 console.log(`Rapport : ${sans} / ${total} mots S1-S4 ne contiennent pas le kanji de leur fiche (informatif).`);
 if (echecs.length) { console.log('ECHECS :\n' + echecs.join('\n')); process.exit(1); }
 console.log(`OK : ${Object.keys(mig).length} mots simplifies verifies.`);
+
+// Compteurs a preciser (retour du 16/10/2026) : 十分 (じゅっぷん, dix minutes) ne doit pas etre confondu avec じゅうぶん.
+{
+  const seed = JSON.parse(require('fs').readFileSync(__dirname + '/../seed-data.json', 'utf8'));
+  const api = require('fs').readFileSync(__dirname + '/../webapi.js', 'utf8');
+  ['v-l0s1-w8-07-02', 'v-l0s1-w8-07-01', 'v-l0s1-w8-06-01'].forEach(id => {
+    const v = seed.vocab.find(x => x.id === id);
+    if (!v || v.indice !== 'compteur') { console.log('ECHEC : indice compteur manquant pour ' + id); process.exitCode = 1; }
+    if (!api.includes("'" + id + "': 'compteur'")) { console.log('ECHEC : migration compteur manquante pour ' + id); process.exitCode = 1; }
+  });
+}
+
+// Paires courant / soutenu (16/10/2026) : 昨日 (きのう / さくじつ) et 明日 (あした / あす) sont des entrees separees avec badge.
+{
+  const fs = require('fs');
+  const seed = JSON.parse(fs.readFileSync(__dirname + '/../seed-data.json', 'utf8'));
+  const api = fs.readFileSync(__dirname + '/../webapi.js', 'utf8');
+  const par = id => seed.vocab.find(x => x.id === id);
+  const attendu = [
+    ['v-mrhvk4uwop8eb', 'さくじつ', 'soutenu'], ['v-reg-kinou-s1w8', 'きのう', 'courant'],
+    ['v-reg-asu-l0s2w2', 'あす', 'soutenu'], ['v-l0s2-w2-02-04', 'あした', 'courant']
+  ];
+  attendu.forEach(([id, lecture, registre]) => {
+    const v = par(id);
+    if (!v || v.lecture !== lecture || v.registre !== registre) { console.log('ECHEC : paire registre ' + id); process.exitCode = 1; }
+    if (!api.includes(id)) { console.log('ECHEC : migration absente pour ' + id); process.exitCode = 1; }
+  });
+  ['v-l0s1-w8-11-04', 'v-n3nxnzqnknnhu', 'v-9godwz35vay6q'].forEach(id => {
+    if (!api.includes("'" + id + "':")) { console.log('ECHEC : indice 毎年 absent pour ' + id); process.exitCode = 1; }
+  });
+}

@@ -68,7 +68,7 @@ function escapeHtml(str) {
 // REGISTRE_A_PRECISER dans webapi.js) pour un badge visuel plutot qu'une
 // parenthese dans la traduction -- affiche partout ou mot/lecture/sens
 // sont montres (tableau de traduction, cartes de quiz).
-const REGISTRE_LABELS = { poli: 'poli', humble: 'humble', familier: 'familier', litteraire: 'litteraire' };
+const REGISTRE_LABELS = { poli: 'poli', humble: 'humble', familier: 'familier', litteraire: 'litteraire', courant: 'courant', soutenu: 'soutenu' };
 // Precisions sur un mot (liste de Paul, 30/09/2026, suite de la demande sur le
 // registre) : "compteur" (ex. 一台 -> il faut penser au compteur) et "lecture
 // particuliere" (ex. 一人 = ひとり, 二十歳 = はたち : la lecture n'est pas

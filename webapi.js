@@ -404,10 +404,40 @@ const JLPT_N4_SEED = {"kanjiGroups":[{"id":"kg-hu66go90952pa","semesterId":"jlpt
         if (g.id === 'kg-mrhvk4v5u55ww' && g.kunyomi === 'みなo') g.kunyomi = 'みなと';
       });
     }
+    // Paires courant / soutenu (demande de Paul, 16/10/2026) : 昨日 (きのう courant,
+    // さくじつ soutenu) et 明日 (あした courant, あす soutenu) etaient confondus. Chaque
+    // lecture devient une entree a part avec son badge de registre. Idempotent : la
+    // modification n'agit que si l'ancienne valeur est en place, les ajouts que si
+    // l'id est absent et que le groupe de kanji existe.
+    const PAIRES_REGISTRE_16_10 = {
+      modifs: {
+        'v-mrhvk4uwop8eb': { old: { lecture: 'さくじつ / きのう' }, neu: { lecture: 'さくじつ', registre: 'soutenu' } },
+        'v-l0s2-w2-02-04': { old: { lecture: 'あした' }, neu: { registre: 'courant' } }
+      },
+      ajouts: [
+        { id: 'v-reg-kinou-s1w8', kanjiGroupId: 'kg-mrhvk4uwxjay1', mot: '昨日', lecture: 'きのう', sens: 'Hier', registre: 'courant' },
+        { id: 'v-reg-asu-l0s2w2', kanjiGroupId: 'kg-l0s2-w2-02', mot: '明日', lecture: 'あす', sens: 'Demain', registre: 'soutenu' }
+      ]
+    };
+    if (Array.isArray(data.vocab) && Array.isArray(data.kanjiGroups)) {
+      data.vocab.forEach(v => {
+        const f = PAIRES_REGISTRE_16_10.modifs[v.id];
+        if (f && !v.registre && Object.keys(f.old).every(k => v[k] === f.old[k])) Object.assign(v, f.neu);
+      });
+      const idsVocab = new Set(data.vocab.map(v => v.id));
+      const idsGroupes = new Set(data.kanjiGroups.map(g => g.id));
+      PAIRES_REGISTRE_16_10.ajouts.forEach(n => {
+        if (!idsVocab.has(n.id) && idsGroupes.has(n.kanjiGroupId)) data.vocab.push(Object.assign({}, n));
+      });
+    }
     // Precisions sur les mots (liste de Paul, 30/09/2026) : badge "compteur"
     // ou "lecture particuliere" pose sur le champ vocab.indice. Idempotent : ne
     // touche que les ids listes et n'ecrase jamais un indice deja present.
     const INDICES_A_PRECISER = {
+      // 16/10/2026 : 毎年 se lit まいとし (kun) ou まいねん (on), selon l'entree.
+      'v-l0s1-w8-11-04': 'kun',
+      'v-n3nxnzqnknnhu': 'on',
+      'v-9godwz35vay6q': 'on',
       'v-mrhvk4uye3rji': 'compteur',
       'v-mrhvk4uyf06iw': 'compteur',
       'v-mrhvk4uy9wtve': 'compteur',
@@ -458,6 +488,10 @@ const JLPT_N4_SEED = {"kanjiGroups":[{"id":"kg-hu66go90952pa","semesterId":"jlpt
       'v-l0s1-w4-04-04': 'lecture-speciale',
       'v-l0s1-w5-05-07': 'lecture-speciale',
       'v-gwp75cigbc7h6': 'lecture-speciale',
+      // 16/10/2026 : 十分 (dix minutes) se confond avec じゅうぶん (assez) ; 五分 et 一時 aussi.
+      'v-l0s1-w8-07-02': 'compteur',
+      'v-l0s1-w8-07-01': 'compteur',
+      'v-l0s1-w8-06-01': 'compteur',
     };
     if (Array.isArray(data.vocab)) {
       data.vocab.forEach(v => {
