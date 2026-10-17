@@ -250,16 +250,51 @@ function progressionNiveau(xp) {
 // prolongee, pas quelques semaines d'usage normal. Avec la courbe XP
 // quadratique existante (niveauDepuisXp), le niveau 100 demande 50*99^2 =
 // 490 050 XP, un vrai sommet plutot qu'un palier atteignable en un mois.
+// 17/10/2026 (Paul) : sommet reporte du niveau 100 au niveau 150 (Grand
+// Champion = 50*149^2 = 1 110 050 XP) ; paliers : 1, 15, 30, 45, 70, 90, 120, 150.
+// 17/10/2026 : icones SVG dessinees avec Paul (rang-icones.js, cle = `cle`) ;
+// l'emoji reste en secours. Le dernier palier s'appelle desormais « Mythique »
+// (ancien « Grand Champion »), couleur obsidienne.
 const GAMIF_RANGS = [
-  { seuil: 1, nom: 'Bronze', emoji: '🥉', couleur: '#a5682f' },
-  { seuil: 10, nom: 'Argent', emoji: '🥈', couleur: '#7c8794' },
-  { seuil: 20, nom: 'Or', emoji: '🥇', couleur: '#c1902a' },
-  { seuil: 30, nom: 'Émeraude', emoji: '💚', couleur: '#2ca367' },
-  { seuil: 45, nom: 'Rubis', emoji: '❤️', couleur: '#c22e49' },
-  { seuil: 60, nom: 'Diamant', emoji: '💎', couleur: '#2b9ccb' },
-  { seuil: 80, nom: 'Champion', emoji: '🏆', couleur: '#8a5cf0' },
-  { seuil: 100, nom: 'Grand Champion', emoji: '👑', couleur: '#e06a2a' }
+  { seuil: 1, cle: 'bronze', nom: 'Bronze', emoji: '🥉', couleur: '#a5682f' },
+  { seuil: 15, cle: 'argent', nom: 'Argent', emoji: '🥈', couleur: '#7c8794' },
+  { seuil: 30, cle: 'or', nom: 'Or', emoji: '🥇', couleur: '#c1902a' },
+  { seuil: 45, cle: 'emeraude', nom: 'Émeraude', emoji: '💚', couleur: '#2ca367' },
+  { seuil: 70, cle: 'rubis', nom: 'Rubis', emoji: '❤️', couleur: '#c22e49' },
+  { seuil: 90, cle: 'diamant', nom: 'Diamant', emoji: '💎', couleur: '#2b9ccb' },
+  { seuil: 120, cle: 'champion', nom: 'Champion', emoji: '🏆', couleur: '#8a5cf0' },
+  { seuil: 150, cle: 'mythique', nom: 'Mythique', emoji: '👑', couleur: '#33384f' }
 ];
+
+// Sprite SVG injecte une seule fois dans la page ; chaque icone n'est ensuite
+// qu'un <use> (beaucoup d'insignes dans un classement sans alourdir le DOM).
+function assurerSpriteRangs() {
+  if (typeof document === 'undefined' || !document.body || document.getElementById('kvtSpriteRangs')) return;
+  const icones = typeof window !== 'undefined' ? window.KVT_RANG_ICONES : null;
+  if (!icones) return;
+  let defs = '';
+  let symboles = '';
+  for (const r of GAMIF_RANGS) {
+    const ic = icones[r.cle];
+    if (!ic) continue;
+    defs += ic.defs;
+    symboles += `<symbol id="kvt-rang-${r.cle}" viewBox="-14 -14 128 124">${ic.body}</symbol>`;
+  }
+  const h = document.createElement('div');
+  h.id = 'kvtSpriteRangs';
+  h.setAttribute('aria-hidden', 'true');
+  h.style.cssText = 'position:absolute;width:0;height:0;overflow:hidden';
+  h.innerHTML = `<svg width="0" height="0" xmlns="http://www.w3.org/2000/svg"><defs>${defs}</defs>${symboles}</svg>`;
+  document.body.appendChild(h);
+}
+// HTML de l'icone d'un palier (hauteur en px) ; emoji si l'icone n'est pas chargee.
+function rangIconeHtml(rang, px) {
+  const t = px || 24;
+  const ok = typeof window !== 'undefined' && window.KVT_RANG_ICONES && window.KVT_RANG_ICONES[rang.cle] && typeof document !== 'undefined' && document.body;
+  if (!ok) return rang.emoji;
+  assurerSpriteRangs();
+  return `<svg class="rang-icone" width="${Math.round(t * 128 / 124)}" height="${t}" role="img" aria-label="${escapeHtml(rang.nom)}"><use href="#kvt-rang-${rang.cle}"/></svg>`;
+}
 
 // Le tableau est trie par seuil croissant : on garde le dernier palier dont
 // le seuil est atteint, jamais besoin de trier a l'appel.
@@ -360,7 +395,7 @@ function celebrerProgressionSiBesoin() {
   el.setAttribute('role', 'status');
   el.style.setProperty('--rang-couleur', contenu.rang.couleur);
   el.innerHTML = contenu.changeRang
-    ? `<div class="celebration__emoji">${contenu.rang.emoji}</div>
+    ? `<div class="celebration__emoji celebration__icone">${rangIconeHtml(contenu.rang, 120)}</div>
        <div class="celebration__titre">Nouveau rang : ${escapeHtml(contenu.rang.nom)} !</div>
        <div class="celebration__detail">Niveau ${contenu.niveau}</div>`
     : `<div class="celebration__titre">Niveau ${contenu.niveau} !</div>`;
@@ -696,7 +731,7 @@ function widgetGamification() {
   return `
     <div class="card gamif-widget">
       <div class="gamif-widget__niveau">
-        <div class="gamif-widget__rang" style="background:${rang.couleur};" title="Palier ${escapeHtml(rang.nom)}, débloqué au niveau ${rang.seuil}">${rang.emoji} ${escapeHtml(rang.nom)}</div>
+        <div class="gamif-widget__rang" style="background:${rang.couleur};" title="Palier ${escapeHtml(rang.nom)}, débloqué au niveau ${rang.seuil}">${rangIconeHtml(rang, 28)}<span>${escapeHtml(rang.nom)}</span></div>
         <div class="gamif-widget__badge">Niv. ${prog.niveau}</div>
         <div class="gamif-widget__barre" title="${prog.xpDansNiveau}/${prog.largeurNiveau} XP avant le niveau suivant">
           <div class="gamif-widget__barre-remplie" style="width:${prog.pct}%"></div>

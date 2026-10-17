@@ -26,23 +26,21 @@ essai('progressionNiveau calcule le bon pourcentage vers le niveau suivant', () 
 
 // ---------- Rangs ----------
 
-essai('rangDepuisNiveau : Bronze en dessous du niveau 10', () => {
+essai('rangDepuisNiveau : Bronze en dessous du niveau 15', () => {
   if (rangDepuisNiveau(1).nom !== 'Bronze') throw new Error('niveau 1 -> ' + rangDepuisNiveau(1).nom);
-  if (rangDepuisNiveau(9).nom !== 'Bronze') throw new Error('niveau 9 -> ' + rangDepuisNiveau(9).nom);
+  if (rangDepuisNiveau(14).nom !== 'Bronze') throw new Error('niveau 14 -> ' + rangDepuisNiveau(14).nom);
 });
 
-essai('rangDepuisNiveau : chaque seuil bascule pile sur le nouveau palier', () => {
-  if (rangDepuisNiveau(10).nom !== 'Argent') throw new Error('niveau 10 -> ' + rangDepuisNiveau(10).nom);
-  if (rangDepuisNiveau(20).nom !== 'Or') throw new Error('niveau 20 -> ' + rangDepuisNiveau(20).nom);
-  if (rangDepuisNiveau(30).nom !== 'Émeraude') throw new Error('niveau 30 -> ' + rangDepuisNiveau(30).nom);
-  if (rangDepuisNiveau(45).nom !== 'Rubis') throw new Error('niveau 45 -> ' + rangDepuisNiveau(45).nom);
-  if (rangDepuisNiveau(60).nom !== 'Diamant') throw new Error('niveau 60 -> ' + rangDepuisNiveau(60).nom);
-  if (rangDepuisNiveau(80).nom !== 'Champion') throw new Error('niveau 80 -> ' + rangDepuisNiveau(80).nom);
-  if (rangDepuisNiveau(100).nom !== 'Grand Champion') throw new Error('niveau 100 -> ' + rangDepuisNiveau(100).nom);
+essai('rangDepuisNiveau : chaque seuil bascule pile sur le nouveau palier (sommet au niveau 150)', () => {
+  const attendu = [[15, 'Argent'], [30, 'Or'], [45, 'Émeraude'], [70, 'Rubis'], [90, 'Diamant'], [120, 'Champion'], [150, 'Mythique']];
+  for (const [n, nom] of attendu) {
+    if (rangDepuisNiveau(n).nom !== nom) throw new Error('niveau ' + n + ' -> ' + rangDepuisNiveau(n).nom);
+    if (rangDepuisNiveau(n - 1).nom === nom) throw new Error('niveau ' + (n - 1) + ' ne devrait pas etre ' + nom);
+  }
 });
 
 essai('rangDepuisNiveau : un tres haut niveau reste au dernier palier (pas de dépassement du tableau)', () => {
-  if (rangDepuisNiveau(999).nom !== 'Grand Champion') throw new Error('niveau 999 -> ' + rangDepuisNiveau(999).nom);
+  if (rangDepuisNiveau(999).nom !== 'Mythique') throw new Error('niveau 999 -> ' + rangDepuisNiveau(999).nom);
 });
 
 // ---------- Difficulté selon le semestre ----------
@@ -655,8 +653,8 @@ essai('célébration : niveau gagné pendant un quiz, changement de rang détect
   gagnerXp(100, null); // 0 -> >= 50 XP : niveau 1 -> 2
   const c1 = contenuCelebration(celebrationEnAttente);
   if (!c1 || c1.niveau !== niveauDepuisXp(DB.gamification.xp)) throw new Error('niveau non noté : ' + JSON.stringify(c1));
-  if (contenuCelebration({ depuis: 9, vers: 10 }).changeRang !== true) throw new Error('9 -> 10 = Bronze -> Argent');
-  if (contenuCelebration({ depuis: 11, vers: 12 }).changeRang !== false) throw new Error('11 -> 12 reste Argent');
+  if (contenuCelebration({ depuis: 14, vers: 15 }).changeRang !== true) throw new Error('14 -> 15 = Bronze -> Argent');
+  if (contenuCelebration({ depuis: 16, vers: 17 }).changeRang !== false) throw new Error('16 -> 17 reste Argent');
   if (contenuCelebration({ depuis: 5, vers: 5 }) !== null) throw new Error('pas de montée = rien');
   celebrationEnAttente = null;
 });
@@ -672,4 +670,37 @@ essai('bordure / pseudo stylisé (29/09/2026) : achat, équipement, classes CSS'
   if (DB.gamification.bordureActive !== 'bordure-sakura' || DB.gamification.pseudoStyleActif !== 'pseudo-neon') throw new Error(JSON.stringify(DB.gamification));
   if (classeBordure('bordure-sakura') !== 'profil-bordure profil-bordure--sakura') throw new Error(classeBordure('bordure-sakura'));
   if (classePseudo('pseudo-neon') !== 'pseudo-style pseudo-style--neon' || classePseudo('inconnu') !== '' || classePseudo(null) !== '') throw new Error('classePseudo');
+});
+
+// ---------- Icones de rang SVG (17/10/2026) ----------
+essai('rangs : chaque palier a une cle et une icone SVG livrée (rang-icones.js)', () => {
+  const fs = require('fs');
+  const src = fs.readFileSync(__dirname + '/../rang-icones.js', 'utf8');
+  const w = {};
+  new Function('window', src)(w);
+  for (const r of GAMIF_RANGS) {
+    if (!r.cle) throw new Error('cle manquante : ' + r.nom);
+    const ic = w.KVT_RANG_ICONES[r.cle];
+    if (!ic || !ic.defs || !ic.body) throw new Error('icone manquante : ' + r.cle);
+    if (!ic.body.includes('<g') || ic.body.length < 5000) throw new Error('icone trop pauvre : ' + r.cle);
+  }
+  if (GAMIF_RANGS[GAMIF_RANGS.length - 1].nom !== 'Mythique') throw new Error('dernier palier : ' + GAMIF_RANGS[GAMIF_RANGS.length - 1].nom);
+});
+
+essai('rangs : ids SVG uniques entre icones (pas de collision dans le sprite)', () => {
+  const fs = require('fs');
+  const w = {};
+  new Function('window', fs.readFileSync(__dirname + '/../rang-icones.js', 'utf8'))(w);
+  const vus = new Set();
+  for (const ic of Object.values(w.KVT_RANG_ICONES)) {
+    for (const m of ic.defs.matchAll(/ id="([^"]+)"/g)) {
+      if (vus.has(m[1])) throw new Error('id en double : ' + m[1]);
+      vus.add(m[1]);
+    }
+  }
+});
+
+essai('rangIconeHtml : repli sur l\'emoji sans page, et <use> du sprite sinon', () => {
+  const r = GAMIF_RANGS[0];
+  if (rangIconeHtml(r, 20) !== r.emoji) throw new Error('repli emoji attendu hors navigateur');
 });

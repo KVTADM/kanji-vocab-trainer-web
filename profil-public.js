@@ -107,7 +107,7 @@ function badgesDe(profil, decks, avis) {
   }
   if (profil && profil.niveau_jeu >= 1 && typeof rangDepuisNiveau === 'function') {
     const r = rangDepuisNiveau(profil.niveau_jeu);
-    liste.unshift([`${r.emoji} ${r.nom} · niv. ${profil.niveau_jeu}`, 'Niveau de jeu et rang']);
+    liste.unshift([`${r.nom} · niv. ${profil.niveau_jeu}`, 'Niveau de jeu et rang']);
   }
   if (profil && profil.titre_actif && typeof objetBoutique === 'function') {
     const t = objetBoutique(profil.titre_actif);

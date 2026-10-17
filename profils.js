@@ -96,7 +96,7 @@ function avatarHtmlSansCadre(userId, pseudo, taille) {
 function insigneRangHtml(niveau) {
   if (typeof rangDepuisNiveau !== 'function' || !(niveau >= 1)) return '';
   const r = rangDepuisNiveau(niveau);
-  return `<span class="insigne insigne--rang" style="--rang-couleur:${r.couleur}" title="Niveau ${niveau} · ${escapeHtml(r.nom)}">${r.emoji}<span class="insigne__n">${niveau}</span></span>`;
+  return `<span class="insigne insigne--rang" style="--rang-couleur:${r.couleur}" title="Niveau ${niveau} · ${escapeHtml(r.nom)}">${typeof rangIconeHtml === 'function' ? rangIconeHtml(r, 20) : r.emoji}<span class="insigne__n">${niveau}</span></span>`;
 }
 
 function insigneTitreHtml(titreId) {
