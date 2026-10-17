@@ -345,9 +345,27 @@ function renderDuel(el, ej) {
 // RELAIS DES MOTS
 // ---------------------------------------------------------------------------
 
+// Lectures (on/kun en hiragana) d'un kanji, d'apres kanji-lectures-data.js.
+function relaisLecturesKanji(k) {
+  const t = (typeof window !== 'undefined' && window.KVT_KANJI_LECTURES) || {};
+  return t[k] ? t[k].split('/') : [];
+}
+
+// Règle assouplie (16/10/2026, trop dur sinon) : le mot suivant peut commencer par
+// le même kanji (quelle que soit sa lecture) OU par un autre kanji qui partage
+// une lecture avec lui (homophone).
+function relaisKanjiCompatible(dernier, premier) {
+  if (!dernier || !premier) return false;
+  if (dernier === premier) return true;
+  const a = relaisLecturesKanji(dernier);
+  if (!a.length) return false;
+  const b = relaisLecturesKanji(premier);
+  return b.some(l => a.includes(l));
+}
+
 function relaisCandidats(entrees, kanji, utilises) {
   if (!kanji) return [];
-  return entrees.filter(e => e.mot[0] === kanji && !utilises.includes(e.mot));
+  return entrees.filter(e => relaisKanjiCompatible(kanji, e.mot[0]) && !utilises.includes(e.mot));
 }
 
 // Mot de départ : un mot à kanji qui a encore au moins une suite possible.
@@ -379,13 +397,13 @@ function relaisValider(entrees, ej, motSaisi, lectureSaisie) {
     // Saisie en hiragana seul : on cherche un mot du vocabulaire qui commence par
     // le bon kanji et se lit comme la saisie.
     if (!String(lectureSaisie || '').trim()) return { ok: false, raison: 'aucun mot saisi' };
-    const lus = entrees.filter(e => e.mot[0] === ej.dernierKanji && jeuxLectureCorrecte(lectureSaisie, [e.lecture]));
+    const lus = entrees.filter(e => relaisKanjiCompatible(ej.dernierKanji, e.mot[0]) && jeuxLectureCorrecte(lectureSaisie, [e.lecture]));
     if (!lus.length) return { ok: false, raison: `aucun mot en ${ej.dernierKanji}… ne se lit « ${String(lectureSaisie).trim()} »` };
     const libre = lus.find(e => !ej.utilises.includes(e.mot));
     if (!libre) return { ok: false, raison: `${lus[0].mot} a déjà été utilisé` };
     return { ok: true, entree: libre };
   }
-  if (mot[0] !== ej.dernierKanji) return { ok: false, raison: `le mot doit commencer par ${ej.dernierKanji}` };
+  if (!relaisKanjiCompatible(ej.dernierKanji, mot[0])) return { ok: false, raison: `le mot doit commencer par ${ej.dernierKanji} ou un kanji qui se lit pareil` };
   const candidats = entrees.filter(e => e.mot === mot);
   if (!candidats.length) return { ok: false, raison: `${mot} n'est pas dans le vocabulaire` };
   if (ej.utilises.includes(mot)) return { ok: false, raison: `${mot} a déjà été utilisé` };
@@ -478,11 +496,11 @@ function renderRelais(el, ej) {
       <div class="partie-minuteur"><div class="partie-minuteur-barre"><div class="partie-minuteur-barre__remplissage" id="partieMinuteurBarre"></div></div><span id="partieMinuteurTexte" class="partie-minuteur-texte">…</span></div>
       <div class="relais-courant">
         <div class="partie-mot-actif">${escapeHtml(ej.mot.mot)}</div>
-        <div class="relais-consigne">Prochain mot : il doit commencer par <span class="relais-kanji">${escapeHtml(ej.dernierKanji || '?')}</span></div>
+        <div class="relais-consigne">Prochain mot : il doit commencer par <span class="relais-kanji">${escapeHtml(ej.dernierKanji || '?')}</span> (même kanji, quelle que soit sa lecture) ou par un autre kanji qui se lit pareil${relaisLecturesKanji(ej.dernierKanji).length ? ` — lectures : ${escapeHtml(relaisLecturesKanji(ej.dernierKanji).join('・'))}` : ''}</div>
       </div>
       ${monTour ? `
         <div class="relais-saisie">
-          <input type="text" id="partieReponseInput" data-garde autocomplete="off" placeholder="Un mot en ${escapeHtml(ej.dernierKanji || '')}… écrit en hiragana">
+          <input type="text" id="partieReponseInput" data-garde autocomplete="off" placeholder="Un mot (en hiragana) qui commence par ${escapeHtml(ej.dernierKanji || '')} ou un kanji de même lecture">
           <button class="primary" id="btnValiderReponsePartie">Valider</button>
         </div>`
         : `<p class="duel-attente">Tour de ${escapeHtml(jeuxPseudoDe(actifId))}…</p>`}

@@ -15,7 +15,7 @@ let apercuErreur = null;
 let apercuSemestre = 'tous';// filtre facultatif, jamais un préalable
 let globalLignes = null;    // scores bruts tous modes confondus (rang 5, #16)
 let globalErreur = null;
-let globalTri = 'classement'; // 'classement' | 'points' | 'temps'
+let globalTri = 'points'; // 'points' (defaut depuis 17/10/2026) | 'classement' | 'temps'
 
 // Regle du classement (decision de Paul, 29/09/2026) : le % reussi d'abord,
 // puis a % egal la difficulte (Difficile > Normal > Facile), puis a
@@ -112,8 +112,8 @@ function renderLeaderboard() {
       <div class="lb-filtre">
         <label for="lbGlobalTri">Trier par</label>
         <select id="lbGlobalTri">
-          <option value="classement" ${globalTri === 'classement' ? 'selected' : ''}>Classement (%, puis difficulté, puis temps)</option>
           <option value="points" ${globalTri === 'points' ? 'selected' : ''}>Points cumulés</option>
+          <option value="classement" ${globalTri === 'classement' ? 'selected' : ''}>Classement (%, puis difficulté, puis temps)</option>
           <option value="temps" ${globalTri === 'temps' ? 'selected' : ''}>Temps moyen (plus rapide)</option>
         </select>
       </div>` : ''}
@@ -123,7 +123,7 @@ function renderLeaderboard() {
         : leaderboardMode === 'apercu'
           ? 'Le meilleur score de chaque semaine, dans l\'ordre du programme. Le filtre est là si tu veux resserrer, pas pour commencer.'
         : leaderboardMode === 'global'
-          ? 'Tous les modes de quiz confondus (Vocabulaire, Kanji seul, Traduction, Double réponse). Classement : ton % moyen d\'abord, puis à % égal la difficulté (Difficile devant Normal devant Facile), puis le temps moyen le plus court. Seules les sessions « tous les mots » comptent pour le %, la difficulté et le temps ; les points cumulés comptent toutes les sessions, filtrées comprises. Les essais sont affichés à titre indicatif. Le Kana et la Pratique libre n\'ont pas de semaine fixe, ils ne comptent pas ici.'
+          ? 'Tous les modes de quiz confondus (Vocabulaire, Kanji seul, Traduction, Double réponse). Classement par points cumulés (le tri « Classement » reste disponible : % moyen, puis difficulté, puis temps). Seules les sessions « tous les mots » comptent pour le %, la difficulté et le temps ; les points cumulés comptent toutes les sessions, filtrées comprises. Les essais sont affichés à titre indicatif. Le Kana et la Pratique libre n\'ont pas de semaine fixe, ils ne comptent pas ici.'
           : 'Meilleurs scores de la semaine choisie : le % d\'abord, puis la difficulté, puis le temps. Seules les sessions « tous les mots » comptent.'}</p>
       <div id="lbTableWrap"><p style="color:var(--muted);">Chargement…</p></div>
       <p style="font-size:12px; color:var(--muted); margin-top:14px;">
@@ -608,7 +608,7 @@ function renderGlobal() {
           <div class="lb-medal">${medals[i]}</div>
           <div class="lb-podium-pseudo">${window.kvtProfils ? window.kvtProfils.auteurHtml(r.user_id, r.pseudo, 22) : escapeHtml(r.pseudo)}</div>
           <div class="lb-podium-points">${critere(r)}</div>
-          <div class="lb-podium-pct">${globalTri === 'points' ? (r.pctMoyen == null ? '—' : formatPct(r.pctMoyen) + ' de moyenne') : r.points + ' pts cumulés'}</div>
+          <div class="lb-podium-pct">${globalTri === 'classement' ? r.points + ' pts cumulés' : (r.pctMoyen == null ? '—' : formatPct(r.pctMoyen) + ' de moyenne')}</div>
           ${globalTri === 'temps' ? '' : `<div class="lb-podium-temps">${r.dureeMoyenne == null ? 'Temps : —' : `Temps moyen : ${formatDuree(r.dureeMoyenne)}`}</div>`}
           <div class="lb-podium-temps">${r.essais} essai${r.essais > 1 ? 's' : ''}</div>
         </div>`).join('')}
@@ -616,14 +616,14 @@ function renderGlobal() {
 
   const restHtml = rest.length === 0 ? '' : `
     <table class="lb-table">
-      <thead><tr><th>#</th><th>Pseudo</th><th>% moyen</th><th>Temps moyen</th><th>Points</th><th title="À titre indicatif, ne compte pas dans le classement">Essais</th></tr></thead>
+      <thead><tr><th>#</th><th>Pseudo</th><th>Points</th><th>% moyen</th><th>Temps moyen</th><th title="À titre indicatif, ne compte pas dans le classement">Essais</th></tr></thead>
       <tbody>${rest.map((r, i) => `
         <tr class="${isMe(r) ? 'lb-row-me' : ''}">
           <td class="lb-rank">${i + 4}</td>
           <td>${window.kvtProfils ? window.kvtProfils.auteurHtml(r.user_id, r.pseudo, 18) : escapeHtml(r.pseudo)}</td>
-          <td><strong>${r.pctMoyen == null ? '—' : formatPct(r.pctMoyen)}</strong></td>
+          <td><strong>${r.points}</strong></td>
+          <td>${r.pctMoyen == null ? '—' : formatPct(r.pctMoyen)}</td>
           <td>${r.dureeMoyenne == null ? '—' : formatDuree(r.dureeMoyenne)}</td>
-          <td>${r.points}</td>
           <td>${r.essais}</td>
         </tr>`).join('')}</tbody>
     </table>`;
@@ -680,7 +680,7 @@ function renderClassementAccueilWidget() {
     return;
   }
 
-  const classes = trierGlobal(agregerGlobal(accueilClassementLignes).filter((u) => u.points > 0 && u.pctMoyen != null), 'classement');
+  const classes = trierGlobal(agregerGlobal(accueilClassementLignes).filter((u) => u.points > 0), 'points');
   if (!classes.length) {
     wrap.innerHTML = `<p style="font-size:13px; color:var(--muted);">Personne n'a encore de score. Termine une session : tu seras le premier.</p>`;
     return;
@@ -694,7 +694,7 @@ function renderClassementAccueilWidget() {
         <div class="accueil-classement-ligne ${r.user_id === moi ? 'lb-row-me' : ''}">
           <span>${medals[i]}</span>
           <span class="accueil-classement-pseudo">${window.kvtProfils ? window.kvtProfils.auteurHtml(r.user_id, r.pseudo, 20) : escapeHtml(r.pseudo)}</span>
-          <span class="accueil-classement-points">${r.pctMoyen == null ? '—' : formatPct(r.pctMoyen)}</span>
+          <span class="accueil-classement-points">${r.points} pts</span>
         </div>`).join('')}
     </div>
     <button class="lien-retour" id="btnVoirClassement" style="margin-top:10px;">Voir le classement complet →</button>`;

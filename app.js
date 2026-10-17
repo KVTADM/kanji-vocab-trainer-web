@@ -592,6 +592,8 @@ function nbEssais(entry, mode, semesterId, week) {
 function recommencerSessionEnCours(sansCompter) {
   const q = quizSession;
   if (!q) return;
+  const nonClasse = !!q.nonClasse;
+  if (nonClasse) sansCompter = true; // un entraînement libre ne compte pas comme essai au classement
   const filtre = q.verbeFilter || 'tous';
   if (q.mode === 'kanji') { if (!sansCompter) noterRecommencement('kanji', q.semesterId, q.week); startKanjiQuiz(q.semesterId, q.week, true); }
   else if (q.mode === 'traduction') { if (!sansCompter) noterRecommencement('traduction', q.semesterId, q.week); startTraductionQuiz(q.semesterId, q.week, true, filtre); }
@@ -601,6 +603,7 @@ function recommencerSessionEnCours(sansCompter) {
   else if (q.mode === 'pratique') startPratiqueQuiz(q.theme, true);
   else if (!q.mode) { if (!sansCompter) noterRecommencement('vocab', q.semesterId, q.week); startQuiz(q.semesterId, q.week, true, filtre); }
   else return;
+  if (nonClasse && quizSession) quizSession.nonClasse = true;
   persist();
   renderReview();
   if (!sansCompter) showToast('Session recommencée');
@@ -851,6 +854,7 @@ function getKanjiScoreEntry(semesterId, week) {
   return (DB.scoresKanji && DB.scoresKanji[weekKey(semesterId, week)]) || null;
 }
 function recordKanjiSessionResult(semesterId, week, points, maxPoints, pct, dureeMs) {
+  if (sessionNonClassee()) { enregistrerEntrainementLibre('kanji', semesterId, week, points, maxPoints, pct, dureeMs); return; }
   if (!DB.scoresKanji) DB.scoresKanji = {};
   const key = weekKey(semesterId, week);
   if (!DB.scoresKanji[key]) DB.scoresKanji[key] = { best: null, history: [] };
@@ -942,7 +946,35 @@ function getMaxRelevantWeek(sem) {
   });
   return max;
 }
+// ---------- Mode « non classé » (17/10/2026, demande de Paul) ----------
+// Une session non classée ne touche ni au classement, ni aux records, ni à
+// l'historique officiel d'une semaine : son score est rangé à part dans
+// DB.entrainements (stats perso). Les stats de mots et l'historique des
+// réponses restent alimentés, ainsi que les XP/pièces gagnés en répondant.
+function sessionNonClassee() {
+  return typeof quizSession !== 'undefined' && !!quizSession && !!quizSession.nonClasse;
+}
+function enregistrerEntrainementLibre(mode, semesterId, week, points, maxPoints, pct, dureeMs, verbeFilter) {
+  if (!Array.isArray(DB.entrainements)) DB.entrainements = [];
+  DB.entrainements.push({
+    date: new Date().toISOString(), mode, semesterId, week, points, maxPoints, pct, dureeMs,
+    difficulte: difficulteDeSession(typeof quizSession !== 'undefined' ? quizSession : null),
+    verbeFilter: verbeFilter || 'tous'
+  });
+  if (DB.entrainements.length > 300) DB.entrainements = DB.entrainements.slice(-300);
+}
+// { n, meilleur, dernier } des entraînements libres d'une semaine (tous modes si mode absent).
+function statsEntrainements(semesterId, week, mode) {
+  const liste = (DB.entrainements || []).filter(e => e.semesterId === semesterId && e.week === week && (!mode || e.mode === mode));
+  if (!liste.length) return null;
+  return { n: liste.length, meilleur: Math.max(...liste.map(e => Number(e.pct) || 0)), dernier: Number(liste[liste.length - 1].pct) || 0 };
+}
+function htmlBadgeNonClasse() {
+  return `<div class="kvt-result__badge kvt-result__badge--libre">Entraînement non classé — ton classement n'a pas bougé</div>`;
+}
+
 function recordSessionResult(semesterId, week, points, maxPoints, pct, verbeFilter, dureeMs) {
+  if (sessionNonClassee()) { enregistrerEntrainementLibre('vocab', semesterId, week, points, maxPoints, pct, dureeMs, verbeFilter); return; }
   const key = weekKey(semesterId, week);
   if (!DB.scores[key]) DB.scores[key] = { best: null, history: [] };
   const entry = DB.scores[key];
@@ -1009,6 +1041,7 @@ function saveInProgress() {
     totals: { ...quizSession.totals },
     hardcore: quizSession.hardcore,
     verbeFilter: quizSession.verbeFilter || 'tous',
+    nonClasse: !!quizSession.nonClasse,
     answers: quizSession.answers.slice(),
     updatedAt: new Date().toISOString()
   };
@@ -1060,6 +1093,11 @@ function htmlExtrasResultat(s, entry) {
   let h = '';
   const g = s && s.gains;
   if (g && (g.xp || g.pieces)) h += `<div class="kvt-result__gains">+${g.xp || 0} XP · +${g.pieces || 0} pièces</div>`;
+  if (s && s.nonClasse) {
+    const st = s.semesterId ? statsEntrainements(s.semesterId, s.week, s.mode || 'vocab') : null;
+    if (st) h += `<div class="kvt-result__progression">Tes entraînements non classés sur cette semaine : ${st.n} session${st.n > 1 ? 's' : ''} · meilleur ${formatPct(st.meilleur)} · dernier ${formatPct(st.dernier)}</div>`;
+    return h;
+  }
   const hist = (entry && entry.history) || [];
   if (hist.length >= 2) {
     const cur = hist[hist.length - 1], prev = hist[hist.length - 2];
@@ -2130,11 +2168,8 @@ function renderDashboard() {
   // Le widget Classement qui vivait ici est passé sur la page d'accueil
   // (communaute.js) le 23/09/2026, demande de Paul : "le classement
   // devrait etre sur la page d'accueil pas le tableau de bord".
-  html += `
-    <div class="card accueil-widgets-row">
-      <h3>Nouveautés</h3>
-      <div id="accueilNouveautesWrap"><p style="font-size:13px; color:var(--muted);">Chargement…</p></div>
-    </div>`;
+  // Le bloc « Nouveautés » a été retiré du tableau de bord le 17/10/2026
+  // (demande de Paul) : la page Nouveautés reste accessible depuis le menu.
 
   // Le proverbe du jour vit desormais sur la page d'accueil.
 
@@ -2144,6 +2179,7 @@ function renderDashboard() {
   const inProgress = getMostRecentInProgress();
   const lastStudied = inProgress ? null : getLastStudiedWeek();
   let resumeTarget = null;
+  const avantResume = html.length;
   if (inProgress) {
     const sem = getSemester(inProgress.semesterId);
     html += `
@@ -2179,6 +2215,18 @@ function renderDashboard() {
           <div><strong>🎉 Tu as terminé tout le programme !</strong></div>
         </div>`;
     }
+  }
+
+  // Croix de fermeture de la bannière (17/10/2026) : elle reste masquée tant que
+  // la reprise proposée ne change pas (nouvelle session ou nouvelle semaine).
+  const signatureResume = inProgress ? `p:${inProgress.semesterId}:${inProgress.week}:${inProgress.index}` : (lastStudied ? `l:${lastStudied.semesterId}:${lastStudied.week}:${lastStudied.date}` : '');
+  let resumeMasque = false;
+  try { resumeMasque = !!signatureResume && localStorage.getItem('kvt-resume-masque') === signatureResume; } catch (e) { /* stockage indisponible */ }
+  if (resumeMasque) {
+    html = html.slice(0, avantResume);
+    resumeTarget = null;
+  } else if (signatureResume) {
+    html = html.slice(0, avantResume) + html.slice(avantResume).replace('<div class="card resume-card">', '<div class="card resume-card resume-card--fermable"><button class="resume-fermer" id="btnResumeFermer" aria-label="Fermer ce bandeau" title="Fermer">×</button>');
   }
 
   // "Recommandé pour toi" (09/09/2026) : ne s'affiche pas par-dessus une
@@ -2315,6 +2363,10 @@ function renderDashboard() {
               Meilleur score : ${entryModal.best.points}/${entryModal.best.maxPoints} pts (${formatPct(entryModal.best.pct)})${entryModal.best.verbeFilter ? ' · ' + escapeHtml(libelleFiltreMots(entryModal.best.verbeFilter)) : ''}
             </div>
           ` : ''}
+          ${(() => {
+            const stLibre = statsEntrainements(modalSemaineOuverte.semesterId, weekModal);
+            return stLibre ? `<div style="font-size:12.5px; color:var(--muted); margin-bottom:10px;">Entraînements non classés : ${stLibre.n} session${stLibre.n > 1 ? 's' : ''} · meilleur ${formatPct(stLibre.meilleur)}</div>` : '';
+          })()}
           <div class="filtre-mode filtre-mode--aide">
             ${[
               ['vocab', 'Vocabulaire', "On te montre le mot japonais : tu écris sa lecture en kana. Noté, avec un temps et un classement."],
@@ -2322,24 +2374,28 @@ function renderDashboard() {
               ['traduction', 'Traduction', "On te donne le sens en français : tu réponds en kanji ou en kana. Noté."],
               ['double', 'Double réponse', "Pour chaque mot, tu donnes à la fois la lecture (kana) et le sens (français). Noté."]
             ].map(([val, lib, aide], i) => `
-              <label class="mode-choix"><input type="radio" name="modalMode" value="${val}" ${i === 0 ? 'checked' : ''}> ${lib}
-                <span class="aide-bulle" tabindex="0" role="note" aria-label="${escapeHtml(aide)}" data-aide="${escapeHtml(aide)}">?</span>
+              <label class="mode-choix"><input type="radio" name="modalMode" value="${val}" ${i === 0 ? 'checked' : ''}>
+                <span class="mode-choix__txt"><b>${lib}</b><small>${escapeHtml(aide)}</small></span>
               </label>`).join('')}
           </div>
           <div class="difficulte-modal">
             <div class="difficulte-modal__titre">Difficulté</div>
-            ${(() => {
+            <div class="difficulte-modal__choix">${(() => {
               const diffActuelle = DB.settings.hardcoreMode ? 'difficile' : (DB.settings.spectralMode ? 'facile' : 'normal');
               return [
-                ['facile', 'Facile', "Un bouton 👁 affiche la réponse en transparence ; un mot aidé rapporte 0 point."],
+                ['facile', 'Facile', "Un bouton 👁 montre la réponse ; un mot aidé rapporte 0 point."],
                 ['normal', 'Normal', "Correction après chaque mot."],
-                ['difficile', 'Difficile', "Mode hardcore : aucune correction avant la fin de la session."]
+                ['difficile', 'Difficile', "Hardcore : aucune correction avant la fin de la session."]
               ].map(([val, lib, aide]) => `
-              <label class="mode-choix"><input type="radio" name="modalDifficulte" value="${val}" ${diffActuelle === val ? 'checked' : ''}> ${lib}
-                <span class="aide-bulle" tabindex="0" role="note" aria-label="${escapeHtml(aide)}" data-aide="${escapeHtml(aide)}">?</span>
+              <label class="mode-choix"><input type="radio" name="modalDifficulte" value="${val}" ${diffActuelle === val ? 'checked' : ''}>
+                <span class="mode-choix__txt"><b>${lib}</b><small>${escapeHtml(aide)}</small></span>
               </label>`).join('');
-            })()}
+            })()}</div>
           </div>
+          <label class="modal-nonclasse mode-choix">
+            <input type="checkbox" id="chkModalNonClasse">
+            <span class="mode-choix__txt"><b>Non classé</b><small>Entraînement libre : le classement, tes records et tes résultats officiels ne bougent pas. Le score est gardé à part dans tes stats perso.</small></span>
+          </label>
           <div class="filtre-mots">
             <label><input type="checkbox" id="chkModalMotsGroupe" ${filtreGroupeCocheModal ? 'checked' : ''}> Mots à kanji groupés</label>
             <label><input type="checkbox" id="chkModalMotsSimple" ${filtreSimpleCocheModal ? 'checked' : ''}> Mots simples</label>
@@ -2446,6 +2502,14 @@ function renderDashboard() {
     });
   });
 
+  const btnResumeFermer = $('#btnResumeFermer');
+  if (btnResumeFermer) {
+    btnResumeFermer.addEventListener('click', () => {
+      try { localStorage.setItem('kvt-resume-masque', signatureResume); } catch (e) { /* tant pis : il reapparaitra */ }
+      const carte = btnResumeFermer.closest('.resume-card');
+      if (carte) carte.remove();
+    });
+  }
   const btnResume = $('#btnResume');
   if (btnResume) {
     btnResume.addEventListener('click', () => {
@@ -2553,6 +2617,7 @@ function renderDashboard() {
         DB.settings.spectralMode = diffRadio.value === 'facile';
         persist();
       }
+      const nonClasse = !!($('#chkModalNonClasse') && $('#chkModalNonClasse').checked);
       modalSemaineOuverte = null;
       if (modeChoisi === 'ecriture') {
         startEcritureQuiz(semesterId, week, reviewVerbeFilter);
@@ -2563,6 +2628,7 @@ function renderDashboard() {
       } else {
         startQuiz(semesterId, week, true, reviewVerbeFilter);
       }
+      if (nonClasse && quizSession) quizSession.nonClasse = true;
       switchView('review');
     });
   }
@@ -2864,6 +2930,7 @@ function startQuiz(semesterId, week, forceRestart, verbeFilter) {
       warning: null,
       hardcore: saved.hardcore,
       verbeFilter: saved.verbeFilter || 'tous',
+      nonClasse: !!saved.nonClasse,
       usedSpectral: false, // reprise = nouveau mot en cours, pas encore de calque fantôme utilisé
       answers: saved.answers.slice(),
       totals: { ...saved.totals }
@@ -3206,7 +3273,7 @@ function renderKanjiQuizView(container) {
     if (typeof kvtSnapshotHistorique === 'function') kvtSnapshotHistorique();
     const semLabel = getSemester(quizSession.semesterId).label;
     const etat = pct >= 100 ? 'perfect' : (pct >= 70 ? 'good' : 'low');
-    const badge = improved
+    const badge = sessionNonClassee() ? htmlBadgeNonClasse() : improved
       ? `<div class="kvt-result__badge">Record — nouveau meilleur score</div>`
       : (prevBest !== null ? `<div class="kvt-result__badge">Meilleur score : ${formatPct(prevBest)}</div>` : '');
     container.innerHTML = `
@@ -3417,7 +3484,7 @@ function renderKanaQuizView(container) {
     const groupLabel = (KANA_GROUPS.find(g => g.id === quizSession.groupId) || {}).label || '';
     const typeLabel = quizSession.kanaType === 'katakana' ? 'Katakana' : 'Hiragana';
     const etat = pct >= 100 ? 'perfect' : (pct >= 70 ? 'good' : 'low');
-    const badge = improved
+    const badge = sessionNonClassee() ? htmlBadgeNonClasse() : improved
       ? `<div class="kvt-result__badge">Record — nouveau meilleur score</div>`
       : (prevBest !== null ? `<div class="kvt-result__badge">Meilleur score : ${formatPct(prevBest)}</div>` : '');
     container.innerHTML = `
@@ -3804,6 +3871,7 @@ function getTraductionScoreEntry(semesterId, week) {
   return (DB.scoresTraduction && DB.scoresTraduction[weekKey(semesterId, week)]) || null;
 }
 function recordTraductionSessionResult(semesterId, week, points, maxPoints, pct, dureeMs) {
+  if (sessionNonClassee()) { enregistrerEntrainementLibre('traduction', semesterId, week, points, maxPoints, pct, dureeMs); return; }
   if (!DB.scoresTraduction) DB.scoresTraduction = {};
   const key = weekKey(semesterId, week);
   if (!DB.scoresTraduction[key]) DB.scoresTraduction[key] = { best: null, history: [] };
@@ -3903,7 +3971,7 @@ function renderTraductionQuizView(container) {
     if (typeof kvtSnapshotHistorique === 'function') kvtSnapshotHistorique();
     const semLabel = getSemester(quizSession.semesterId).label;
     const etat = pct >= 100 ? 'perfect' : (pct >= 70 ? 'good' : 'low');
-    const badge = improved
+    const badge = sessionNonClassee() ? htmlBadgeNonClasse() : improved
       ? `<div class="kvt-result__badge">Record -- nouveau meilleur score</div>`
       : (prevBest !== null ? `<div class="kvt-result__badge">Meilleur score : ${formatPct(prevBest)}</div>` : '');
     container.innerHTML = `
@@ -4069,6 +4137,7 @@ function getDoubleScoreEntry(semesterId, week) {
   return (DB.scoresDouble && DB.scoresDouble[weekKey(semesterId, week)]) || null;
 }
 function recordDoubleSessionResult(semesterId, week, points, maxPoints, pct, dureeMs) {
+  if (sessionNonClassee()) { enregistrerEntrainementLibre('double', semesterId, week, points, maxPoints, pct, dureeMs); return; }
   if (!DB.scoresDouble) DB.scoresDouble = {};
   const key = weekKey(semesterId, week);
   if (!DB.scoresDouble[key]) DB.scoresDouble[key] = { best: null, history: [] };
@@ -4133,7 +4202,7 @@ function renderDoubleQuizView(container) {
     if (typeof kvtSnapshotHistorique === 'function') kvtSnapshotHistorique();
     const semLabel = getSemester(quizSession.semesterId).label;
     const etat = pct >= 100 ? 'perfect' : (pct >= 70 ? 'good' : 'low');
-    const badge = improved
+    const badge = sessionNonClassee() ? htmlBadgeNonClasse() : improved
       ? `<div class="kvt-result__badge">Record -- nouveau meilleur score</div>`
       : (prevBest !== null ? `<div class="kvt-result__badge">Meilleur score : ${formatPct(prevBest)}</div>` : '');
     container.innerHTML = `
@@ -4416,7 +4485,7 @@ function renderPratiqueQuizView(container) {
     if (typeof kvtSnapshotHistorique === 'function') kvtSnapshotHistorique();
     const themeLabel = (PRATIQUE_THEMES.find(t => t.id === quizSession.theme) || {}).label || '';
     const etat = pct >= 100 ? 'perfect' : (pct >= 70 ? 'good' : 'low');
-    const badge = improved
+    const badge = sessionNonClassee() ? htmlBadgeNonClasse() : improved
       ? `<div class="kvt-result__badge">Record -- nouveau meilleur score</div>`
       : (prevBest !== null ? `<div class="kvt-result__badge">Meilleur score : ${formatPct(prevBest)}</div>` : '');
     container.innerHTML = `
@@ -4953,7 +5022,7 @@ function renderReview() {
         ${'<div class="kvt-ray"><div class="kvt-ray__bar"></div></div>'.repeat(10)}
       </div>` : '';
 
-    const badge = improved
+    const badge = sessionNonClassee() ? htmlBadgeNonClasse() : improved
       ? `<div class="kvt-result__badge">Record — nouveau meilleur score</div>`
       : (prevBest !== null ? `<div class="kvt-result__badge">Meilleur score : ${formatPct(prevBest)}</div>` : '');
 

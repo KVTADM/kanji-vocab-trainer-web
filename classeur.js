@@ -329,8 +329,11 @@ function renderClasseur() {
       </select>
     </div>
     ${classeurHtmlDetail(etat)}
-    <div class="classeur-grille">${liste.map(e => classeurHtmlCase(e, etat)).join('') || '<p style="color:var(--muted)">Aucun kanji de cette rareté dans ce niveau.</p>'}</div>`;
+    <div class="classeur-grille">${liste.map(e => classeurHtmlCase(e, etat)).join('') || '<p style="color:var(--muted)">Aucun kanji de cette rareté dans ce niveau.</p>'}</div>
+    ${typeof classeurHtmlEchanges === 'function' ? classeurHtmlEchanges() : ''}`;
   classeurBrancher(container);
+  if (typeof classeurEchangesBrancher === 'function') classeurEchangesBrancher(container);
+  if (typeof classeurEchangesInit === 'function') classeurEchangesInit();
 }
 
 function classeurBrancher(container) {

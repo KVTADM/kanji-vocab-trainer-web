@@ -371,3 +371,12 @@ essai('historique : relais et dessin alimentent le journal', () => {
   ok(d.journal.length === 1 && d.journal[0].u === 'a' && d.journal[0].trouves.b > 0, 'dessin journal');
   ok(statsPartie(d).par.b.devines === 1, 'stats dessin');
 });
+
+essai('relais assoupli : même kanji ou kanji de même lecture', () => {
+  ok(relaisKanjiCompatible('生', '生'), 'même kanji');
+  ok(relaisKanjiCompatible('日', '火'), '日 et 火 partagent か');
+  ok(relaisKanjiCompatible('生', '正'), '生 et 正 partagent せい');
+  ok(!relaisKanjiCompatible('生', '犬'), 'kanji sans rapport refusé');
+  const ej = { ...relaisDepart(), mot: ENTREES[0], dernierKanji: '生', utilises: [] };
+  ok(relaisValider([{ mot: '正解', lecture: 'せいかい', sens: 'x' }], ej, '', 'せいかい').ok, 'mot en 正 accepté après 生');
+});

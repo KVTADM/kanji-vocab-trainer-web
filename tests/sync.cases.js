@@ -161,3 +161,18 @@ essai('fusion : le classeur (cartes de kanji) n\'est jamais écrasé par un appa
   const g = fusionnerSauvegardes(sansLocal, cloud, null);
   if (g.gamification.classeur.ouvertures !== 5) throw new Error('classeur cloud perdu quand le local n\'en a pas');
 });
+
+essai('fusion : une carte vendue sur un appareil n\'est pas ressuscitée par la synchro (delta sur la base)', () => {
+  const cloud = sauvegardeTest(70000, 400, {});
+  cloud.gamification.classeur = { kanji: { '日': 3, '月': 1 }, ouvertures: 2, pieces: 200 };
+  const local = sauvegardeTest(70000, 420, {});
+  local.gamification.classeur = { kanji: { '日': 2, '月': 1 }, ouvertures: 2, pieces: 200 }; // 1 日 vendu ici
+  const base = { xp: 70000, pieces: 400, classeurKanji: { '日': 3, '月': 1 } };
+  const f = fusionnerSauvegardes(local, cloud, base);
+  if (f.gamification.classeur.kanji['日'] !== 2) throw new Error('日 attendu 2, obtenu ' + f.gamification.classeur.kanji['日']);
+  // autre appareil : a gagné un 火 entre-temps dans le cloud
+  const cloud2 = sauvegardeTest(70000, 400, {});
+  cloud2.gamification.classeur = { kanji: { '日': 3, '月': 1, '火': 1 }, ouvertures: 3, pieces: 300 };
+  const g = fusionnerSauvegardes(local, cloud2, base);
+  if (g.gamification.classeur.kanji['日'] !== 2 || g.gamification.classeur.kanji['火'] !== 1) throw new Error('fusion delta incorrecte : ' + JSON.stringify(g.gamification.classeur.kanji));
+});

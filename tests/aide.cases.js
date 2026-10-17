@@ -121,3 +121,18 @@ essai('envoyerRetour : échec d\'une capture -> rien n\'est inséré, les captur
   if (r.ok || insere) throw new Error('le message ne doit pas partir');
   if (!retires || retires.length !== 1) throw new Error('la 1re capture aurait dû être retirée');
 });
+
+essai('brouillon du message : sauvegardé par compte, restauré, effacé quand vide', () => {
+  const mem = {};
+  global.localStorage = { getItem: k => (k in mem ? mem[k] : null), setItem: (k, v) => { mem[k] = String(v); }, removeItem: k => { delete mem[k]; } };
+  if (ecrireBrouillonRetour('u1', { titre: '  ', description: '', solutionProposee: '' })) throw new Error('un brouillon vide ne doit pas être gardé');
+  if (!ecrireBrouillonRetour('u1', { titre: 'Bug', description: 'Le minuteur', solutionProposee: '', besoinAide: true })) throw new Error('brouillon non gardé');
+  const b = lireBrouillonRetour('u1');
+  if (!b || b.titre !== 'Bug' || b.description !== 'Le minuteur' || b.besoinAide !== true) throw new Error('brouillon mal restauré');
+  if (lireBrouillonRetour('u2') !== null) throw new Error('le brouillon ne doit pas fuiter vers un autre compte');
+  ecrireBrouillonRetour('u1', { titre: '', description: '', solutionProposee: '' });
+  if (lireBrouillonRetour('u1') !== null) throw new Error('brouillon vidé non supprimé');
+  ecrireBrouillonRetour('u1', { titre: 'x', description: 'y' });
+  effacerBrouillonRetour('u1');
+  if (lireBrouillonRetour('u1') !== null) throw new Error('effacement raté');
+});

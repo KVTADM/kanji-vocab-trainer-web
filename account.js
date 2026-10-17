@@ -157,8 +157,17 @@ function fusionnerSauvegardes(local, cloud, base) {
     // pieces debitees, cartes disparues). Les compteurs ne font que monter : max.
     if (gl.classeur || gc.classeur) {
       const cl = gl.classeur || {}, cc = gc.classeur || {};
-      const kanji = Object.assign({}, cc.kanji || {});
-      Object.keys(cl.kanji || {}).forEach(k => { kanji[k] = Math.max(kanji[k] || 0, cl.kanji[k] || 0); });
+      // Avec une base connue : cloud + ce que CET appareil a gagne/perdu depuis
+      // (ventes, echanges et achats retirent des cartes : un simple max les
+      // ressusciterait). Sans base : max, on ne perd jamais une carte.
+      const bk = base && base.classeurKanji;
+      const kanji = {};
+      const cles = new Set(Object.keys(cc.kanji || {}).concat(Object.keys(cl.kanji || {})));
+      cles.forEach(k => {
+        const c = (cc.kanji || {})[k] || 0, l = (cl.kanji || {})[k] || 0;
+        const n = bk ? Math.max(0, c + (l - (bk[k] || 0))) : Math.max(c, l);
+        if (n > 0) kanji[k] = n;
+      });
       g.classeur = Object.assign({}, cc, cl, {
         kanji,
         ouvertures: Math.max(cl.ouvertures || 0, cc.ouvertures || 0),
@@ -264,7 +273,7 @@ let kvtFilePush = Promise.resolve();
 
 function noterBaseSync(dateIso, data) {
   const g = (data && data.gamification) || {};
-  kvtBaseSync = { atMs: Date.parse(dateIso), xp: g.xp || 0, pieces: g.pieces || 0 };
+  kvtBaseSync = { atMs: Date.parse(dateIso), xp: g.xp || 0, pieces: g.pieces || 0, classeurKanji: Object.assign({}, (g.classeur && g.classeur.kanji) || {}) };
 }
 
 function rerendreSiSansRisque() {
@@ -679,6 +688,7 @@ window.sb.auth.onAuthStateChange((event, session) => {
       // active) : contrairement à syncAfterLogin, sans effet de bord si rien
       // n'est en attente, donc pas besoin de la verrouiller derrière shouldSync.
       await chargerCadeauxEnAttente();
+      if (typeof classeurReclamer === 'function') classeurReclamer(); // cartes/pieces du marche et des echanges
     } else {
       window.accountUser = null;
       kvtSyncedThisSession = false;

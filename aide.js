@@ -78,6 +78,40 @@ const RETOUR_STATUT_LABELS = {
   ferme: 'Fermé'
 };
 
+// Brouillon du message (17/10/2026, demande de Paul : pouvoir reprendre plus tard).
+// Les textes sont gardes sur cet appareil, par compte, des qu'on tape ; efface a
+// l'envoi. Les captures d'ecran (fichiers) ne sont pas gardees.
+function brouillonRetourCle(uid) { return 'kvt-brouillon-retour:' + (uid || 'anonyme'); }
+
+function lireBrouillonRetour(uid) {
+  try {
+    const brut = localStorage.getItem(brouillonRetourCle(uid));
+    const b = brut ? JSON.parse(brut) : null;
+    return b && typeof b === 'object' ? b : null;
+  } catch (e) { return null; }
+}
+
+// Ecrit le brouillon ; s'il est vide, le supprime. Retourne true si un brouillon est garde.
+function ecrireBrouillonRetour(uid, champs) {
+  const b = {
+    titre: String((champs && champs.titre) || ''),
+    description: String((champs && champs.description) || ''),
+    solutionProposee: String((champs && champs.solutionProposee) || ''),
+    besoinAide: !!(champs && champs.besoinAide)
+  };
+  const vide = !b.titre.trim() && !b.description.trim() && !b.solutionProposee.trim();
+  try {
+    if (vide) { localStorage.removeItem(brouillonRetourCle(uid)); return false; }
+    b.date = new Date().toISOString();
+    localStorage.setItem(brouillonRetourCle(uid), JSON.stringify(b));
+    return true;
+  } catch (e) { return false; }
+}
+
+function effacerBrouillonRetour(uid) {
+  try { localStorage.removeItem(brouillonRetourCle(uid)); } catch (e) { /* rien */ }
+}
+
 function libelleStatutRetour(statut) {
   return RETOUR_STATUT_LABELS[statut] || statut;
 }
@@ -161,6 +195,7 @@ function renderAide() {
         </label>
         <div id="retourCapturesApercu" class="retour-captures retour-captures--apercu"></div>
         <label class="retour-form__case"><input type="checkbox" id="retourBesoinAide"> Je souhaite une réponse</label>
+        <div id="retourBrouillonNote" class="retour-brouillon" hidden></div>
         <div id="retourErreur" style="color:var(--pink); font-size:12.5px;"></div>
         <button class="primary" id="btnEnvoyerRetour">Envoyer</button>
       </div>
@@ -171,6 +206,43 @@ function renderAide() {
     </div>`;
 
   capturesEnAttente = [];
+  // Brouillon : on restaure ce qui avait ete tape, et on sauvegarde au fil de la frappe.
+  const uidBrouillon = window.accountUser.id;
+  const champsFormulaire = () => ({
+    titre: $('#retourTitre').value,
+    description: $('#retourDescription').value,
+    solutionProposee: $('#retourSolution').value,
+    besoinAide: $('#retourBesoinAide').checked
+  });
+  const noteBrouillon = $('#retourBrouillonNote');
+  const afficherNoteBrouillon = (texte) => {
+    if (!noteBrouillon) return;
+    noteBrouillon.hidden = !texte;
+    noteBrouillon.innerHTML = texte ? `${escapeHtml(texte)} <button type="button" class="retour-brouillon__effacer" id="btnEffacerBrouillon">Effacer le brouillon</button>` : '';
+    const eff = $('#btnEffacerBrouillon');
+    if (eff) eff.onclick = () => {
+      effacerBrouillonRetour(uidBrouillon);
+      $('#retourTitre').value = ''; $('#retourDescription').value = ''; $('#retourSolution').value = ''; $('#retourBesoinAide').checked = false;
+      afficherNoteBrouillon('');
+    };
+  };
+  const brouillon = lireBrouillonRetour(uidBrouillon);
+  if (brouillon) {
+    $('#retourTitre').value = brouillon.titre || '';
+    $('#retourDescription').value = brouillon.description || '';
+    $('#retourSolution').value = brouillon.solutionProposee || '';
+    $('#retourBesoinAide').checked = !!brouillon.besoinAide;
+    afficherNoteBrouillon('Brouillon retrouvé : ton message n\'a pas été envoyé. (Les captures d\'écran ne sont pas gardées.)');
+  }
+  const sauverBrouillon = () => {
+    const garde = ecrireBrouillonRetour(uidBrouillon, champsFormulaire());
+    if (!garde) afficherNoteBrouillon('');
+    else if (noteBrouillon && noteBrouillon.hidden) afficherNoteBrouillon('Brouillon enregistré automatiquement sur cet appareil.');
+  };
+  ['#retourTitre', '#retourDescription', '#retourSolution', '#retourBesoinAide'].forEach(sel => {
+    $(sel).addEventListener('input', sauverBrouillon);
+    $(sel).addEventListener('change', sauverBrouillon);
+  });
   const afficherApercuCaptures = () => {
     const zone = $('#retourCapturesApercu');
     if (!zone) return;
@@ -216,6 +288,8 @@ function renderAide() {
     $('#retourDescription').value = '';
     $('#retourSolution').value = '';
     $('#retourBesoinAide').checked = false;
+    effacerBrouillonRetour(uidBrouillon);
+    afficherNoteBrouillon('');
     capturesEnAttente = [];
     afficherApercuCaptures();
     showToast('Message envoyé, merci !');

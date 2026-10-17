@@ -397,6 +397,14 @@ const JLPT_N4_SEED = {"kanjiGroups":[{"id":"kg-hu66go90952pa","semesterId":"jlpt
         if (f && Object.keys(f.old).every(k => v[k] === f.old[k])) Object.assign(v, f.neu);
       });
     }
+    // 気持ちを表す (retour de Paul, 16/10/2026) : le mot affiche la locution entiere mais
+    // seule la lecture du verbe etait acceptee ; taper きもちをあらわす donnait 50 %.
+    // Les deux lectures sont maintenant acceptees. Idempotent.
+    if (Array.isArray(data.vocab)) {
+      data.vocab.forEach(v => {
+        if (v.id === 'v-mrhvk4uwvz1k0' && v.lecture === 'あらわす') v.lecture = 'あらわす / きもちをあらわす';
+      });
+    }
     // Coquille dans le seed (30/09/2026) : la lecture kun de 港 etait
     // "みなo" (un "o" latin a la place de "と"), impossible a taper en kana.
     if (Array.isArray(data.kanjiGroups)) {

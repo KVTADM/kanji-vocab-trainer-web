@@ -25,6 +25,7 @@ const cas = [];
 const taches = [];
 global.essai = (nom, fn) => { taches.push({ nom, fn }); };
 
+eval(fs.readFileSync('kanji-lectures-data.js', 'utf8'));
 const SRC = fs.readFileSync('parties.js', 'utf8') + '\n' + fs.readFileSync('parties-jeux.js', 'utf8');
 const CAS = fs.readFileSync('tests/parties-jeux.cases.js', 'utf8');
 eval(SRC + '\n' + CAS);

@@ -84,3 +84,11 @@ console.log(`OK : ${Object.keys(mig).length} mots simplifies verifies.`);
     if (!api.includes("'" + id + "':")) { console.log('ECHEC : indice 毎年 absent pour ' + id); process.exitCode = 1; }
   });
 }
+
+// 気持ちを表す : la locution entière (きもちをあらわす) est acceptée en plus du verbe seul.
+{
+  const d = JSON.parse(require('fs').readFileSync(__dirname + '/../seed-data.json', 'utf8'));
+  const v = d.vocab.find(x => x.id === 'v-mrhvk4uwvz1k0');
+  if (!v || !/きもちをあらわす/.test(v.lecture) || !/^あらわす/.test(v.lecture)) { console.error('FAIL 気持ちを表す : lecture ' + (v && v.lecture)); process.exit(1); }
+  console.log('  OK      気持ちを表す accepte きもちをあらわす et あらわす');
+}

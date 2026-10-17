@@ -489,6 +489,9 @@ function restaurerSaisiesParties(el, sauve) {
   });
 }
 
+// Memorise si la transition de fin a deja ete jouee pour cette partie (id:en-cours / id:fait).
+let partieFinTransitionVue = null;
+
 function renderParties() {
   const el = $('#view-parties');
   if (!el) return;
@@ -507,12 +510,34 @@ function renderPartiesVue(el) {
     renderPartiesAccueil(el);
   } else if (partieCourante.etat === 'attente') {
     arreterMinuteursPartie();
+    partieFinTransitionVue = null;
     renderPartieLobby(el);
   } else if (partieCourante.etat === 'en_cours') {
     renderPartieJeu(el);
   } else {
     arreterMinuteursPartie();
-    renderPartieFin(el);
+    if (partieFinTransitionVue === partieCourante.id + ':fait') { renderPartieFin(el); return; }
+    if (partieFinTransitionVue !== partieCourante.id + ':en-cours') {
+      // Transition douce : on laisse la scène « respirer » avant le tableau final.
+      partieFinTransitionVue = partieCourante.id + ':en-cours';
+      const idPartie = partieCourante.id;
+      const reduit = typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      const ej = partieCourante.etat_jeu || {};
+      const gagnant = ej.vainqueurId ? ((joueursPartieCourante.find(x => x.user_id === ej.vainqueurId) || {}).pseudo || 'Joueur') : null;
+      const moi = ej.vainqueurId && window.accountUser && ej.vainqueurId === window.accountUser.id;
+      el.innerHTML = `<div class="card partie-transition" role="status">
+        <div class="partie-transition__icone">${gagnant ? '🏆' : '🤝'}</div>
+        <div class="partie-transition__titre">Partie terminée !</div>
+        <div class="partie-transition__texte">${gagnant ? escapeHtml(gagnant) + (moi ? ' — bravo, c\'est toi !' : ' remporte la partie') : 'Égalité parfaite'}</div>
+      </div>`;
+      setTimeout(() => {
+        if (!partieCourante || partieCourante.id !== idPartie || partieCourante.etat === 'attente' || partieCourante.etat === 'en_cours') return;
+        partieFinTransitionVue = idPartie + ':fait';
+        renderParties();
+      }, reduit ? 300 : 2600);
+      return;
+    }
+    // transition en cours : on ne touche pas à l'écran
   }
 }
 
