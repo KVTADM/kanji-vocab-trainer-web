@@ -3379,7 +3379,7 @@ function renderKanjiQuizView(container) {
 
   $('#btnQuitKanjiQuiz').addEventListener('click', () => {
     quizSession = null;
-    renderReview();
+    switchView('dashboard'); // retour au tableau (demande de Paul 17/10/2026)
   });
 
   const btnVoirTrace = $('#btnVoirTraceKanji');
@@ -3582,7 +3582,7 @@ function renderKanaQuizView(container) {
 
   $('#btnQuitKanaQuiz').addEventListener('click', () => {
     quizSession = null;
-    renderReview();
+    switchView('dashboard'); // retour au tableau (demande de Paul 17/10/2026)
   });
 }
 
@@ -3848,7 +3848,7 @@ function renderEcritureQuizView(container) {
   $('#btnQuitEcritureQuiz').addEventListener('click', () => {
     document.body.classList.remove('ecriture-etendu-actif');
     quizSession = null;
-    renderReview();
+    switchView('dashboard'); // retour au tableau (demande de Paul 17/10/2026)
   });
 }
 
@@ -4079,7 +4079,7 @@ function renderTraductionQuizView(container) {
 
   $('#btnQuitTraductionQuiz').addEventListener('click', () => {
     quizSession = null;
-    renderReview();
+    switchView('dashboard'); // retour au tableau (demande de Paul 17/10/2026)
   });
 }
 
@@ -4323,7 +4323,7 @@ function renderDoubleQuizView(container) {
 
   $('#btnQuitDoubleQuiz').addEventListener('click', () => {
     quizSession = null;
-    renderReview();
+    switchView('dashboard'); // retour au tableau (demande de Paul 17/10/2026)
   });
 }
 
@@ -4593,7 +4593,7 @@ function renderPratiqueQuizView(container) {
 
   $('#btnQuitPratiqueQuiz').addEventListener('click', () => {
     quizSession = null;
-    renderReview();
+    switchView('dashboard'); // retour au tableau (demande de Paul 17/10/2026)
   });
 }
 
@@ -5202,7 +5202,7 @@ function renderReview() {
 
   $('#btnQuitQuiz').addEventListener('click', () => {
     quizSession = null;
-    renderReview();
+    switchView('dashboard'); // retour au tableau (demande de Paul 17/10/2026)
   });
 }
 
