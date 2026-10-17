@@ -53,9 +53,11 @@ essai('les données structurées ne peuvent pas fermer leur propre balise', () =
   const piege = Object.assign({}, DECK, { titre: 'a</script><script>alert(1)</script>' });
   const html = pageDeck(piege, []);
   const blocs = html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g) || [];
-  if (blocs.length !== 1) throw new Error('la balise de données a été fermée en avance');
-  const m = html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/);
-  JSON.parse(m[1]); // doit rester analysable
+  // Deux blocs légitimes : la ressource d'apprentissage et le fil d'Ariane
+  // (ajouté le 17/10/2026). Un troisième voudrait dire qu'un titre a fermé
+  // sa balise et ouvert la sienne.
+  if (blocs.length !== 2) throw new Error('la balise de données a été fermée en avance');
+  blocs.forEach((bloc) => JSON.parse(bloc.replace(/^<script[^>]*>|<\/script>$/g, ''))); // doivent rester analysables
   if (/<script>alert\(1\)/.test(html)) throw new Error('du code exécutable a été injecté');
 });
 

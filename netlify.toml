@@ -57,6 +57,25 @@
 # doit donner un vrai 404, pas la page de présentation. Un catch-all masquerait
 # les liens cassés au lieu de les révéler.
 
+# En-têtes de sécurité (17/10/2026), sur toutes les pages. Volontairement SANS
+# Content-Security-Policy de scripts : les publicités Google et Supabase
+# chargent des scripts et des cadres depuis de nombreux domaines, une CSP
+# stricte les casserait. Ces en-têtes-ci n'ont aucun effet sur le
+# fonctionnement du site.
+#  - X-Content-Type-Options : le navigateur ne devine pas le type d'un fichier.
+#  - X-Frame-Options : le site ne peut pas être affiché dans la page d'un autre
+#    (détournement de clic).
+#  - Referrer-Policy : on n'envoie que le domaine aux sites tiers.
+#  - Permissions-Policy : caméra, micro, position, paiement navigateur coupés
+#    (KVT n'en utilise aucun).
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    X-Frame-Options = "SAMEORIGIN"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
+
 # Audio des mots (MP3 ElevenLabs, voix Kenzo) : mis en cache par le navigateur pour une semaine.
 # L'index.json reste a jour (revalidation a chaque fois).
 [[headers]]

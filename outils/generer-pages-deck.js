@@ -29,6 +29,17 @@ const path = require('path');
 
 const RACINE = path.join(__dirname, '..');
 const SITE = 'https://kanji-vocab-trainer.netlify.app';
+// Image de partage (réseaux sociaux, aperçus de lien) : 1200×630, voir icons/og-image.png.
+const IMG_PARTAGE = SITE + '/icons/og-image.png';
+const ENTETE_PARTAGE = (titre, desc) => `<meta property="og:site_name" content="KVT — Kanji Vocab Trainer" />
+<meta property="og:locale" content="fr_FR" />
+<meta property="og:image" content="${IMG_PARTAGE}" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="${titre}" />
+<meta name="twitter:description" content="${desc}" />
+<meta name="twitter:image" content="${IMG_PARTAGE}" />`;
 const SUPABASE = 'https://gkwvzfflayktnuhtkoyb.supabase.co';
 
 // Lue depuis supabaseClient.js plutôt que recopiée : deux copies d'une même
@@ -140,12 +151,22 @@ function pageDeck(deck, avis) {
 <meta property="og:title" content="${titre} — KVT" />
 <meta property="og:description" content="${metaDesc}" />
 <meta property="og:url" content="${SITE}/deck/${deck.slug}" />
+${ENTETE_PARTAGE(titre + ' — KVT', metaDesc)}
 <link rel="manifest" href="/manifest.json" />
 <meta name="theme-color" content="#16162a" />
 <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
 <link rel="icon" href="/icons/icon-192.png" />
 <link rel="stylesheet" href="/style.css" />
 <script type="application/ld+json">${jsonPourHtml(jsonld)}</script>
+<script type="application/ld+json">${jsonPourHtml({
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'KVT', item: SITE + '/' },
+      { '@type': 'ListItem', position: 2, name: 'Decks', item: SITE + '/deck/' },
+      { '@type': 'ListItem', position: 3, name: deck.titre, item: `${SITE}/deck/${deck.slug}` }
+    ]
+  })}</script>
 <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8318848112615285"
      crossorigin="anonymous"></script>
 </head>
@@ -245,6 +266,11 @@ function pageIndex(decks) {
 <title>Tous les decks de vocabulaire japonais · KVT</title>
 <meta name="description" content="Les listes de vocabulaire japonais disponibles sur KVT : semestres universitaires et niveaux JLPT N5 à N3, avec les decks publiés par la communauté." />
 <link rel="canonical" href="${SITE}/deck/" />
+<meta property="og:type" content="website" />
+<meta property="og:title" content="Tous les decks de vocabulaire japonais · KVT" />
+<meta property="og:description" content="Les listes de vocabulaire japonais disponibles sur KVT : semestres universitaires et niveaux JLPT N5 à N3, avec les decks publiés par la communauté." />
+<meta property="og:url" content="${SITE}/deck/" />
+${ENTETE_PARTAGE('Tous les decks de vocabulaire japonais · KVT', 'Les listes de vocabulaire japonais disponibles sur KVT : semestres universitaires et niveaux JLPT N5 à N3, avec les decks publiés par la communauté.')}
 <link rel="manifest" href="/manifest.json" />
 <meta name="theme-color" content="#16162a" />
 <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
@@ -307,15 +333,31 @@ ${lignes}
 `;
 }
 
+// Date de dernière modification d'une page fixe : le dernier commit qui l'a
+// touchée (une date inventée ou « aujourd'hui » partout serait ignorée par
+// Google, qui compare avec ce qu'il a réellement vu). Repli : pas de lastmod.
+function dateDernierCommit(fichier) {
+  try {
+    const sortie = require('child_process').execSync(
+      `git log -1 --format=%cs -- "${fichier}"`, { cwd: RACINE, stdio: ['ignore', 'pipe', 'ignore'] }
+    ).toString().trim();
+    return /^\d{4}-\d{2}-\d{2}$/.test(sortie) ? sortie : null;
+  } catch (e) { return null; }
+}
+
 function sitemap(decks) {
-  const fixes = ['/', '/deck/', '/l-idee', '/a-propos', '/faq', '/blog',
-    '/blog/cursus-ou-jlpt', '/blog/guide-complet', '/blog/import-anki',
-    '/blog/vocabulaire-kanji', '/blog/classement-stats',
-    '/regles-de-publication', '/signaler', '/confidentialite', '/contact'];
-  const urls = fixes.concat(decks.map((d) => '/deck/' + d.slug));
+  // [adresse, fichier source servant à dater la page]
+  const fixes = [['/', 'app/index.html'], ['/deck/', null], ['/l-idee', 'l-idee/index.html'],
+    ['/a-propos', 'a-propos/index.html'], ['/faq', 'faq/index.html'], ['/blog', 'blog/index.html'],
+    ['/blog/cursus-ou-jlpt', 'blog/cursus-ou-jlpt/index.html'], ['/blog/guide-complet', 'blog/guide-complet/index.html'],
+    ['/blog/import-anki', 'blog/import-anki/index.html'], ['/blog/vocabulaire-kanji', 'blog/vocabulaire-kanji/index.html'],
+    ['/blog/classement-stats', 'blog/classement-stats/index.html'], ['/regles-de-publication', 'regles-de-publication/index.html'],
+    ['/signaler', 'signaler/index.html'], ['/confidentialite', 'confidentialite/index.html'], ['/contact', 'contact/index.html']];
+  const urls = fixes.map(([u, f]) => [u, f ? dateDernierCommit(f) : null])
+    .concat(decks.map((d) => ['/deck/' + d.slug, d.updated_at ? String(d.updated_at).slice(0, 10) : null]));
   return `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-${urls.map((u) => `  <url><loc>${SITE}${u}</loc></url>`).join('\n')}
+${urls.map(([u, d]) => `  <url><loc>${SITE}${u}</loc>${d ? `<lastmod>${d}</lastmod>` : ''}</url>`).join('\n')}
 </urlset>
 `;
 }
