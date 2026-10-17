@@ -4660,6 +4660,9 @@ function renderReview() {
     renderPratiqueQuizView(container);
     return;
   }
+  // Plus de menu « Réviser » (retiré le 17/10/2026) : sans session en cours,
+  // on revient au tableau de bord (quitter, retour du navigateur, rechargement).
+  if (!quizSession && currentView === 'review') { switchView('dashboard'); return; }
 
   if (!quizSession) {
     const modeSelectHtml = `
