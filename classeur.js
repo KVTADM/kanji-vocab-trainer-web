@@ -253,10 +253,9 @@ function classeurHtmlCoffre(c, g) {
 
 // Section « Coffres » de la Boutique : les trois coffres alignes cote a cote.
 function classeurHtmlSectionCoffres(g) {
-  return `
-    <h3 class="boutique-section__titre">Coffres de kanji</h3>
+  return kvtSectionRepliable('boutique-coffres', 'Coffres de kanji', `
     <p class="boutique-section__aide">Chaque coffre contient des kanji à ranger dans ton Classeur. Plus un kanji est utilisé au quotidien, plus il est commun ; les kanji rares sont plus difficiles à trouver. Un doublon compte comme un exemplaire de plus.</p>
-    <div class="coffre-rangee">${CLASSEUR_COFFRES.map(c => classeurHtmlCoffre(c, g)).join('')}</div>`;
+    <div class="coffre-rangee">${CLASSEUR_COFFRES.map(c => classeurHtmlCoffre(c, g)).join('')}</div>`);
 }
 
 function classeurBrancherCoffres(container) {
@@ -315,7 +314,7 @@ function renderClasseur() {
       <span>Les coffres s'achètent dans la Boutique.</span>
       <button class="primary" data-aller-boutique>Aller aux coffres</button>
     </div>
-    <h3 class="boutique-section__titre">Ma collection</h3>
+    ${kvtSectionRepliable('classeur-collection', 'Ma collection', `
     <div class="card classeur-bilan">
       <div class="classeur-bilan__haut"><b>${prog.total.possedes} / ${prog.total.total}</b> kanji découverts (${pct} %) · ${etat.ouvertures || 0} coffre${(etat.ouvertures || 0) > 1 ? 's' : ''} ouvert${(etat.ouvertures || 0) > 1 ? 's' : ''}</div>
       <div class="classeur-barre"><div class="classeur-barre__plein" style="width:${pct}%"></div></div>
@@ -330,8 +329,10 @@ function renderClasseur() {
     </div>
     ${classeurHtmlDetail(etat)}
     <div class="classeur-grille">${liste.map(e => classeurHtmlCase(e, etat)).join('') || '<p style="color:var(--muted)">Aucun kanji de cette rareté dans ce niveau.</p>'}</div>
+`)}
     ${typeof classeurHtmlEchanges === 'function' ? classeurHtmlEchanges() : ''}`;
   classeurBrancher(container);
+  kvtBrancherSectionsRepliables(container, renderClasseur);
   if (typeof classeurEchangesBrancher === 'function') classeurEchangesBrancher(container);
   if (typeof classeurEchangesInit === 'function') classeurEchangesInit();
 }

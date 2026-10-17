@@ -837,6 +837,28 @@ async function equiperObjetParType(type, id) {
   return { ok: false };
 }
 
+// Sections repliables (Boutique, Classeur) : même principe que les semestres
+// du tableau de bord ; préférence locale uniquement (localStorage).
+function kvtSectionsReplies() {
+  try { return new Set(JSON.parse(localStorage.getItem('kvtSectionsReplies') || '[]')); } catch (e) { return new Set(); }
+}
+function kvtSectionRepliable(id, titre, contenu) {
+  const replie = kvtSectionsReplies().has(id);
+  return `<div class="section-repliable">
+    <div class="section-repliable__tete">
+      <button class="semestre-toggle" type="button" data-toggle-section="${id}" aria-expanded="${replie ? 'false' : 'true'}" title="${replie ? 'Déplier' : 'Replier'}">${replie ? '▸' : '▾'}</button>
+      <h3 class="boutique-section__titre">${titre}</h3>
+    </div>${replie ? '' : contenu}</div>`;
+}
+function kvtBrancherSectionsRepliables(container, rerender) {
+  container.querySelectorAll('[data-toggle-section]').forEach(b => b.addEventListener('click', () => {
+    const s = kvtSectionsReplies(); const id = b.dataset.toggleSection;
+    if (s.has(id)) s.delete(id); else s.add(id);
+    try { localStorage.setItem('kvtSectionsReplies', JSON.stringify([...s])); } catch (e) {}
+    rerender();
+  }));
+}
+
 function renderBoutique() {
   const container = $('#view-boutique');
   const g = assurerGamification();
@@ -846,8 +868,7 @@ function renderBoutique() {
   const sections = GAMIF_SECTIONS_BOUTIQUE.map(section => {
     const objets = GAMIF_BOUTIQUE.filter(o => o.type === section.type);
     if (!objets.length) return '';
-    return `
-      <h3 class="boutique-section__titre">${escapeHtml(section.titre)}</h3>
+    return kvtSectionRepliable('boutique-' + section.type, escapeHtml(section.titre), `
       <p class="boutique-section__aide">${escapeHtml(section.aide)}</p>
       <div class="boutique-grid">
         ${objets.map(o => `
@@ -860,7 +881,7 @@ function renderBoutique() {
             ${o.type === 'pseudo' ? `<div class="boutique-apercu-pseudo"><span class="${classePseudo(o.id)}">${escapeHtml((window.accountUser && window.accountUser.pseudo) || 'Ton pseudo')}</span></div>` : ''}
             ${boutiqueBouton(o, g, pro, niveauActuel)}
           </div>`).join('')}
-      </div>`;
+      </div>`);
   }).join('');
 
   container.innerHTML = `
@@ -886,6 +907,7 @@ function renderBoutique() {
   `;
 
   if (typeof classeurBrancherCoffres === 'function') classeurBrancherCoffres(container);
+  kvtBrancherSectionsRepliables(container, renderBoutique);
   $$('[data-apercu-theme]', container).forEach(b => {
     b.onclick = () => {
       boutiqueApercuTheme = b.dataset.apercuTheme;

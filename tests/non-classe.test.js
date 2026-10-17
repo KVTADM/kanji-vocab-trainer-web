@@ -10,7 +10,10 @@ for (const f of ['recordSessionResult', 'recordKanjiSessionResult', 'recordTradu
 essai('flag persisté dans saveInProgress', /nonClasse: !!quizSession\.nonClasse/.test(src));
 essai('flag restauré à la reprise', /nonClasse: !!saved\.nonClasse/.test(src));
 essai('case à cocher dans la modale', src.includes('id="chkModalNonClasse"'));
-essai('plus de bulles ? dans la modale', !/modalMode" value[^`]*aide-bulle/.test(src));
+essai('bulles i dans la modale (modes + difficulté)', /name="modalMode"[^`]*aide-bulle/.test(src) && /name="modalDifficulte"[^`]*aide-bulle/.test(src));
+essai('plus de bouton Réviser sur l\'accueil', !/btnOuvrirReviser/.test(src));
+essai('bouton Voc/Trad sous la barre d\'XP', /btnBasculeTable/.test(src) && /getTraductionScoreEntry\(sem\.id, w\)/.test(src));
+essai('infobulle flottante (non coupée)', /aideFlottante/.test(src));
 essai('6 badges adaptés', (src.match(/sessionNonClassee\(\) \? htmlBadgeNonClasse\(\)/g) || []).length === 6);
 console.log(ok + ' ok, ' + ko + ' ko');
 process.exit(ko ? 1 : 0);

@@ -14,6 +14,8 @@ let browsingWeek = null;    // { semesterId, week } — semaine affichée dans l
 let learnImportPreview = null; // { rows, errors } — résultat de l'analyse avant import des fiches (anciennement onglet Apprendre, fusionné dans Vocabulaire)
 let reviewPickerMode = 'vocab'; // 'vocab' | 'kanji' | 'kana' — mode choisi sur l'écran de démarrage de Réviser (kanji seul et kana ajoutés le 09/09/2026)
 let reviewVerbeFilter = 'tous'; // 'tous' | 'sans_verbe' | 'verbe_seul' — filtre "avec/sans verbe de base" (09/09/2026), pertinent seulement en mode vocabulaire
+// Vue du tableau : 'voc' (scores Vocabulaire) ou 'trad' (scores Traduction) — bouton sous la barre d'XP.
+let dashboardTable = (() => { try { return localStorage.getItem('kvtDashboardTable') === 'trad' ? 'trad' : 'voc'; } catch (e) { return 'voc'; } })();
 let dashboardMode = 'cursus';  // 'cursus' (S0-S6) ou 'jlpt' (modules JLPT) — bascule en haut à droite de l'Accueil
 let modalSemaineOuverte = null; // { semesterId, week } — modale de choix ouverte sur une carte du Tableau de bord (09/09/2026), voir renderDashboard()
 let modalMotsMasquesOuvert = false; // modale "Mots masqués" ouverte depuis Vocabulaire (17/09/2026), voir renderVocab()
@@ -2142,9 +2144,6 @@ function renderDashboard() {
         <button class="mode-toggle-btn mode-toggle-plus" id="btnNouvelleCategorie" title="Nouvelle catégorie" aria-label="Nouvelle catégorie">+</button>
       </div>
     </div>
-    <div class="reviser-ouvrir-row" style="margin:8px 0;">
-      <button class="secondary" id="btnOuvrirReviser">Réviser (choisir mode, difficulté, mots)</button>
-    </div>
     ${ongletCourant && !ongletCourant.integre ? `
       <div class="categorie-outils">
         <span>Catégorie « ${escapeHtml(ongletCourant.label)} »</span>
@@ -2161,6 +2160,8 @@ function renderDashboard() {
   // Gamification (24/08/2026) : niveau/XP/pièces/série, tout en haut du
   // tableau de bord — la première chose vue à l'ouverture de l'app.
   if (typeof widgetGamification === 'function') html += widgetGamification();
+  html += `<div class="table-bascule-row"><button type="button" class="table-bascule table-bascule--${dashboardTable}" id="btnBasculeTable" aria-label="Basculer entre le tableau Vocabulaire et le tableau Traduction" title="Changer de tableau">
+    <span class="table-bascule__opt ${dashboardTable === 'voc' ? 'actif' : ''}">Voc</span><span class="table-bascule__opt ${dashboardTable === 'trad' ? 'actif' : ''}">Trad</span></button></div>`;
 
   // Nouveautés (#21/#23, rang 5) : aperçu compact avec un lien vers sa page
   // complète. Chargé en asynchrone (données Supabase) ; le contenu
@@ -2292,8 +2293,8 @@ function renderDashboard() {
     if (!replie) for (let w = 1; w <= sem.weeks; w++) {
       const vocabList = getVocabForWeek(sem.id, w);
       const groups = getKanjiGroupsForWeek(sem.id, w);
-      const entry = getScoreEntry(sem.id, w);
-      const saved = getValidInProgress(sem.id, w);
+      const entry = dashboardTable === 'trad' ? getTraductionScoreEntry(sem.id, w) : getScoreEntry(sem.id, w);
+      const saved = dashboardTable === 'trad' ? null : getValidInProgress(sem.id, w);
       // Type de test fait/en cours (09/09/2026) : Paul veut voir quel filtre
       // "Mots" a servi, pas seulement le score ou la progression brute.
       // entry.best.verbeFilter est absent sur les tentatives enregistrées
@@ -2374,8 +2375,8 @@ function renderDashboard() {
               ['traduction', 'Traduction', "On te donne le sens en français : tu réponds en kanji ou en kana. Noté."],
               ['double', 'Double réponse', "Pour chaque mot, tu donnes à la fois la lecture (kana) et le sens (français). Noté."]
             ].map(([val, lib, aide], i) => `
-              <label class="mode-choix"><input type="radio" name="modalMode" value="${val}" ${i === 0 ? 'checked' : ''}>
-                <span class="mode-choix__txt"><b>${lib}</b><small>${escapeHtml(aide)}</small></span>
+              <label class="mode-choix"><input type="radio" name="modalMode" value="${val}" ${val === (dashboardTable === 'trad' ? 'traduction' : 'vocab') ? 'checked' : ''}>
+                <span class="mode-choix__txt"><b>${lib}</b></span><span class="aide-bulle" tabindex="0" role="button" aria-label="Explication : ${escapeHtml(lib)}" data-aide="${escapeHtml(aide)}">i</span>
               </label>`).join('')}
           </div>
           <div class="difficulte-modal">
@@ -2388,13 +2389,13 @@ function renderDashboard() {
                 ['difficile', 'Difficile', "Hardcore : aucune correction avant la fin de la session."]
               ].map(([val, lib, aide]) => `
               <label class="mode-choix"><input type="radio" name="modalDifficulte" value="${val}" ${diffActuelle === val ? 'checked' : ''}>
-                <span class="mode-choix__txt"><b>${lib}</b><small>${escapeHtml(aide)}</small></span>
+                <span class="mode-choix__txt"><b>${lib}</b></span><span class="aide-bulle" tabindex="0" role="button" aria-label="Explication : ${escapeHtml(lib)}" data-aide="${escapeHtml(aide)}">i</span>
               </label>`).join('');
             })()}</div>
           </div>
           <label class="modal-nonclasse mode-choix">
             <input type="checkbox" id="chkModalNonClasse">
-            <span class="mode-choix__txt"><b>Non classé</b><small>Entraînement libre : le classement, tes records et tes résultats officiels ne bougent pas. Le score est gardé à part dans tes stats perso.</small></span>
+            <span class="mode-choix__txt"><b>Non classé</b></span><span class="aide-bulle" tabindex="0" role="button" aria-label="Explication : Non classé" data-aide="Entraînement libre : le classement, tes records et tes résultats officiels ne bougent pas. Le score est gardé à part dans tes stats perso.">i</span>
           </label>
           <div class="filtre-mots">
             <label><input type="checkbox" id="chkModalMotsGroupe" ${filtreGroupeCocheModal ? 'checked' : ''}> Mots à kanji groupés</label>
@@ -2440,17 +2441,12 @@ function renderDashboard() {
       switchView('review');
     });
   });
-  // Point d'entree direct vers l'ecran de choix (mode/difficulte/mots) sans
-  // passer par une semaine precise : sans ca, cliquer une carte de semaine
-  // ou "Continuer" demarre tout de suite le quiz et l'ecran de choix
-  // (avec les cases "kanji groupes"/"simples") n'est jamais vu (09/09/2026).
-  const btnOuvrirReviser = $('#btnOuvrirReviser');
-  if (btnOuvrirReviser) {
-    btnOuvrirReviser.addEventListener('click', () => {
-      quizSession = null;
-      switchView('review');
-    });
-  }
+  const btnBasculeTable = $('#btnBasculeTable');
+  if (btnBasculeTable) btnBasculeTable.addEventListener('click', () => {
+    dashboardTable = dashboardTable === 'trad' ? 'voc' : 'trad';
+    try { localStorage.setItem('kvtDashboardTable', dashboardTable); } catch (e) {}
+    renderDashboard();
+  });
   $$('[data-renommer]').forEach(b => b.addEventListener('click', () => renommerCategorie(b.dataset.renommer)));
   $$('[data-supprimer-cat]').forEach(b => b.addEventListener('click', () => supprimerCategorie(b.dataset.supprimerCat)));
   $$('[data-ranger]').forEach(sel => {
@@ -2559,7 +2555,7 @@ function renderDashboard() {
     // s'il y a du vocabulaire pour cette semaine (voir le rendu plus haut).
     // Le « ? » est dans le label du bouton radio : sans ça, le consulter
     // changerait le mode choisi.
-    $$('.aide-bulle').forEach(b => b.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); }));
+    brancherAideBulles();
     const btnVoirVocabModal = $('#btnVoirVocabModalSemaine');
     if (btnVoirVocabModal) {
       btnVoirVocabModal.addEventListener('click', () => {
@@ -5583,3 +5579,30 @@ async function init() {
 }
 
 document.addEventListener('DOMContentLoaded', init);
+
+
+// Bulles « i » : l'infobulle est un élément flottant (position: fixed) ajouté
+// au <body>, donc jamais coupé par le défilement/overflow de la modale.
+function brancherAideBulles() {
+  const masquer = () => { const p = document.getElementById('aideFlottante'); if (p) p.remove(); };
+  const montrer = (b) => {
+    masquer();
+    const p = document.createElement('div');
+    p.id = 'aideFlottante'; p.className = 'aide-flottante'; p.setAttribute('role', 'tooltip');
+    p.textContent = b.dataset.aide || '';
+    document.body.appendChild(p);
+    const r = b.getBoundingClientRect();
+    const w = p.offsetWidth, h = p.offsetHeight, m = 8;
+    let left = Math.min(Math.max(m, r.left + r.width / 2 - w / 2), window.innerWidth - w - m);
+    let top = r.top - h - 8;
+    if (top < m) top = r.bottom + 8;
+    p.style.left = left + 'px'; p.style.top = top + 'px';
+  };
+  $$('.aide-bulle').forEach(b => {
+    b.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); document.getElementById('aideFlottante') ? masquer() : montrer(b); });
+    b.addEventListener('mouseenter', () => montrer(b));
+    b.addEventListener('mouseleave', masquer);
+    b.addEventListener('focus', () => montrer(b));
+    b.addEventListener('blur', masquer);
+  });
+}
