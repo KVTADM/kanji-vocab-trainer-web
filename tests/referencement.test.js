@@ -15,12 +15,12 @@ for (const p of pages) {
   const manque = [];
   if (!/<title>[^<]{10,}<\/title>/.test(s)) manque.push('title');
   if (!/<meta name="description" content="[^"]{50,}"/.test(s)) manque.push('description');
-  if (!/<link rel="canonical" href="https:\/\/kanji-vocab-trainer\.netlify\.app/.test(s)) manque.push('canonical');
+  if (!/<link rel="canonical" href="https:\/\/kvtkanji\.app/.test(s)) manque.push('canonical');
   for (const t of ['og:title', 'og:description', 'og:url', 'og:image', 'twitter:card']) if (!s.includes(t)) manque.push(t);
   verifie(p + (manque.length ? ' — manque : ' + manque.join(', ') : ''), manque.length === 0);
 }
 const faq = fs.readFileSync(path.join(racine, 'faq/index.html'), 'utf8');
 verifie('FAQ : données structurées FAQPage', /"@type":\s*"FAQPage"/.test(faq));
 const sm = fs.readFileSync(path.join(racine, 'sitemap.xml'), 'utf8');
-verifie('sitemap : toutes les adresses en https du site', (sm.match(/<loc>(.*?)<\/loc>/g) || []).every((l) => l.includes('https://kanji-vocab-trainer.netlify.app')));
+verifie('sitemap : toutes les adresses en https du site', (sm.match(/<loc>(.*?)<\/loc>/g) || []).every((l) => l.includes('https://kvtkanji.app')));
 process.exit(ko ? 1 : 0);

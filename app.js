@@ -107,17 +107,22 @@ function meilleureVoixJaponaise(voix) {
 }
 // Fichiers MP3 (voix ElevenLabs, dossier audio/mots/) : l'index associe une lecture en kana a son fichier.
 // S'il n'y a pas de fichier pour le texte (ou pas encore d'index), on retombe sur la voix du navigateur.
-let indexAudioMots = null, chargementIndexAudio = null, lecteurAudio = null;
+let indexAudioMots = null, indexAudioPhrases = null, chargementIndexAudio = null, lecteurAudio = null;
 function chargerIndexAudio() {
   if (chargementIndexAudio || typeof fetch === 'undefined') return;
-  chargementIndexAudio = fetch('/audio/mots/index.json', { cache: 'no-cache' })
+  const lire = url => fetch(url, { cache: 'no-cache' })
     .then(r => (r.ok ? r.json() : {}))
-    .then(j => { indexAudioMots = j && typeof j === 'object' ? j : {}; })
-    .catch(() => { indexAudioMots = {}; });
+    .then(j => (j && typeof j === 'object' ? j : {}))
+    .catch(() => ({}));
+  chargementIndexAudio = Promise.all([lire('/audio/mots/index.json'), lire('/audio/phrases/index.json')])
+    .then(([m, ph]) => { indexAudioMots = m; indexAudioPhrases = ph; });
 }
+// Un texte est soit un mot (audio/mots/), soit une phrase d'exemple (audio/phrases/), soit rien : voix du navigateur.
 function fichierAudioMot(texte) {
-  if (!indexAudioMots || !Object.prototype.hasOwnProperty.call(indexAudioMots, texte)) return null;
-  return '/audio/mots/' + encodeURIComponent(indexAudioMots[texte]);
+  const a = Object.prototype.hasOwnProperty;
+  if (indexAudioMots && a.call(indexAudioMots, texte)) return '/audio/mots/' + encodeURIComponent(indexAudioMots[texte]);
+  if (indexAudioPhrases && a.call(indexAudioPhrases, texte)) return '/audio/phrases/' + encodeURIComponent(indexAudioPhrases[texte]);
+  return null;
 }
 function lireVoixNavigateur(texte) {
   try {

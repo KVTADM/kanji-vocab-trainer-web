@@ -65,13 +65,13 @@ function demanderCle() {
   });
 }
 
-async function genere(lecture, cle, voix, modele) {
+async function genere(lecture, cle, voix, modele, brut) {
   const url = `https://api.elevenlabs.io/v1/text-to-speech/${voix}?output_format=mp3_44100_64`;
   for (let essai = 1; essai <= 4; essai++) {
     const r = await fetch(url, {
       method: 'POST',
       headers: { 'xi-api-key': cle, 'Content-Type': 'application/json', Accept: 'audio/mpeg' },
-      body: JSON.stringify({ text: parler(lecture), model_id: modele })
+      body: JSON.stringify({ text: brut ? lecture : parler(lecture), model_id: modele })
     });
     if (r.ok) return Buffer.from(await r.arrayBuffer());
     const corps = (await r.text()).slice(0, 300);
@@ -124,4 +124,4 @@ async function main() {
   console.log(`Termine : ${fait} fichiers generes. Index : audio/mots/index.json (${Object.keys(index).length} mots).`);
 }
 if (require.main === module) main().catch(e => { console.error(e); process.exit(1); });
-module.exports = { listeMots, premiereLecture, nomFichier, parler };
+module.exports = { listeMots, premiereLecture, nomFichier, parler, genere, demanderCle, VOIX_KENZO };

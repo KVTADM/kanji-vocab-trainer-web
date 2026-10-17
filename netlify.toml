@@ -86,3 +86,12 @@
   for = "/audio/mots/index.json"
   [headers.values]
     Cache-Control = "no-cache"
+# Audio des phrases d'exemple (meme voix) : meme regime.
+[[headers]]
+  for = "/audio/phrases/*.mp3"
+  [headers.values]
+    Cache-Control = "public, max-age=604800"
+[[headers]]
+  for = "/audio/phrases/index.json"
+  [headers.values]
+    Cache-Control = "no-cache"

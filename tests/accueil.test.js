@@ -83,7 +83,7 @@ essai('la page servie a deux adresses declare une seule forme canonique', () => 
   const html = lire(path.join('app', 'index.html'));
   const m = html.match(/rel="canonical" href="([^"]+)"/);
   if (!m) throw new Error('pas de canonical : / et /app/ seraient deux pages pour Google');
-  if (!/netlify\.app\/$/.test(m[1])) throw new Error('la forme canonique doit etre la racine, pas ' + m[1]);
+  if (!/kvtkanji\.app\/$/.test(m[1])) throw new Error('la forme canonique doit etre la racine, pas ' + m[1]);
 });
 
 essai('le service worker ne garde pas en cache des fichiers supprimes', () => {

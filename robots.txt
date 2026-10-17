@@ -1,4 +1,4 @@
-# KVT — kanji-vocab-trainer.netlify.app
+# KVT — kvtkanji.app
 #
 # Tout est ouvert : le site n'a aucune zone privee servie par URL. Le
 # sitemap est regenere a chaque deploiement par outils/generer-pages-deck.js
@@ -7,4 +7,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://kanji-vocab-trainer.netlify.app/sitemap.xml
+Sitemap: https://kvtkanji.app/sitemap.xml

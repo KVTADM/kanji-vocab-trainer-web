@@ -77,7 +77,7 @@ essai('une description vide donne un texte factuel, pas une phrase creuse', () =
 
 essai('la page déclare sa forme canonique', () => {
   const html = pageDeck(DECK, []);
-  if (!html.includes('rel="canonical" href="https://kanji-vocab-trainer.netlify.app/deck/jlpt-n3"')) {
+  if (!html.includes('rel="canonical" href="https://kvtkanji.app/deck/jlpt-n3"')) {
     throw new Error('canonical absent ou faux');
   }
 });

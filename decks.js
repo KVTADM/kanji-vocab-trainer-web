@@ -61,7 +61,7 @@ let pubEtat = {
 // environnement complet devient intestable.
 const ORIGINE = (typeof location !== 'undefined' && location.origin)
   ? location.origin
-  : 'https://kanji-vocab-trainer.netlify.app';
+  : 'https://kvtkanji.app';
 const urlPubliqueDeck = (slug) => ORIGINE + '/deck/' + slug;
 
 // Nombre minimum de kanji pour qu'un deck puisse etre publie. En dessous,

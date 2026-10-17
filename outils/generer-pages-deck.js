@@ -28,7 +28,7 @@ const fs = require('fs');
 const path = require('path');
 
 const RACINE = path.join(__dirname, '..');
-const SITE = 'https://kanji-vocab-trainer.netlify.app';
+const SITE = 'https://kvtkanji.app';
 // Image de partage (réseaux sociaux, aperçus de lien) : 1200×630, voir icons/og-image.png.
 const IMG_PARTAGE = SITE + '/icons/og-image.png';
 const ENTETE_PARTAGE = (titre, desc) => `<meta property="og:site_name" content="KVT — Kanji Vocab Trainer" />
@@ -351,7 +351,8 @@ function sitemap(decks) {
     ['/a-propos', 'a-propos/index.html'], ['/faq', 'faq/index.html'], ['/blog', 'blog/index.html'],
     ['/blog/cursus-ou-jlpt', 'blog/cursus-ou-jlpt/index.html'], ['/blog/guide-complet', 'blog/guide-complet/index.html'],
     ['/blog/import-anki', 'blog/import-anki/index.html'], ['/blog/vocabulaire-kanji', 'blog/vocabulaire-kanji/index.html'],
-    ['/blog/classement-stats', 'blog/classement-stats/index.html'], ['/regles-de-publication', 'regles-de-publication/index.html'],
+    ['/blog/classement-stats', 'blog/classement-stats/index.html'],
+    ['/blog/jlpt-n5-kanji', 'blog/jlpt-n5-kanji/index.html'], ['/blog/memoriser-les-kanji', 'blog/memoriser-les-kanji/index.html'], ['/regles-de-publication', 'regles-de-publication/index.html'],
     ['/signaler', 'signaler/index.html'], ['/confidentialite', 'confidentialite/index.html'], ['/contact', 'contact/index.html']];
   const urls = fixes.map(([u, f]) => [u, f ? dateDernierCommit(f) : null])
     .concat(decks.map((d) => ['/deck/' + d.slug, d.updated_at ? String(d.updated_at).slice(0, 10) : null]));
