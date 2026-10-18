@@ -15,6 +15,16 @@
 #    ils pesaient 166 Mo sur 168 et repartaient à chaque déploiement. On
 #    redirige vers les Releases GitHub pour que les liens déjà partagés
 #    continuent de fonctionner.
+# 0) Ancienne adresse .netlify.app -> domaine propre (17/10/2026). Redirection
+#    permanente, forcee, limitee a CET hote (aucune boucle possible : kvtkanji.app
+#    n'est pas concerne). Le chemin et les parametres sont conserves, donc les
+#    anciens liens partages et les retours de connexion / paiement continuent de marcher.
+[[redirects]]
+  from = "https://kanji-vocab-trainer.netlify.app/*"
+  to = "https://kvtkanji.app/:splat"
+  status = 301
+  force = true
+
 [[redirects]]
   from = "/downloads/:fichier"
   to = "https://github.com/KVTADM/kanji-vocab-trainer-web/releases/latest/download/:fichier"
