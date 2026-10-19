@@ -980,6 +980,49 @@ function htmlBadgeNonClasse() {
   return `<div class="kvt-result__badge kvt-result__badge--libre">Entraînement non classé — ton classement n'a pas bougé</div>`;
 }
 
+
+// ---------- Statistiques au survol d'une carte de semaine (demande de Paul) ----------
+// Un volet glisse par-dessus la carte quand on la survole (souris seulement : sur
+// ecran tactile, la carte garde son affichage normal). Il ne capte jamais le clic :
+// cliquer reste ouvrir la semaine, et « Recommencer » reste cliquable.
+function htmlStatsSurvol(etiquette, entry, libre, nbKanji, nbMots) {
+  const hist = entry && Array.isArray(entry.history)
+    ? entry.history.filter(h => h && Number.isFinite(Number(h.pct))) : [];
+  const entete = `<div class="week-stats__titre">${escapeHtml(etiquette)} <span>${nbKanji} kanji · ${nbMots} mots</span></div>`;
+  if (!hist.length && !libre) {
+    return `<div class="week-stats" aria-hidden="true">${entete}<div class="week-stats__vide">Pas encore testé.<br>Clique pour commencer.</div></div>`;
+  }
+  const pcts = hist.map(h => Number(h.pct));
+  const dernier = hist.length ? hist[hist.length - 1] : null;
+  const moyenne = pcts.length ? pcts.reduce((a, b) => a + b, 0) / pcts.length : null;
+  const avant = pcts.length > 1 ? pcts[pcts.length - 2] : null;
+  const tendance = avant === null ? '' : (pcts[pcts.length - 1] > avant + 0.05 ? '↗' : (pcts[pcts.length - 1] < avant - 0.05 ? '↘' : '→'));
+  const temps = hist.map(h => Number(h.dureeMs)).filter(n => Number.isFinite(n) && n > 0);
+  const meilleurTemps = temps.length ? formatDuree(Math.min(...temps)) : null;
+  let quand = '';
+  if (dernier && dernier.date) {
+    const d = new Date(dernier.date);
+    if (!isNaN(d)) quand = d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+  }
+  const pts = pcts.slice(-8);
+  let courbe = '';
+  if (pts.length > 1) {
+    const max = Math.max(...pts, 1), min = Math.min(...pts, 0);
+    const etendue = (max - min) || 1;
+    const coords = pts.map((v, i) => `${(i / (pts.length - 1) * 100).toFixed(1)},${(26 - ((v - min) / etendue) * 22).toFixed(1)}`).join(' ');
+    courbe = `<svg class="week-stats__courbe" viewBox="0 0 100 30" preserveAspectRatio="none" aria-hidden="true"><polyline pathLength="1" points="${coords}"/></svg>`;
+  }
+  const ligne = (nom, val) => val === null || val === undefined || val === '' ? '' : `<div class="week-stats__ligne"><span>${nom}</span><b>${val}</b></div>`;
+  return `<div class="week-stats" aria-hidden="true">${entete}
+    ${courbe}
+    ${ligne('Tentatives', hist.length || null)}
+    ${ligne('Moyenne', moyenne === null ? null : formatPct(moyenne))}
+    ${ligne('Dernier', dernier ? `${formatPct(dernier.pct)} ${tendance}${quand ? ' · ' + escapeHtml(quand) : ''}` : null)}
+    ${ligne('Meilleur temps', meilleurTemps)}
+    ${libre ? ligne('Entraînements libres', `${libre.n} · max ${formatPct(libre.meilleur)}`) : ''}
+  </div>`;
+}
+
 function recordSessionResult(semesterId, week, points, maxPoints, pct, verbeFilter, dureeMs) {
   if (sessionNonClassee()) { enregistrerEntrainementLibre('vocab', semesterId, week, points, maxPoints, pct, dureeMs, verbeFilter); return; }
   const key = weekKey(semesterId, week);
@@ -2313,6 +2356,7 @@ function renderDashboard() {
         <div class="week-card ${vocabList.length === 0 ? 'empty' : ''} ${entry ? classePalierPct(entry.best.pct) : ''} ${entry && entry.best.difficulte === 'difficile' ? 'week-card--hardcore' : ''}" data-sem="${sem.id}" data-week="${w}">
           <div class="week-num">${unitPrefix}${w}</div>
           <div class="week-meta">${groups.length} kanji · ${vocabList.length} mots</div>
+          ${vocabList.length ? htmlStatsSurvol(unitPrefix + w, entry, dashboardTable === 'trad' ? null : statsEntrainements(sem.id, w), groups.length, vocabList.length) : ''}
           ${entry ? `<div class="week-score">${entry.best.points}/${entry.best.maxPoints} pts <span class="week-score-pct">(${formatPct(entry.best.pct)})</span> ${typeTagScore}</div>` : '<div class="week-score muted">—</div>'}
           ${saved ? `
             <div class="week-progress-bar"><div class="week-progress-fill" style="width:${Math.round((saved.index / saved.queue.length) * 100)}%"></div></div>
@@ -5314,6 +5358,13 @@ function renderSettings() {
   const isPro = !!(window.accountUser && window.accountUser.isPro);
   $('#view-settings').innerHTML = `
     <h2>Réglages</h2>
+    <div class="card">
+      <h3>Présence en ligne</h3>
+      <label style="display:flex; gap:8px; align-items:flex-start; font-size:13px; line-height:1.5;">
+        <input type="checkbox" id="chkApparaitreEnLigne" ${window.kvtPresence && window.kvtPresence.estMasque() ? '' : 'checked'}>
+        <span>Apparaître en ligne pour mes amis. Rien n'est enregistré : la présence disparaît dès que tu fermes ou masques l'onglet. Décoché, tu es compté dans le total sans qu'on puisse te reconnaître.</span>
+      </label>
+    </div>
     <div class="card">
       <h3>Barème</h3>
       <p style="font-size:12px; color:var(--muted); line-height:1.6;">

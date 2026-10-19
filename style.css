@@ -4111,3 +4111,43 @@ body.ecriture-etendu-actif { overflow: hidden; overscroll-behavior: none; }
 
 .section-repliable__tete { display: flex; align-items: center; gap: 10px; margin: 18px 0 6px; }
 .section-repliable__tete .boutique-section__titre { margin: 0; }
+
+/* ---------- Gens en ligne ---------- */
+.en-ligne-pastille { display: inline-block; width: 9px; height: 9px; margin-left: 6px; border-radius: 50%; background: #3ddc84; box-shadow: 0 0 0 2px var(--panel, #1c1c34); vertical-align: middle; animation: enLignePouls 2.4s ease-in-out infinite; }
+.en-ligne-pastille[hidden] { display: none; }
+.en-ligne-compteur { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; font-size: 12px; color: var(--muted); border: 1px solid var(--border); white-space: nowrap; }
+.en-ligne-compteur::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: #3ddc84; animation: enLignePouls 2.4s ease-in-out infinite; }
+.en-ligne-compteur[hidden] { display: none; }
+@keyframes enLignePouls { 0%, 100% { box-shadow: 0 0 0 0 rgba(61, 220, 132, 0.55); } 50% { box-shadow: 0 0 0 5px rgba(61, 220, 132, 0); } }
+
+/* ---------- Statistiques au survol d'une carte de semaine ---------- */
+.week-card { position: relative; overflow: hidden; }
+.week-stats { display: none; }
+@media (hover: hover) and (pointer: fine) {
+  .week-stats {
+    display: flex; flex-direction: column; gap: 3px; position: absolute; inset: 0; padding: 8px 9px; text-align: left;
+    background: var(--panel); border-radius: inherit; font-size: 11px; line-height: 1.3; color: var(--ink);
+    opacity: 0; transform: translateY(14px); pointer-events: none;
+    transition: opacity 0.18s ease, transform 0.22s cubic-bezier(.2,.8,.2,1);
+  }
+  .week-card:hover .week-stats, .week-card:focus-within .week-stats { opacity: 1; transform: none; }
+  .week-card:hover .week-stats__ligne { animation: weekStatsLigne 0.28s ease both; }
+  .week-card:hover .week-stats__ligne:nth-of-type(2) { animation-delay: 0.04s; }
+  .week-card:hover .week-stats__ligne:nth-of-type(3) { animation-delay: 0.08s; }
+  .week-card:hover .week-stats__ligne:nth-of-type(4) { animation-delay: 0.12s; }
+  .week-card:hover .week-stats__ligne:nth-of-type(5) { animation-delay: 0.16s; }
+  .week-card:hover .week-stats__courbe polyline { animation: weekStatsTrace 0.7s ease-out 0.05s both; }
+}
+.week-stats__titre { font-weight: 700; font-size: 12px; display: flex; justify-content: space-between; gap: 6px; }
+.week-stats__titre span { font-weight: 400; color: var(--muted); font-size: 10px; white-space: nowrap; }
+.week-stats__vide { margin: auto; text-align: center; color: var(--muted); }
+.week-stats__ligne { display: flex; justify-content: space-between; gap: 6px; }
+.week-stats__ligne span { color: var(--muted); }
+.week-stats__ligne b { font-weight: 600; text-align: right; }
+.week-stats__courbe { width: 100%; height: 26px; flex: none; }
+.week-stats__courbe polyline { fill: none; stroke: var(--accent-bright); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; stroke-dasharray: 1; stroke-dashoffset: 0; }
+@keyframes weekStatsLigne { from { opacity: 0; transform: translateX(-6px); } to { opacity: 1; transform: none; } }
+@keyframes weekStatsTrace { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .week-stats, .week-stats__ligne, .week-stats__courbe polyline, .en-ligne-pastille, .en-ligne-compteur::before { animation: none !important; transition: none !important; transform: none !important; }
+}

@@ -111,6 +111,13 @@ function insignesHtml(profil) {
   return insigneTitreHtml(profil.titre_actif) + insigneRangHtml(profil.niveau_jeu);
 }
 
+// Pastille « en ligne » : seulement chez les amis confirmes (jamais chez un inconnu).
+function pastilleAmiHtml(userId) {
+  try {
+    if (!userId || !window.kvtPresence || !window.kvtAmis || !window.kvtAmis.estChargee()) return '';
+    return window.kvtAmis.etatAvec(userId) === 'ami' ? window.kvtPresence.pastilleHtml(userId) : '';
+  } catch (e) { return ''; }
+}
 function auteurHtml(userId, pseudo, taille) {
   const nom = escapeHtml((profilDe(userId) || {}).pseudo || pseudo || '');
   // Pseudo stylise achete en boutique (29/09/2026), visible partout.
@@ -122,7 +129,7 @@ function auteurHtml(userId, pseudo, taille) {
   return `
     <button type="button" class="auteur auteur--lien" data-voir-profil="${escapeHtml(userId)}" title="Voir le profil de ${nom}">
       ${avatarHtml(userId, pseudo, taille || 24)}
-      <span class="auteur-pseudo ${style}">${nom}</span>${insignes}
+      <span class="auteur-pseudo ${style}">${nom}</span>${pastilleAmiHtml(userId)}${insignes}
     </button>`;
 }
 

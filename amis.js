@@ -118,7 +118,7 @@ function htmlPersonne(userId, actions) {
     <div class="ami">
       ${window.kvtProfils ? window.kvtProfils.avatarHtml(userId, p.pseudo, 40) : ''}
       <div class="ami-infos">
-        <div class="ami-pseudo">${escapeHtml(p.pseudo || 'Compte supprimé')}</div>
+        <div class="ami-pseudo">${escapeHtml(p.pseudo || 'Compte supprimé')}${etatAvec(userId) === 'ami' && window.kvtPresence ? window.kvtPresence.pastilleHtml(userId) : ''}</div>
         ${niveau ? `<div class="ami-niveau">${escapeHtml(niveau)}</div>` : ''}
         ${p.bio ? `<div class="ami-bio">${escapeHtml(p.bio)}</div>` : ''}
       </div>

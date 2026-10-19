@@ -101,6 +101,7 @@
         </nav>
         <div class="kvt-topbar__end">
           <input type="search" id="rechercheGlobale" class="recherche-globale" placeholder="Rechercher un mot du cursus…" title="Rechercher un mot" aria-label="Rechercher un mot dans tout le cursus" autocomplete="off">
+          <span class="en-ligne-compteur" data-presence-compteur hidden title="Personnes connectées en ce moment"></span>
           <span class="sidebar-footer" id="weekBadge"></span>
           <!-- Acces rapide a son propre profil (23/09/2026, demande de Paul) :
                rempli par renderTopbarProfil() dans app.js, avec le meme
@@ -201,6 +202,7 @@
   <script src="/profil-public.js"></script>
   <script src="/creation.js"></script>
   <script src="/amis.js"></script>
+  <script src="/presence.js"></script>
   <script src="/account.js"></script>
   <script src="/ads.js"></script>
   <script src="/leaderboard.js"></script>
