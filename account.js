@@ -759,6 +759,7 @@ function renderAccount(cible) {
       <h2>Compte</h2>
       <div class="card" style="max-width:420px;">
         <h3>Se connecter / créer un compte</h3>
+        ${window.kvtGoogle ? window.kvtGoogle.boutonHtml() : ''}
         <div class="form-row">
           <label>Email <input type="email" id="acctEmail" placeholder="toi@exemple.com" /></label>
         </div>
@@ -791,6 +792,7 @@ function renderAccount(cible) {
     // message tout de suite lui ferait courir le risque de disparaitre avant
     // meme d'avoir ete vu. Il est efface par switchView() (app.js) des qu'on
     // quitte l'onglet Compte.
+    if (window.kvtGoogle) window.kvtGoogle.brancher(el);
     if (kvtAuthErrorMessage) {
       $('#acctError').textContent = kvtAuthErrorMessage;
     }

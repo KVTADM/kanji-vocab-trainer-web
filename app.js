@@ -985,6 +985,34 @@ function htmlBadgeNonClasse() {
 // Un volet glisse par-dessus la carte quand on la survole (souris seulement : sur
 // ecran tactile, la carte garde son affichage normal). Il ne capte jamais le clic :
 // cliquer reste ouvrir la semaine, et « Recommencer » reste cliquable.
+
+// Place le volet de stats (plus large que sa carte) dans la fenetre : decale
+// vers la gauche/droite et vers le haut s'il depasse. Les valeurs vont dans
+// des variables CSS lues par .week-stats.
+function positionnerVoletStats(carte) {
+  const volet = carte && carte.querySelector('.week-stats');
+  if (!volet) return;
+  const r = carte.getBoundingClientRect();
+  const vw = document.documentElement.clientWidth;
+  const banniere = document.querySelector('.cookie-banner');
+  const vh = banniere ? Math.min(window.innerHeight, banniere.getBoundingClientRect().top) : window.innerHeight;
+  const l = Math.min(272, vw - 16);
+  let x = (r.width - l) / 2;
+  if (r.left + x < 8) x = 8 - r.left;
+  else if (r.left + x + l > vw - 8) x = vw - 8 - l - r.left;
+  const h = volet.offsetHeight;
+  let y = -8;
+  if (r.top + y + h > vh - 8) y = vh - 8 - h - r.top;
+  if (r.top + y < 8) y = 8 - r.top;
+  volet.style.setProperty('--stats-l', l + 'px');
+  volet.style.setProperty('--stats-x', Math.round(x) + 'px');
+  volet.style.setProperty('--stats-y', Math.round(y) + 'px');
+}
+if (typeof document !== 'undefined') document.addEventListener('mouseover', e => {
+  const carte = e.target && e.target.closest ? e.target.closest('.week-card') : null;
+  if (carte) positionnerVoletStats(carte);
+});
+
 function htmlStatsSurvol(etiquette, entry, libre, nbKanji, nbMots) {
   const hist = entry && Array.isArray(entry.history)
     ? entry.history.filter(h => h && Number.isFinite(Number(h.pct))) : [];
@@ -1007,10 +1035,8 @@ function htmlStatsSurvol(etiquette, entry, libre, nbKanji, nbMots) {
   const pts = pcts.slice(-8);
   let courbe = '';
   if (pts.length > 1) {
-    const max = Math.max(...pts, 1), min = Math.min(...pts, 0);
-    const etendue = (max - min) || 1;
-    const coords = pts.map((v, i) => `${(i / (pts.length - 1) * 100).toFixed(1)},${(26 - ((v - min) / etendue) * 22).toFixed(1)}`).join(' ');
-    courbe = `<svg class="week-stats__courbe" viewBox="0 0 100 30" preserveAspectRatio="none" aria-hidden="true"><polyline pathLength="1" points="${coords}"/></svg>`;
+        const coords = pts.map((v, i) => `${(4 + i / (pts.length - 1) * 232).toFixed(1)},${(40 - (Math.max(0, Math.min(100, v)) / 100) * 36).toFixed(1)}`).join(' ');
+    courbe = `<svg class="week-stats__courbe" viewBox="0 0 240 44" aria-hidden="true"><polyline pathLength="1" points="${coords}"/></svg>`;
   }
   const ligne = (nom, val) => val === null || val === undefined || val === '' ? '' : `<div class="week-stats__ligne"><span>${nom}</span><b>${val}</b></div>`;
   return `<div class="week-stats" aria-hidden="true">${entete}
