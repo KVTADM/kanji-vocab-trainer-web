@@ -2061,7 +2061,7 @@ function demarrerVeilleAmis() {
 async function renderTopbarProfil() {
   const zone = $('#topbarProfil');
   if (!zone || !window.kvtProfils) return;
-  if (!window.accountUser) { zone.innerHTML = ''; return; }
+  if (!window.accountUser) { zone.innerHTML = window.kvtGoogle ? window.kvtGoogle.boutonTopbarHtml() : ''; return; }
   const u = window.accountUser;
   zone.innerHTML = window.kvtProfils.auteurHtml(u.id, u.pseudo, 26);
   // Le cache des profils publics ne contient le sien que si on est deja

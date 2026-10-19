@@ -22,5 +22,13 @@ ok(fs.readFileSync(R + 'app/index.html', 'utf8').indexOf('google-connexion.js') 
 ok(/'\/google-connexion\.js'/.test(fs.readFileSync(R + 'service-worker.js', 'utf8')), 'dans le cache du service worker');
 ok(/kvtGoogle\.boutonHtml\(\)/.test(fs.readFileSync(R + 'account.js', 'utf8')) && /kvtGoogle\.brancher\(el\)/.test(fs.readFileSync(R + 'account.js', 'utf8')), 'account.js affiche et branche le bouton');
 ok(/Connexion avec Google/.test(fs.readFileSync(R + 'confidentialite/index.html', 'utf8')), 'page confidentialite mise a jour');
+ok(typeof G.ouvrirConnexion === 'function' && /data-ouvrir-connexion/.test(G.boutonTopbarHtml()), 'fenetre de connexion + bouton de la barre du haut');
+ok(/kvtGoogle \? window\.kvtGoogle\.boutonTopbarHtml\(\)/.test(fs.readFileSync(R + 'app.js', 'utf8')), 'barre du haut : bouton Connexion si personne n\'est connecte');
+const idx = fs.readFileSync(R + 'app/index.html', 'utf8');
+ok(/mouvement\.js/.test(idx) && /'\/mouvement\.js'/.test(fs.readFileSync(R + 'service-worker.js', 'utf8')), 'mouvement.js charge et mis en cache');
+const mv = fs.readFileSync(R + 'mouvement.js', 'utf8');
+ok(/prefers-reduced-motion/.test(mv) && /classList\.remove\('mv', 'mv-vu'\)/.test(mv), 'animation de descente : respecte reduire les animations et se retire apres usage');
+const cl = fs.readFileSync(R + 'classeur.js', 'utf8');
+ok(/function classeurHtmlSurvol/.test(cl) && /hover: hover\) and \(pointer: fine/.test(cl) && !/title="\$\{escapeHtml\(r\.nom\)\}\$\{classeurSens/.test(cl), 'fiche du classeur : souris seulement, plus de bulle native en double');
 console.log(ko ? ko + ' echec(s)' : 'google-connexion : OK');
 process.exit(ko ? 1 : 0);

@@ -275,7 +275,7 @@ function classeurHtmlCase(e, etat) {
   const r = classeurRarete(e.rarete);
   const nouveau = classeurNouveaux.has(e.k);
   if (!n) return `<div class="classeur-case classeur-case--vide" style="--r:${r.couleur}" title="Pas encore découvert"><span>?</span></div>`;
-  return `<button class="classeur-case classeur-case--possede ${classeurSelection === e.k ? 'classeur-case--selection' : ''}" style="--r:${r.couleur}" data-classeur-kanji="${escapeHtml(e.k)}" title="${escapeHtml(r.nom)}${classeurSens(e.k) ? ' · ' + escapeHtml(classeurSens(e.k)) : ''}"><span class="classeur-case__kanji">${escapeHtml(e.k)}</span>${classeurSens(e.k) ? `<span class="classeur-case__sens">${escapeHtml(classeurSens(e.k))}</span>` : ''}${n > 1 ? `<span class="classeur-case__n">×${n}</span>` : ''}${nouveau ? '<span class="classeur-case__nouveau">Nouveau</span>' : ''}</button>`;
+  return `<button class="classeur-case classeur-case--possede ${classeurSelection === e.k ? 'classeur-case--selection' : ''}" style="--r:${r.couleur}" data-classeur-kanji="${escapeHtml(e.k)}" aria-label="${escapeHtml(e.k)} — ${escapeHtml(r.nom)}${classeurSens(e.k) ? ' · ' + escapeHtml(classeurSens(e.k)) : ''}"><span class="classeur-case__kanji">${escapeHtml(e.k)}</span>${classeurSens(e.k) ? `<span class="classeur-case__sens">${escapeHtml(classeurSens(e.k))}</span>` : ''}${n > 1 ? `<span class="classeur-case__n">×${n}</span>` : ''}${nouveau ? '<span class="classeur-case__nouveau">Nouveau</span>' : ''}</button>`;
 }
 
 function classeurHtmlDetail(etat) {
@@ -455,4 +455,75 @@ function classeurMontrerCartes(overlay, res) {
     };
   };
   montrerFiche();
+}
+
+// ---------- Fiche flottante au survol d'un kanji du Classeur (souris uniquement) ----------
+// Suit le curseur, reste dans la fenetre. Sur ecran tactile rien ne s'affiche :
+// le clic ouvre toujours le detail sous la grille.
+function classeurHtmlSurvol(k) {
+  const e = classeurTousLesKanji().find(x => x.k === k);
+  if (!e) return '';
+  const r = classeurRarete(e.rarete);
+  const f = classeurFiche(k);
+  const sens = classeurSens(k);
+  const n = (classeurEtat().kanji || {})[k] || 0;
+  const rang = e.rang ? `n° ${e.rang} sur 2501` : 'hors des 2501 plus utilisés';
+  const lec = f ? [f.on ? `<dt>ON</dt><dd>${escapeHtml(f.on)}</dd>` : '', f.kun ? `<dt>KUN</dt><dd>${escapeHtml(f.kun)}</dd>` : ''].join('') : '';
+  return `<div class="kj-fiche__tete"><div class="kj-fiche__kanji">${escapeHtml(k)}</div>
+    <div class="kj-fiche__titre">${sens ? `<div class="kj-fiche__sens">${escapeHtml(sens)}</div>` : ''}
+      <div class="kj-fiche__tags"><span class="classeur-badge" style="background:${r.couleur}">${escapeHtml(r.nom)}</span><span>JLPT ${escapeHtml(String(e.niveau).toUpperCase())}</span>${n > 1 ? `<span>×${n}</span>` : ''}</div></div></div>
+    ${lec ? `<dl class="kj-fiche__lec">${lec}</dl>` : ''}
+    ${f && f.mot ? `<div class="kj-fiche__ex"><b>${escapeHtml(f.mot)}</b> <span>${escapeHtml(f.lecture || '')}</span>${f.sens ? ` — ${escapeHtml(f.sens)}` : ''}</div>` : ''}
+    <div class="kj-fiche__rang">Usage : ${rang}</div>`;
+}
+
+let classeurFicheEl = null;
+let classeurFicheKanji = null;
+function classeurPlacerFiche(ev) {
+  if (!classeurFicheEl) return;
+  const w = classeurFicheEl.offsetWidth, h = classeurFicheEl.offsetHeight;
+  const vw = document.documentElement.clientWidth, vh = window.innerHeight;
+  let x = ev.clientX + 18, y = ev.clientY + 18;
+  if (x + w > vw - 8) x = ev.clientX - w - 18;
+  if (y + h > vh - 8) y = vh - h - 8;
+  if (x < 8) x = 8;
+  if (y < 64) y = 64;
+  classeurFicheEl.style.left = Math.round(x) + 'px';
+  classeurFicheEl.style.top = Math.round(y) + 'px';
+}
+function classeurCacherFiche() {
+  if (classeurFicheEl) classeurFicheEl.classList.remove('on');
+  classeurFicheKanji = null;
+}
+if (typeof document !== 'undefined') {
+  const caseDe = (t) => (t && t.closest ? t.closest('.classeur-case--possede[data-classeur-kanji]') : null);
+  const souris = () => typeof matchMedia === 'function' && matchMedia('(hover: hover) and (pointer: fine)').matches;
+  document.addEventListener('mouseover', (ev) => {
+    const b = caseDe(ev.target);
+    if (!b || !souris()) return;
+    if (!classeurFicheEl) {
+      classeurFicheEl = document.createElement('div');
+      classeurFicheEl.className = 'kj-fiche';
+      classeurFicheEl.setAttribute('aria-hidden', 'true');
+      document.body.appendChild(classeurFicheEl);
+    }
+    const k = b.dataset.classeurKanji;
+    if (k !== classeurFicheKanji) {
+      classeurFicheKanji = k;
+      classeurFicheEl.innerHTML = classeurHtmlSurvol(k);
+      classeurFicheEl.style.setProperty('--r', b.style.getPropertyValue('--r') || 'var(--accent-bright)');
+      classeurFicheEl.classList.remove('on');
+      void classeurFicheEl.offsetWidth;
+    }
+    classeurPlacerFiche(ev);
+    classeurFicheEl.classList.add('on');
+  });
+  document.addEventListener('mousemove', (ev) => {
+    if (classeurFicheEl && classeurFicheEl.classList.contains('on') && caseDe(ev.target)) classeurPlacerFiche(ev);
+  });
+  document.addEventListener('mouseout', (ev) => {
+    if (caseDe(ev.target) && !caseDe(ev.relatedTarget)) classeurCacherFiche();
+  });
+  document.addEventListener('click', classeurCacherFiche, true);
+  window.addEventListener('scroll', classeurCacherFiche, { passive: true });
 }
