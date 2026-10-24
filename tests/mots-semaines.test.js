@@ -65,14 +65,13 @@ console.log(`OK : ${Object.keys(mig).length} mots simplifies verifies.`);
   });
 }
 
-// Paires courant / soutenu (16/10/2026) : 昨日 (きのう / さくじつ) et 明日 (あした / あす) sont des entrees separees avec badge.
+// Paires courant / soutenu (16/10/2026) : 明日 (あした / あす) reste en deux entrees avec badge ; 昨日 est refusionne en une seule entree (24/10/2026). Avant : 昨日 et 明日 (あした / あす) sont des entrees separees avec badge.
 {
   const fs = require('fs');
   const seed = JSON.parse(fs.readFileSync(__dirname + '/../seed-data.json', 'utf8'));
   const api = fs.readFileSync(__dirname + '/../webapi.js', 'utf8');
   const par = id => seed.vocab.find(x => x.id === id);
   const attendu = [
-    ['v-mrhvk4uwop8eb', 'さくじつ', 'soutenu'], ['v-reg-kinou-s1w8', 'きのう', 'courant'],
     ['v-reg-asu-l0s2w2', 'あす', 'soutenu'], ['v-l0s2-w2-02-04', 'あした', 'courant']
   ];
   attendu.forEach(([id, lecture, registre]) => {
@@ -80,6 +79,8 @@ console.log(`OK : ${Object.keys(mig).length} mots simplifies verifies.`);
     if (!v || v.lecture !== lecture || v.registre !== registre) { console.log('ECHEC : paire registre ' + id); process.exitCode = 1; }
     if (!api.includes(id)) { console.log('ECHEC : migration absente pour ' + id); process.exitCode = 1; }
   });
+  const hier = seed.vocab.filter(x => x.mot === '昨日' && x.kanjiGroupId === 'kg-mrhvk4uwxjay1');
+  if (hier.length !== 1 || hier[0].lecture !== 'きのう / さくじつ' || hier[0].registre) { console.log('ECHEC : 昨日 doit etre une seule entree きのう / さくじつ'); process.exitCode = 1; }
   ['v-l0s1-w8-11-04', 'v-n3nxnzqnknnhu', 'v-9godwz35vay6q'].forEach(id => {
     if (!api.includes("'" + id + "':")) { console.log('ECHEC : indice 毎年 absent pour ' + id); process.exitCode = 1; }
   });

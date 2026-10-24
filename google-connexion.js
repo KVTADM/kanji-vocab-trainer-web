@@ -23,7 +23,7 @@
 // n'est JAMAIS utilise comme pseudo public.
 // ============================================================
 (function () {
-  const KVT_GOOGLE_CLIENT_ID = ''; // ex. '1234567890-abcdef.apps.googleusercontent.com'
+  const KVT_GOOGLE_CLIENT_ID = '892843371297-2uvg9aomt26gtrive0iq8ivvit7ci6id.apps.googleusercontent.com';
   const CLE_FERME = 'kvtOneTapFerme';
 
   function actif() { return typeof KVT_GOOGLE_CLIENT_ID === 'string' && /\.apps\.googleusercontent\.com$/.test(KVT_GOOGLE_CLIENT_ID); }

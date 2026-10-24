@@ -419,11 +419,9 @@ const JLPT_N4_SEED = {"kanjiGroups":[{"id":"kg-hu66go90952pa","semesterId":"jlpt
     // l'id est absent et que le groupe de kanji existe.
     const PAIRES_REGISTRE_16_10 = {
       modifs: {
-        'v-mrhvk4uwop8eb': { old: { lecture: 'さくじつ / きのう' }, neu: { lecture: 'さくじつ', registre: 'soutenu' } },
         'v-l0s2-w2-02-04': { old: { lecture: 'あした' }, neu: { registre: 'courant' } }
       },
       ajouts: [
-        { id: 'v-reg-kinou-s1w8', kanjiGroupId: 'kg-mrhvk4uwxjay1', mot: '昨日', lecture: 'きのう', sens: 'Hier', registre: 'courant' },
         { id: 'v-reg-asu-l0s2w2', kanjiGroupId: 'kg-l0s2-w2-02', mot: '明日', lecture: 'あす', sens: 'Demain', registre: 'soutenu' }
       ]
     };
@@ -541,10 +539,26 @@ const JLPT_N4_SEED = {"kanjiGroups":[{"id":"kg-hu66go90952pa","semesterId":"jlpt
       'v-5pmr1uzgcj9sf','v-1004calb37aj7','v-ks12kdkk41xwr','v-gwp75cigbc7h6','v-vuw016pu3co3u',
       'v-pap1usul5w3qb','v-bbluu4bltf379','v-ip5ugikmxkt70','v-325rrjzo2q7cm','v-6sf0kit60yj7m',
       'v-ylcnkv68pi4gy','v-l0s1-w2-08-01','v-l0s1-w2-10-01','v-l0s1-w3-06-01','v-l0s1-w8-08-01',
-      'v-l0s1-w8-10-02','v-l0s1-w8-10-06','v-l0s2-w5-07-04','v-l0s2-w9-08-02'
+      'v-l0s1-w8-10-02','v-l0s1-w8-10-06','v-l0s2-w5-07-04','v-l0s2-w9-08-02',
+      // 24/10/2026 : 16 doublons du semestre 1 (meme mot present sous deux kanji). On garde
+      // l'occurrence de la semaine ou tous les kanji du mot sont connus.
+      'v-mrhvk4uv3r95s','v-mrhvk4uwekkbh','v-mrhvk4uys0f6o','v-mrhvk4uyo47f1','v-mrhvk4uwd82as','v-mrhvk4uxl7h5h','v-mrhvk4uumvp5c','v-mrhvk4uunnz2y','v-mrhvk4uv1cec2','v-mrhvk4uuyfs1m','v-mrhvk4uu5m3ia','v-mrhvk4uvu16lc','v-mrhvk4uukyx7v','v-mrhvk4uuzp3w2','v-mrhvk4uulx972','v-mrhvk4uvl0imv'
     ]);
     if (Array.isArray(data.vocab)) {
       data.vocab = data.vocab.filter(v => !VOCAB_DOUBLONS_A_SUPPRIMER.has(v.id));
+    }
+    // 昨日 (S1 semaine 8) : a la demande de Paul (24/10/2026), une seule entree qui
+    // porte les deux lectures (きのう / さくじつ), comme avant la separation du 16/10.
+    // Idempotent : ne touche que l'entree encore en etat "さくじつ" + badge, et retire
+    // l'entree separee du 16/10. 明日 / あす reste separe.
+    if (Array.isArray(data.vocab)) {
+      data.vocab = data.vocab.filter(v => v.id !== 'v-reg-kinou-s1w8');
+      data.vocab.forEach(v => {
+        if (v.id === 'v-mrhvk4uwop8eb' && v.lecture === 'さくじつ' && v.registre === 'soutenu') {
+          v.lecture = 'きのう / さくじつ';
+          delete v.registre;
+        }
+      });
     }
     // Verbes de base manquants au vocabulaire N5 (signale par Paul le
     // 14/09/2026) : certains verbes parmi les plus fondamentaux du N5

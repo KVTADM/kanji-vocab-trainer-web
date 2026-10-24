@@ -6,13 +6,16 @@ let ko = 0; const ok = (c, m) => { if (!c) { ko++; console.log('ECHEC : ' + m); 
 const src = fs.readFileSync(R + 'google-connexion.js', 'utf8');
 function charge(source) { const w = { sb: null }; new Function('window', 'document', 'location', 'setTimeout', 'sessionStorage', source)(w, undefined, { pathname: '/' }, undefined, undefined); return w.kvtGoogle; }
 
-const G = charge(src);
+const ID_RE = /const KVT_GOOGLE_CLIENT_ID = '[^']*'/;
+const vide = src.replace(ID_RE, "const KVT_GOOGLE_CLIENT_ID = ''");
+const G = charge(vide);
 ok(G && !G.actif() && G.boutonHtml() === '', 'sans identifiant client : rien d\'affiche');
 const m = src.match(/const KVT_GOOGLE_CLIENT_ID = '([^']*)'/);
-ok(m && m[1] === '', 'le depot est livre avec un identifiant client vide tant que Paul ne l\'a pas fourni');
-const G2 = charge(src.replace("KVT_GOOGLE_CLIENT_ID = ''", "KVT_GOOGLE_CLIENT_ID = '123-abc.apps.googleusercontent.com'"));
+ok(m && /^\d+-[a-z0-9]+\.apps\.googleusercontent\.com$/.test(m[1]), 'identifiant client Google (public) bien forme dans le depot');
+ok(charge(src).actif(), 'avec l\'identifiant du depot : Google actif');
+const G2 = charge(src.replace(ID_RE, "const KVT_GOOGLE_CLIENT_ID = '123-abc.apps.googleusercontent.com'"));
 ok(G2.actif() && /id="btnGoogle"/.test(G2.boutonHtml()), 'avec un identifiant valide : bouton present');
-const G3 = charge(src.replace("KVT_GOOGLE_CLIENT_ID = ''", "KVT_GOOGLE_CLIENT_ID = 'nimporte quoi'"));
+const G3 = charge(src.replace(ID_RE, "const KVT_GOOGLE_CLIENT_ID = 'nimporte quoi'"));
 ok(!G3.actif(), 'identifiant mal forme : desactive');
 ok(!/client_secret|GOCSPX/i.test(src), 'aucun secret client dans le code');
 ok(/nonce: brut/.test(src) && /nonce: hache/.test(src), 'nonce : hache pour Google, brut pour Supabase');
