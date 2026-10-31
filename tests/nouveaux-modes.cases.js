@@ -545,3 +545,37 @@ essai('ecran de fin : correction complete, gains, progression et bouton recommen
 essai('Traduction : les cartes de semaine portent la couleur de palier', () => {
   if (classePalierPct(100) !== 'palier-parfait' || classePalierPct(50) !== 'palier-moyen') throw new Error('paliers');
 });
+
+// Conjugaison (toutes les formes) et Expressions en て (traduction) -- 24/10/2026, listes de Paul.
+essai('Conjugaison : 4 verbes x 14 formes, reponses conformes au tableau de Paul', () => {
+  const l = getPratiqueList('conjugaison');
+  if (l.length !== 56) throw new Error('56 questions attendues, trouve ' + l.length);
+  ['書く', '食べる', 'する', '来る'].forEach(b => { if (l.filter(x => x.base === b).length !== 14) throw new Error('14 formes attendues pour ' + b); });
+  const att = {
+    '書く': { 'Poli (ます)': '書きます', 'Négatif (ない)': '書かない', 'Passé (た)': '書いた', 'Forme en て': '書いて', 'Condition en ば': '書けば', 'Condition en たら': '書いたら', 'Volitif (よう)': '書こう', 'Impératif': '書け', 'Prohibitif (な)': '書くな', 'Potentiel': '書ける', 'Passif': '書かれる', 'Factitif (faire faire)': '書かせる', 'Factitif passif (être forcé de)': '書かされる', 'Désir (たい)': '書きたい' },
+    '食べる': { 'Poli (ます)': '食べます', 'Négatif (ない)': '食べない', 'Passé (た)': '食べた', 'Forme en て': '食べて', 'Condition en ば': '食べれば', 'Condition en たら': '食べたら', 'Volitif (よう)': '食べよう', 'Impératif': '食べろ', 'Prohibitif (な)': '食べるな', 'Potentiel': '食べられる', 'Passif': '食べられる', 'Factitif (faire faire)': '食べさせる', 'Factitif passif (être forcé de)': '食べさせられる', 'Désir (たい)': '食べたい' },
+    'する': { 'Poli (ます)': 'します', 'Négatif (ない)': 'しない', 'Passé (た)': 'した', 'Forme en て': 'して', 'Condition en ば': 'すれば', 'Condition en たら': 'したら', 'Volitif (よう)': 'しよう', 'Impératif': 'しろ', 'Prohibitif (な)': 'するな', 'Potentiel': 'できる', 'Passif': 'される', 'Factitif (faire faire)': 'させる', 'Factitif passif (être forcé de)': 'させられる', 'Désir (たい)': 'したい' },
+    '来る': { 'Poli (ます)': '来ます|きます', 'Négatif (ない)': '来ない|こない', 'Passé (た)': '来た|きた', 'Forme en て': '来て|きて', 'Condition en ば': '来れば|くれば', 'Condition en たら': '来たら|きたら', 'Volitif (よう)': '来よう|こよう', 'Impératif': '来い|こい', 'Prohibitif (な)': '来るな|くるな', 'Potentiel': '来られる|こられる', 'Passif': '来られる|こられる', 'Factitif (faire faire)': '来させる|こさせる', 'Factitif passif (être forcé de)': '来させられる|こさせられる', 'Désir (たい)': '来たい|きたい' }
+  };
+  Object.keys(att).forEach(b => Object.keys(att[b]).forEach(forme => {
+    const x = l.find(y => y.base === b && y.sujet === forme);
+    if (!x) throw new Error(b + ' ' + forme + ' absent');
+    const [mot, lec] = att[b][forme].split('|');
+    if (x.mot !== mot || x.lecture !== (lec || mot.replace('書', 'か').replace('食', 'た'))) throw new Error(b + ' ' + forme + ' : ' + x.mot + '/' + x.lecture + ' au lieu de ' + mot + '/' + (lec || mot));
+    if (!x.baseLecture || !x.rappel || !x.note) throw new Error('champs manquants : ' + x.id);
+  }));
+  if (new Set(l.map(x => x.id)).size !== 56) throw new Error('ids dupliques');
+});
+
+essai('Expressions en て : 24 expressions a traduire en francais, correction tolerante', () => {
+  const l = getPratiqueList('expressions-te');
+  if (l.length !== 24) throw new Error('24 expressions attendues, trouve ' + l.length);
+  if (l.some(x => x.reponse !== 'sens' || !x.sens || !x.sujet || !x.rappel)) throw new Error('entree incomplete');
+  ['〜てください', '〜てもいい', '〜てはいけない', '〜なくてもいい', '〜なくてはいけない', '〜てあげる', '〜てくれる', '〜てもらう', '〜てさしあげる', '〜てくださる', '〜ていただく', '〜ている', '〜てある', '〜ておく', '〜てしまう', '〜てみる', '〜ていく', '〜てくる', '〜ても', '〜ては', '〜て', '〜ないで／〜なくて', '〜てから', '〜てほしい']
+    .forEach(m => { if (!l.some(x => x.mot === m)) throw new Error(m + ' absent'); });
+  const g = m => l.find(x => x.mot === m);
+  if (scoreSens('Essayer', g('〜てみる').sens).pct < 0.99) throw new Error('essayer refuse');
+  if (scoreSens('faites s\'il vous plait', g('〜てください').sens).pct < 0.99) throw new Error('ordre des mots / accents');
+  if (scoreSens('en cours', g('〜ている').sens).pct < 0.99) throw new Error('une alternative suffit');
+  if (scoreSens('manger', g('〜てみる').sens).pct > 0.5) throw new Error('mauvaise reponse acceptee');
+});

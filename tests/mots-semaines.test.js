@@ -81,6 +81,8 @@ console.log(`OK : ${Object.keys(mig).length} mots simplifies verifies.`);
   });
   const hier = seed.vocab.filter(x => x.mot === '昨日' && x.kanjiGroupId === 'kg-mrhvk4uwxjay1');
   if (hier.length !== 1 || hier[0].lecture !== 'きのう / さくじつ' || hier[0].registre) { console.log('ECHEC : 昨日 doit etre une seule entree きのう / さくじつ'); process.exitCode = 1; }
+  const oyako = seed.vocab.find(x => x.id === 'v-rrc9edw9f8409');
+  if (!oyako || oyako.lecture !== 'おやこ / しんし') { console.log('ECHEC : 親子 S1 doit accepter おやこ / しんし'); process.exitCode = 1; }
   ['v-l0s1-w8-11-04', 'v-n3nxnzqnknnhu', 'v-9godwz35vay6q'].forEach(id => {
     if (!api.includes("'" + id + "':")) { console.log('ECHEC : indice 毎年 absent pour ' + id); process.exitCode = 1; }
   });

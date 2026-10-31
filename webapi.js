@@ -560,6 +560,29 @@ const JLPT_N4_SEED = {"kanjiGroups":[{"id":"kg-hu66go90952pa","semesterId":"jlpt
         }
       });
     }
+    // 親子 (S1 semaine 9) : deux lectures acceptees, おやこ et しんし (24/10/2026, Paul).
+    // Idempotent : seulement si la lecture est encore l'ancienne. Le 親子 du niveau
+    // debutant (L0) garde おやこ seul.
+    if (Array.isArray(data.vocab)) {
+      data.vocab.forEach(v => {
+        if (v.id === 'v-rrc9edw9f8409' && v.lecture === 'おやこ') v.lecture = 'おやこ / しんし';
+      });
+    }
+    // Autres mots du cursus a plusieurs lectures courantes (24/10/2026, Paul : « pareil pour les
+    // autres mots »). Idempotent : seulement si la lecture est encore l'ancienne.
+    const LECTURES_MULTIPLES_24_10 = {
+      'v-mrhvk4uzeiuyt': { old: 'こうよう', neuve: 'こうよう / もみじ' },          // 紅葉
+      'v-mrhvk4vqjprh7': { old: 'つゆ', neuve: 'つゆ / ばいう' },                  // 梅雨 (S3)
+      'v-mrhvk4vyxkoh4': { old: 'こきょう', neuve: 'こきょう / ふるさと' },        // 故郷
+      'v-mrhvk4uw2y1nm': { old: 'さくばん', neuve: 'さくばん / ゆうべ' },          // 昨晩
+      'v-mrhvk4uwrlel6': { old: 'おととい', neuve: 'おととい / いっさくじつ' }     // 一昨日
+    };
+    if (Array.isArray(data.vocab)) {
+      data.vocab.forEach(v => {
+        const f = LECTURES_MULTIPLES_24_10[v.id];
+        if (f && v.lecture === f.old) v.lecture = f.neuve;
+      });
+    }
     // Verbes de base manquants au vocabulaire N5 (signale par Paul le
     // 14/09/2026) : certains verbes parmi les plus fondamentaux du N5
     // (書く, 来る, 行く...) n'avaient jamais eu leur propre entree de
