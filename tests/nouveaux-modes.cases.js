@@ -579,3 +579,17 @@ essai('Expressions en て : 24 expressions a traduire en francais, correction to
   if (scoreSens('en cours', g('〜ている').sens).pct < 0.99) throw new Error('une alternative suffit');
   if (scoreSens('manger', g('〜てみる').sens).pct > 0.5) throw new Error('mauvaise reponse acceptee');
 });
+
+essai('Grammaire A/B/C : 45 + 36 + 50 phrases a trous, un trou chacune, reponses en kana', () => {
+  [['gram1', 45], ['gram2', 36], ['gram3', 50]].forEach(([t, n]) => {
+    const l = getPratiqueList(t);
+    if (l.length !== n) throw new Error(t + ' : ' + n + ' attendues, trouve ' + l.length);
+    l.forEach(x => {
+      if (!x.cloze) throw new Error('cloze manquant : ' + x.id);
+      if ((x.mot.match(/___/g) || []).length !== 1) throw new Error('un seul trou attendu : ' + x.id);
+      if (!x.lecture || !x.sens || !x.sujet || !x.rappel) throw new Error('champs manquants : ' + x.id);
+      if (scoreAnswer(x.lecture.split('/')[0].trim(), x.lecture).pct < 0.99) throw new Error('reponse refusee : ' + x.id);
+    });
+    if (new Set(l.map(x => x.id)).size !== n) throw new Error('ids dupliques ' + t);
+  });
+});
