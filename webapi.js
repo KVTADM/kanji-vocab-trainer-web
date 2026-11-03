@@ -583,6 +583,71 @@ const JLPT_N4_SEED = {"kanjiGroups":[{"id":"kg-hu66go90952pa","semesterId":"jlpt
         if (f && v.lecture === f.old) v.lecture = f.neuve;
       });
     }
+    // Phrases entieres remplacees par le mot utile (S2 semaines 8, 9, 11, 12), 03/11/2026, Paul.
+    // Idempotent : ne touche que les entrees encore a l'ancien libelle. Les suppressions
+    // concernent les phrases dont le mot utile existe deja dans le meme groupe ou la meme semaine.
+    const PHRASES_VERS_MOTS_03_11 = {
+      'v-mrhvk4v6u6uyv': { old: '寺院の本堂', mot: '本堂', lecture: 'ほんどう', sens: "Bâtiment principal d'un temple" },
+      'v-mrhvk4v650jcu': { old: '家を建てる', mot: '建てる', lecture: 'たてる', sens: "Construire" },
+      'v-mrhvk4v66woxq': { old: 'お寺の再建', mot: '再建', lecture: 'さいけん', sens: "Reconstruction" },
+      'v-mrhvk4v6loda3': { old: '名前を呼ぶ', mot: '呼ぶ', lecture: 'よぶ', sens: "Appeler" },
+      'v-mrhvk4v6rzz7j': { old: '他の人', mot: '他', lecture: 'ほか', sens: "Autre / En dehors de" },
+      'v-mrhvk4v6rr9d1': { old: 'ボタンを付ける', mot: '付ける', lecture: 'つける', sens: "Attacher / Coller / Mettre" },
+      'v-mrhvk4v6902dg': { old: '書類の送付', mot: '送付', lecture: 'そうふ', sens: "Envoi" },
+      'v-mrhvk4v6ytmnp': { old: '位が上がる', mot: '位', lecture: 'くらい', sens: "Rang / Niveau" },
+      'v-mrhvk4v60idib': { old: '位置付ける', mot: '位置', lecture: 'いち', sens: "Position" },
+      'v-mrhvk4v6a2v3j': { old: 'ページの余白', mot: '余白', lecture: 'よはく', sens: "Marge / Espace blanc" },
+      'v-mrhvk4v6j06mu': { old: '例文をあげる', mot: '例文', lecture: 'れいぶん', sens: "Phrase d'exemple" },
+      'v-mrhvk4v7cp3nr': { old: '面倒な手続き', mot: '面倒', lecture: 'めんどう', sens: "Ennuyeux / Fastidieux" },
+      'v-mrhvk4v7i3g14': { old: '〜しようと試みる', mot: '試みる', lecture: 'こころみる', sens: "Tenter / Essayer" },
+      'v-mrhvk4v7q1w2i': { old: '大学の入学試験', mot: '試験', lecture: 'しけん', sens: "Examen" },
+      'v-mrhvk4v7q9ail': { old: '申し込み用紙', mot: '申し込み', lecture: 'もうしこみ', sens: "Inscription / Demande" },
+      'v-mrhvk4v71hq3p': { old: '花びんを落とす', mot: '落とす', lecture: 'おとす', sens: "Faire tomber / Perdre" },
+      'v-mrhvk4v7rqy50': { old: '魚を商う', mot: '商う', lecture: 'あきなう', sens: "Faire du commerce" },
+      'v-mrhvk4v7mffr8': { old: '分かりやすい説明', mot: '説明', lecture: 'せつめい', sens: "Explication" },
+      'v-mrhvk4v78obh1': { old: '主役を務める', mot: '務める', lecture: 'つとめる', sens: "Assumer (un rôle) / Remplir une fonction" },
+      'v-mrhvk4v85xvfx': { old: '鬼は外', mot: '鬼', lecture: 'おに', sens: "Démon / Ogre" },
+      'v-mrhvk4v8yfbre': { old: '雪が降る', mot: '雪', lecture: 'ゆき', sens: "Neige" },
+      'v-mrhvk4v8qn19j': { old: '米の生産', mot: '生産', lecture: 'せいさん', sens: "Production" },
+      'v-mrhvk4v83yxvo': { old: '風が吹く', mot: '吹く', lecture: 'ふく', sens: "Souffler" },
+      'v-mrhvk4v8xsy06': { old: '第一次世界大戦', mot: '第一', lecture: 'だいいち', sens: "Premier / Numéro un" },
+      'v-mrhvk4v8ty78w': { old: '道を渡る', mot: '渡る', lecture: 'わたる', sens: "Traverser" },
+      'v-mrhvk4v865fl7': { old: 'ペンを渡す', mot: '渡す', lecture: 'わたす', sens: "Remettre / Passer" },
+      'v-mrhvk4v8eytoi': { old: '多様な商品', mot: '多様', lecture: 'たよう', sens: "Varié / Divers" },
+      'v-mrhvk4v9naful': { old: '電車に乗る', mot: '乗る', lecture: 'のる', sens: "Monter / Prendre (un véhicule)" },
+      'v-mrhvk4v9puvmi': { old: '恐ろしい事件', mot: '恐ろしい', lecture: 'おそろしい', sens: "Terrible / Effrayant" },
+      'v-mrhvk4vabzyjp': { old: 'お酒を飲む', mot: 'お酒', lecture: 'おさけ', sens: "Alcool / Saké" },
+      'v-mrhvk4va1d4hj': { old: '欲張りな人', mot: '欲張り', lecture: 'よくばり', sens: "Cupide / Avide" },
+      'v-mrhvk4va19nj1': { old: '橋を渡る', mot: '橋', lecture: 'はし', sens: "Pont" },
+      'v-mrhvk4vbdfhhg': { old: '主役を演じる', mot: '演じる', lecture: 'えんじる', sens: "Jouer (un rôle)" },
+      'v-mrhvk4vbjxzev': { old: 'ブザーを鳴らす', mot: '鳴らす', lecture: 'ならす', sens: "Faire sonner" },
+      'v-mrhvk4vblh7py': { old: '鳥の鳴き声', mot: '鳴き声', lecture: 'なきごえ', sens: "Cri (d'un animal)" },
+      'v-mrhvk4vb9scmm': { old: '仲が良い', mot: '仲良し', lecture: 'なかよし', sens: "Bons amis / Bien s'entendre" },
+      'v-mrhvk4vbcy2d4': { old: '良好な関係', mot: '良好', lecture: 'りょうこう', sens: "Bon / Satisfaisant" },
+      'v-mrhvk4vbxtwg8': { old: '満点を取る', mot: '満点', lecture: 'まんてん', sens: "Note maximale" },
+      'v-mrhvk4vbbrfc2': { old: '重点を置く', mot: '重点', lecture: 'じゅうてん', sens: "Point essentiel / Priorité" }
+    };
+    const PHRASES_A_SUPPRIMER_03_11 = {
+      'v-mrhvk4v6radaj': '必要ならば',
+      'v-mrhvk4v6hvg5q': '速度を増す',
+      'v-mrhvk4v6clb0q': '人口の増加',
+      'v-mrhvk4v76n0qf': '試験に落ちる',
+      'v-4jcfwny7n4s4f': '財布を落とす',
+      'v-mrhvk4v70749a': '議長を務める',
+      'v-mrhvk4v8la9sd': '吸血鬼ドラキュラ',
+      'v-mrhvk4v8rap15': '産婦人科医',
+      'v-mrhvk4v8pf2wn': '口笛を吹く',
+      'v-mrhvk4v9us4gj': 'リズムに乗る',
+      'v-mrhvk4va2pgec': 'よく似ている',
+      'v-mrhvk4vbek6g4': '『剣の舞』'
+    };
+    if (Array.isArray(data.vocab)) {
+      data.vocab = data.vocab.filter(v => PHRASES_A_SUPPRIMER_03_11[v.id] !== v.mot);
+      data.vocab.forEach(v => {
+        const f = PHRASES_VERS_MOTS_03_11[v.id];
+        if (f && v.mot === f.old) { v.mot = f.mot; v.lecture = f.lecture; v.sens = f.sens; }
+      });
+    }
     // Verbes de base manquants au vocabulaire N5 (signale par Paul le
     // 14/09/2026) : certains verbes parmi les plus fondamentaux du N5
     // (書く, 来る, 行く...) n'avaient jamais eu leur propre entree de

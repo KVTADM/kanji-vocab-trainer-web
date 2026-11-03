@@ -20,9 +20,11 @@ const groupes = {}; seed.kanjiGroups.forEach(g => { groupes[g.id] = g; });
 const echecs = [];
 const KANJI = /[一-鿿]/g;
 
+const PHRASES_03_11 = Object.keys(JSON.parse('{' + [...webapi.match(/const PHRASES_VERS_MOTS_03_11 = \{([\s\S]*?)\n    \};/)[1].matchAll(/'(v-[^']+)':/g)].map(m => '"' + m[1] + '":1').join(',') + '}'));
 Object.entries(mig).forEach(([id, f]) => {
   const v = seed.vocab.find(x => x.id === id);
   if (!v) return echecs.push(`${id} : absent du seed`);
+  if (PHRASES_03_11.includes(id)) return; // remplace ensuite par un mot simple (migration du 03/11/2026)
   if (v.mot !== f.neu.mot) return echecs.push(`${id} : seed ${v.mot} different de la migration ${f.neu.mot}`);
   const g = groupes[v.kanjiGroupId];
   const semaine = seed.kanjiGroups.filter(x => x.semesterId === g.semesterId && x.week === g.week).map(x => x.kanji);

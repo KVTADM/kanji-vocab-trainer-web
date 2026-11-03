@@ -58,10 +58,10 @@ essai('corrige la lecture de 大学の入学試験 (の manquant, S2 semaine 8) 
   fakeStockage.set('data', base);
   const data = await window.api.loadData();
   const mot = data.vocab.find(v => v.id === 'v-mrhvk4v7q1w2i');
-  if (mot.lecture !== 'だいがくのにゅうがくしけん') throw new Error('lecture non corrigee : ' + mot.lecture);
+  if (mot.mot !== '試験' || mot.lecture !== 'しけん') throw new Error('phrase non remplacee par le mot : ' + mot.mot + ' / ' + mot.lecture);
 });
 
-essai('corrige 己自身 (おのれじしん) et 試験に落ちる (しけんにおちる) sur un compte existant (Jisho)', async () => {
+essai('corrige 己自身 (おのれじしん) et supprime 試験に落ちる (doublon de 落ちる, 03/11/2026) sur un compte existant (Jisho)', async () => {
   fakeStockage.clear();
   const base = donneeDeBase();
   base.vocab.push({ id: 'v-mrhvk4uuo7iw5', kanjiGroupId: 'kg-test-s3-a', mot: '己自身', lecture: 'こじしん', sens: 'x' });
@@ -69,7 +69,8 @@ essai('corrige 己自身 (おのれじしん) et 試験に落ちる (しけん�
   fakeStockage.set('data', base);
   const data = await window.api.loadData();
   const l = id => data.vocab.find(v => v.id === id).lecture;
-  if (l('v-mrhvk4uuo7iw5') !== 'おのれじしん' || l('v-mrhvk4v76n0qf') !== 'しけんにおちる') throw new Error(l('v-mrhvk4uuo7iw5') + ' / ' + l('v-mrhvk4v76n0qf'));
+  if (l('v-mrhvk4uuo7iw5') !== 'おのれじしん') throw new Error(l('v-mrhvk4uuo7iw5'));
+  if (data.vocab.some(v => v.id === 'v-mrhvk4v76n0qf')) throw new Error('試験に落ちる (doublon de 落ちる) aurait du etre supprime');
 });
 
 essai('corrige 吸血鬼 (きゅうけつき) et ajoute しんたい à 身体 sur un compte existant (Lucien, 29/09/2026)', async () => {
@@ -109,4 +110,20 @@ essai('pose les precisions "compteur" et "lecture particuliere" sans ecraser un 
   if (i('v-l0s1-w2-01-06') !== 'lecture-speciale') throw new Error('一人 : ' + i('v-l0s1-w2-01-06'));
   if (i('v-mrhvk4uye3rji') !== 'lecture-speciale') throw new Error('indice existant ecrase');
   if (i('v-autre-mot') !== undefined) throw new Error('un mot non liste ne doit pas avoir d\'indice');
+});
+
+essai('remplace les phrases par le mot utile (S2 sem. 8/9/11/12, 03/11/2026) et supprime les doublons, sans toucher aux autres', async () => {
+  fakeStockage.clear();
+  const base = donneeDeBase();
+  base.vocab.push({ id: 'v-mrhvk4v6u6uyv', kanjiGroupId: 'kg-test-s3-a', mot: '寺院の本堂', lecture: 'じいんのほんどう', sens: 'x' });
+  base.vocab.push({ id: 'v-mrhvk4v76n0qf', kanjiGroupId: 'kg-test-s3-a', mot: '試験に落ちる', lecture: 'しけんにおちる', sens: 'x' });
+  base.vocab.push({ id: 'v-autre-mot', kanjiGroupId: 'kg-test-s3-a', mot: '電車に乗る', lecture: 'でんしゃにのる', sens: 'x' });
+  fakeStockage.set('data', base);
+  const data = await window.api.loadData();
+  const a = data.vocab.find(v => v.id === 'v-mrhvk4v6u6uyv');
+  if (!a || a.mot !== '本堂' || a.lecture !== 'ほんどう') throw new Error('本堂 non remplace');
+  if (data.vocab.some(v => v.id === 'v-mrhvk4v76n0qf')) throw new Error('doublon non supprime');
+  if (data.vocab.find(v => v.id === 'v-autre-mot').mot !== '電車に乗る') throw new Error('un autre mot a ete touche');
+  const data2 = await window.api.loadData();
+  if (data2.vocab.find(v => v.id === 'v-mrhvk4v6u6uyv').mot !== '本堂') throw new Error('pas idempotent');
 });
