@@ -593,3 +593,15 @@ essai('Grammaire A/B/C : 45 + 36 + 50 phrases a trous, un trou chacune, reponses
     if (new Set(l.map(x => x.id)).size !== n) throw new Error('ids dupliques ' + t);
   });
 });
+
+essai('Entrees a plusieurs mots (縁側、外側、内側...) : un seul des mots suffit', () => {
+  const seed = JSON.parse(require('fs').readFileSync(__dirname + '/../seed-data.json', 'utf8'));
+  const l = seed.vocab.filter(v => v.mot.includes('、'));
+  if (l.length !== 6) throw new Error('6 entrees attendues, trouve ' + l.length);
+  l.forEach(v => {
+    if (v.lecture.includes('、')) throw new Error('lecture avec 、 : ' + v.id);
+    v.lecture.split('/').forEach(a => {
+      if (scoreAnswer(a.trim(), v.lecture).pct < 0.99) throw new Error(v.mot + ' : ' + a.trim() + ' refuse');
+    });
+  });
+});

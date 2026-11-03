@@ -648,6 +648,22 @@ const JLPT_N4_SEED = {"kanjiGroups":[{"id":"kg-hu66go90952pa","semesterId":"jlpt
         if (f && v.mot === f.old) { v.mot = f.mot; v.lecture = f.lecture; v.sens = f.sens; }
       });
     }
+    // Entrees a plusieurs mots (縁側、外側、内側...) : n'importe lequel des mots est une bonne reponse
+    // (04/11/2026, Paul). Lectures separees par ' / '. Idempotent : seulement si l'ancienne lecture.
+    const LECTURES_ALTERNATIVES_04_11 = {
+      'v-mrhvk4v77duba': { old: 'えんがわ、そとがわ、うちがわ', neuve: 'えんがわ / そとがわ / うちがわ' },
+      'v-mrhvk4v70wu6x': { old: 'みぎがわ、ひだりがわ、きたがわ', neuve: 'みぎがわ / ひだりがわ / きたがわ' },
+      'v-mrhvk4v71454p': { old: 'まどがわ、むこうがわ', neuve: 'まどがわ / むこうがわ' },
+      'v-mrhvk4v89iej7': { old: 'だいいち、だいに、だいさん', neuve: 'だいいち / だいに / だいさん' },
+      'v-mrhvk4v800xnd': { old: 'いちど、にど', neuve: 'いちど / にど' },
+      'v-mrhvk4va9eoce': { old: 'いっ、に、さんばい / いち、に、さんばい', neuve: 'いっぱい / にはい / さんばい' }
+    };
+    if (Array.isArray(data.vocab)) {
+      data.vocab.forEach(v => {
+        const f = LECTURES_ALTERNATIVES_04_11[v.id];
+        if (f && v.lecture === f.old) v.lecture = f.neuve;
+      });
+    }
     // Verbes de base manquants au vocabulaire N5 (signale par Paul le
     // 14/09/2026) : certains verbes parmi les plus fondamentaux du N5
     // (書く, 来る, 行く...) n'avaient jamais eu leur propre entree de
