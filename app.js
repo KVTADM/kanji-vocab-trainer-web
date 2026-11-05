@@ -4098,11 +4098,14 @@ function renderTraductionQuizView(container) {
           ${htmlPhraseExemple(v)}
           <div class="quiz-feedback ${quizSession.lastResult.pct >= 0.99 ? 'good' : (quizSession.lastResult.pct >= 0.6 ? 'mid' : 'bad')}">
             ${quizSession.lastVoix
-              ? (quizSession.lastVoix.tentative <= window.kvtVoix.MAX_TENTATIVES
+              ? (quizSession.lastVoix.passe
+                ? `Mot passe -- 0/${DB.settings.pointsPerWord} points`
+                : quizSession.lastVoix.tentative <= window.kvtVoix.MAX_TENTATIVES
                 ? `Reconnu : "${escapeHtml(quizSession.lastAnswer)}" a la tentative ${quizSession.lastVoix.tentative} -- ${quizSession.lastResult.points}/${DB.settings.pointsPerWord} points`
-                : `Non reconnu apres ${window.kvtVoix.MAX_TENTATIVES} tentatives (dernier essai : "${escapeHtml(quizSession.lastAnswer) || '(vide)'}") -- 0/${DB.settings.pointsPerWord} points`)
+                : `Non reconnu apres ${window.kvtVoix.MAX_TENTATIVES} tentatives -- 0/${DB.settings.pointsPerWord} points`)
               : `Ta reponse : "${escapeHtml(quizSession.lastAnswer) || '(vide)'}" -- ${quizSession.lastResult.points}/${DB.settings.pointsPerWord} points (${Math.round(quizSession.lastResult.pct * 100)}% de similarite)`}
           </div>
+          ${quizSession.lastVoix && window.kvtVoix.auto() ? '<div class="voix-etat">Mot suivant automatiquement…</div>' : ''}
         `}
       </div>
       ${!quizSession.submitted ? `
@@ -4153,6 +4156,13 @@ function renderTraductionQuizView(container) {
   } else {
     const nextBtn = $('#btnNextTraduction');
     setTimeout(() => nextBtn.focus(), 0);
+    if (quizSession.lastVoix && window.kvtVoix && window.kvtVoix.auto()) {
+      const idx = quizSession.index;
+      const reussi = quizSession.lastResult.points > 0 && !quizSession.lastVoix.passe;
+      setTimeout(() => {
+        if (quizSession && quizSession.mode === 'traduction' && quizSession.index === idx && quizSession.submitted && document.body.contains(nextBtn)) nextBtn.click();
+      }, reussi ? 2200 : 3800);
+    }
     nextBtn.addEventListener('click', () => {
       quizSession.index++;
       quizSession.submitted = false;
@@ -4564,13 +4574,65 @@ function voixTraductionActive() {
     && VOIX_TRADUCTION_SEMAINES.includes(quizSession.semesterId + ':' + quizSession.week));
 }
 
+// Correspondance voix -> mot attendu (05/11/2026). Le moteur rend du texte "libre" : katakana au lieu de
+// hiragana, chiffres arabes ("3日"), ponctuation, "です" colle, ou un homophone en kanji (火 pour ひ).
+// On normalise, on accepte kanji ou kana, on compare les lectures connues du vocabulaire (un homophone
+// compte) et on tolere une petite faute sur les mots d'au moins 3 signes.
+function normaliserVoix(t) {
+  return String(t || '').normalize('NFKC').toLowerCase()
+    .replace(/[ァ-ヶ]/g, c => String.fromCharCode(c.charCodeAt(0) - 0x60))
+    .replace(/[\s。、，．,.!?！？「」『』"'’~〜…・]/g, '');
+}
+function chiffresEnKanji(t) {
+  const K = ['〇', '一', '二', '三', '四', '五', '六', '七', '八', '九'];
+  return String(t || '').normalize('NFKC').replace(/\d{1,2}/g, m => {
+    const n = parseInt(m, 10);
+    if (n < 10) return K[n];
+    return (n < 20 ? '' : K[Math.floor(n / 10)]) + '十' + (n % 10 ? K[n % 10] : '');
+  });
+}
+let voixIndexLectures = null, voixIndexTaille = -1;
+function lecturesConnuesVoix(motNorm) {
+  if (!voixIndexLectures || voixIndexTaille !== DB.vocab.length) {
+    voixIndexLectures = new Map(); voixIndexTaille = DB.vocab.length;
+    DB.vocab.forEach(x => {
+      const m = normaliserVoix(x.mot);
+      if (!m) return;
+      if (!voixIndexLectures.has(m)) voixIndexLectures.set(m, new Set());
+      String(x.lecture || '').split(/[\/,;]/).map(normaliserVoix).filter(Boolean).forEach(l => voixIndexLectures.get(m).add(l));
+    });
+  }
+  return voixIndexLectures.get(motNorm) || new Set();
+}
+function voixCorrespond(alternatives, v) {
+  const decoupe = str => String(str || '').split(/[\/,;]/).map(normaliserVoix).filter(Boolean);
+  const lectures = new Set(decoupe(v.lecture));
+  const cibles = [...new Set([...decoupe(v.mot), ...lectures])];
+  for (let i = 0; i < alternatives.length; i++) {
+    const a = normaliserVoix(chiffresEnKanji(alternatives[i]));
+    if (!a) continue;
+    const sansFin = a.replace(/(ですね|でした|です|だよ|ね|よ)$/, '');
+    if (cibles.includes(a) || cibles.includes(sansFin)) return i;
+    if ([a, sansFin].some(x => lectures.has(x) || [...lecturesConnuesVoix(x)].some(l => lectures.has(l)))) return i;
+    if (a.length >= 3 && cibles.some(c => c.length >= 3 && similarity(a, c) >= 0.85)) return i;
+  }
+  return -1;
+}
+// "passe" dit a voix haute (le moteur japonais l'entend comme パス / パッセ) ou "suivant" : on passe le mot.
+function voixEstPasse(alternatives) {
+  return alternatives.some(t => {
+    const a = normaliserVoix(t);
+    return /^(ぱす|ぱっす|ぱっせ|ぱせ|ぱーす|ぱすう|すきっぷ|つぎ|次|pass?e?|pace|pas)$/.test(a);
+  });
+}
+
 function htmlVoixTraduction() {
   if (!voixTraductionActive()) return '';
   const max = window.kvtVoix.MAX_TENTATIVES;
   return `<div class="voix-bloc">
     <button type="button" id="btnMicTraduction" class="voix-micro" aria-pressed="false">${ICONE_MICRO}<span>Répondre à voix haute</span></button>
-    <div id="voixEtat" class="voix-etat" role="status" aria-live="polite">Dis le mot en japonais : les 3 premières tentatives valent le maximum de points (${max} tentatives au total).</div>
-    <label class="voix-auto"><input type="checkbox" id="voixAuto"${window.kvtVoix.auto() ? ' checked' : ''}> Lancer le micro automatiquement à chaque question</label>
+    <div id="voixEtat" class="voix-etat" role="status" aria-live="polite">Dis le mot en japonais (dis « passe » pour passer) : les 3 premières tentatives valent le maximum de points (${max} au total).</div>
+    <label class="voix-auto"><input type="checkbox" id="voixAuto"${window.kvtVoix.auto() ? ' checked' : ''}> Mains libres : micro et mot suivant automatiques</label>
   </div>`;
 }
 
@@ -4595,13 +4657,17 @@ function brancherVoixTraduction(v, soumettreVoix) {
       lang: 'ja-JP',
       onResultat: (liste) => {
         silences = 0;
-        const scores = liste.map(x => scoreTraductionAnswer(x, v).pct);
-        const best = Math.max(...scores);
         const t0 = quizSession.voixTentative;
-        if (best >= V.SEUIL) {
+        const trouve = voixCorrespond(liste, v);
+        if (trouve >= 0) {
           stop();
           const coef = V.coefTentative(t0);
-          soumettreVoix(liste[scores.indexOf(best)], { pct: coef, points: Math.round(coef * ppw) }, { tentative: t0 });
+          soumettreVoix(liste[trouve], { pct: coef, points: Math.round(coef * ppw) }, { tentative: t0 });
+          return;
+        }
+        if (voixEstPasse(liste)) {
+          stop();
+          soumettreVoix('', { pct: 0, points: 0 }, { tentative: t0, passe: true });
           return;
         }
         quizSession.voixTentative = t0 + 1;
@@ -4616,7 +4682,7 @@ function brancherVoixTraduction(v, soumettreVoix) {
       onErreur: (code) => {
         if (code === 'no-speech') {
           silences++;
-          if (silences < 2) { setTimeout(() => { if (enCours && !quizSession.submitted) lancer(); }, 300); return; }
+          if (silences < 4) { setTimeout(() => { if (enCours && !quizSession.submitted) lancer(); }, 300); return; }
           stop(); maj('Je n’entends rien. Touche le micro pour réessayer, ou tape ta réponse.', 'mauvais');
           return;
         }

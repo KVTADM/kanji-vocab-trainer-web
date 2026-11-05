@@ -605,3 +605,20 @@ essai('Entrees a plusieurs mots (縁側、外側、内側...) : un seul des mots
     });
   });
 });
+
+essai('Voix : kana/katakana, chiffres, homophone en kanji, "です", et le mot "passe"', () => {
+  DB.vocab = [{ id: 'h', mot: '火', lecture: 'ひ', sens: 'feu' }, { id: 'a', mot: '日', lecture: 'ひ', sens: 'jour' }];
+  const v = { mot: '学生', lecture: 'がくせい' }, tr = { mot: '三日', lecture: 'みっか' }, hi = { mot: '日', lecture: 'ひ' };
+  if (voixCorrespond(['がくせい'], v) !== 0) throw new Error('kana');
+  if (voixCorrespond(['ガクセイ。'], v) !== 0) throw new Error('katakana/ponctuation');
+  if (voixCorrespond(['学生です'], v) !== 0) throw new Error('です');
+  if (voixCorrespond(['学校', 'がくせい'], v) !== 1) throw new Error('2e proposition');
+  if (voixCorrespond(['3日'], tr) !== 0) throw new Error('chiffre');
+  if (voixCorrespond(['火'], hi) !== 0) throw new Error('homophone');
+  if (voixCorrespond(['ひ'], hi) !== 0) throw new Error('kana seul');
+  if (voixCorrespond(['がっこう'], v) !== -1) throw new Error('mauvais mot accepte');
+  if (voixCorrespond(['く'], { mot: '国', lecture: 'くに' }) !== -1) throw new Error('syllabe seule acceptee');
+  ['パス', 'ぱす', 'パッセ', 'passe', 'Pass', 'スキップ', '次'].forEach(t => { if (!voixEstPasse([t])) throw new Error('passe non reconnu : ' + t); });
+  if (voixEstPasse(['がくせい']) || voixEstPasse(['ぱんだ'])) throw new Error('faux passe');
+  if (chiffresEnKanji('12月 20日 5') !== '十二月 二十日 五') throw new Error('nombres : ' + chiffresEnKanji('12月 20日 5'));
+});
