@@ -4671,7 +4671,6 @@ function brancherVoixTraduction(v, soumettreVoix) {
     maj('Je t’écoute… tentative ' + t + '/' + V.MAX_TENTATIVES + ' (' + textePoints(t) + ')', 'ecoute');
     V.ecouter({
       lang: 'ja-JP',
-      phrases: [String(v.lecture || '').split(/[\/,;]/)[0].trim(), v.mot].filter(Boolean),
       onResultat: (liste) => {
         silences = 0;
         const t0 = quizSession.voixTentative;
@@ -4707,7 +4706,7 @@ function brancherVoixTraduction(v, soumettreVoix) {
         if (code === 'not-allowed' || code === 'service-not-allowed') maj('Le micro est bloqué pour ce site. Autorise-le dans ton navigateur, ou tape ta réponse.', 'mauvais');
         else if (code === 'audio-capture') maj('Aucun micro détecté. Tape ta réponse.', 'mauvais');
         else if (code === 'network') maj('Le service vocal du navigateur est injoignable (connexion ?). Tape ta réponse.', 'mauvais');
-        else maj('La reconnaissance vocale a échoué. Réessaie ou tape ta réponse.', 'mauvais');
+        else maj('La reconnaissance vocale a échoué (code : ' + code + '). Touche le micro pour réessayer, ou tape ta réponse.', 'mauvais');
       }
     });
   };
