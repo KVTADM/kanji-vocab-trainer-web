@@ -26,4 +26,9 @@ ok(!/htmlVoixPratique|brancherVoixPratique/.test(app), 'plus de voix dans le mod
 ok(/VOIX_TRADUCTION_SEMESTRES = \['l0-s1', 'l0-s2', 's1', 's2', 's3', 's4'\]/.test(app), 'voix active sur tout L0, L1 et L2 (et pas au-dela)');
 ok(/lang: 'ja-JP'/.test(app), 'reconnaissance du japonais');
 ok(/Réponse à voix haute/.test(fs.readFileSync(R + 'confidentialite/index.html', 'utf8')), 'politique de confidentialite mise a jour');
+const iph = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Safari/604.1';
+ok(V.estIOS({ userAgent: iph }) && !V.estIOS({ userAgent: 'Mozilla/5.0 (Windows NT 10.0) Chrome/120' }), 'detection iPhone');
+ok(V.estIOS({ userAgent: 'Mozilla/5.0 (Macintosh)', platform: 'MacIntel', maxTouchPoints: 5 }), 'detection iPad (se presente comme un Mac)');
+ok(V.estIOSEcranAccueil({ userAgent: iph, standalone: true }) && !V.estIOSEcranAccueil({ userAgent: iph, standalone: false }), 'detection de l\'ecran d\'accueil iPhone');
+ok(/estIOSEcranAccueil\(\)/.test(app) && /not-allowed/.test(app), 'messages iPhone presents');
 process.exit(echecs ? 1 : 0);

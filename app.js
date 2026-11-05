@@ -4654,15 +4654,20 @@ function voixEstPasse(alternatives) {
 function htmlVoixTraduction() {
   if (!voixTraductionActive()) return '';
   const max = window.kvtVoix.MAX_TENTATIVES;
+  if (window.kvtVoix.estIOSEcranAccueil()) {
+    return '<div class="voix-bloc"><div class="voix-etat mauvais">Sur iPhone, la voix ne fonctionne en général pas quand KVT est ouvert depuis l\u2019icône de l\u2019écran d\u2019accueil. Ouvre kvtkanji.app dans Safari pour répondre à voix haute, ou tape ta réponse.</div></div>';
+  }
+  const ios = window.kvtVoix.estIOS();
   return `<div class="voix-bloc">
     <button type="button" id="btnMicTraduction" class="voix-micro" aria-pressed="false">${ICONE_MICRO}<span>Répondre à voix haute</span></button>
     <div id="voixEtat" class="voix-etat" role="status" aria-live="polite">Dis le mot en japonais (dis « passe » pour passer) : les 3 premières tentatives valent le maximum de points (${max} au total).</div>
-    <label class="voix-auto"><input type="checkbox" id="voixAuto"${window.kvtVoix.auto() ? ' checked' : ''}> Mains libres : micro et mot suivant automatiques</label>
+    <label class="voix-auto"><input type="checkbox" id="voixAuto"${window.kvtVoix.auto() ? ' checked' : ''}> ${ios ? 'Passer au mot suivant automatiquement (sur iPhone, touche le micro à chaque mot)' : 'Mains libres : micro et mot suivant automatiques'}</label>
   </div>`;
 }
 
 function brancherVoixTraduction(v, soumettreVoix) {
   const V = window.kvtVoix;
+  const ios = V.estIOS();
   const btn = $('#btnMicTraduction');
   const etat = $('#voixEtat');
   if (!V || !btn || !etat) return;
@@ -4702,17 +4707,20 @@ function brancherVoixTraduction(v, soumettreVoix) {
           return;
         }
         maj('J’ai entendu « ' + liste[0] + ' » : ce n’est pas ça. Réessaie (tentative ' + quizSession.voixTentative + '/' + V.MAX_TENTATIVES + ', ' + textePoints(quizSession.voixTentative) + ').', 'mauvais');
+        if (ios) { stop(); maj('J\u2019ai entendu « ' + liste[0] + ' » : ce n\u2019est pas ça. Touche le micro pour réessayer (tentative ' + quizSession.voixTentative + '/' + V.MAX_TENTATIVES + ').', 'mauvais'); return; }
         setTimeout(() => { if (enCours && !quizSession.submitted) lancer(); }, 900);
       },
       onErreur: (code) => {
         if (code === 'no-speech') {
           silences++;
-          if (silences < 4) { setTimeout(() => { if (enCours && !quizSession.submitted) lancer(); }, 300); return; }
+          if (silences < 4 && !ios) { setTimeout(() => { if (enCours && !quizSession.submitted) lancer(); }, 300); return; }
           stop(); maj('Je n’entends rien. Touche le micro pour réessayer, ou tape ta réponse.', 'mauvais');
           return;
         }
         stop();
-        if (code === 'not-allowed' || code === 'service-not-allowed') maj('Le micro est bloqué pour ce site. Autorise-le dans ton navigateur, ou tape ta réponse.', 'mauvais');
+        if (code === 'service-not-allowed') maj('La dictée vocale n\u2019est pas disponible' + (ios ? ' : active Siri et la dictée dans Réglages, et ouvre KVT dans Safari (pas depuis l\u2019écran d\u2019accueil)' : ' (service du navigateur refusé)') + '. Tu peux taper ta réponse.', 'mauvais');
+        else if (code === 'not-allowed') maj('Le micro est bloqué pour ce site. Autorise-le dans ton navigateur' + (ios ? ' (Réglages > Safari > Micro, ou le « aA » de la barre d\u2019adresse)' : '') + ', ou tape ta réponse.', 'mauvais');
+        else if (code === 'language-not-supported') maj('Le japonais n\u2019est pas disponible pour la dictée sur cet appareil. Tape ta réponse.', 'mauvais');
         else if (code === 'audio-capture') maj('Aucun micro détecté. Tape ta réponse.', 'mauvais');
         else if (code === 'network') maj('Le service vocal du navigateur est injoignable (connexion ?). Tape ta réponse.', 'mauvais');
         else maj('La reconnaissance vocale a échoué (code : ' + code + '). Touche le micro pour réessayer, ou tape ta réponse.', 'mauvais');
@@ -4726,7 +4734,7 @@ function brancherVoixTraduction(v, soumettreVoix) {
     lancer();
   });
   if (chk) chk.addEventListener('change', () => V.definirAuto(chk.checked));
-  if (V.auto() && quizSession.index >= 0) setTimeout(() => { if (!enCours && !quizSession.submitted && document.body.contains(btn)) lancer(); }, 400);
+  if (V.auto() && !ios && quizSession.index >= 0) setTimeout(() => { if (!enCours && !quizSession.submitted && document.body.contains(btn)) lancer(); }, 400);
 }
 
 function renderPratiqueQuizView(container) {

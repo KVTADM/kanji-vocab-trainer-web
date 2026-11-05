@@ -63,7 +63,19 @@
   function definirAuto(v) { try { g.localStorage.setItem('kvt-voix-auto', v ? '1' : '0'); } catch (e) { /* ignore */ } }
   function dejaChoisi() { try { return g.localStorage.getItem('kvt-voix-auto') !== null; } catch (e) { return true; } }
 
-  const api = { MAX_TENTATIVES, SEUIL, coefTentative, disponible, ecouter, arreter, auto, definirAuto, dejaChoisi };
+  // iPhone / iPad : Safari exige un toucher pour CHAQUE demarrage du micro (pas de relance automatique),
+  // et la reconnaissance vocale ne marche en general pas dans un site ajoute a l'ecran d'accueil.
+  function estIOS(nav) {
+    nav = nav || g.navigator || {};
+    return /iPad|iPhone|iPod/.test(nav.userAgent || '') || (nav.platform === 'MacIntel' && nav.maxTouchPoints > 1);
+  }
+  function estIOSEcranAccueil(nav) {
+    nav = nav || g.navigator || {};
+    const mm = typeof g.matchMedia === 'function' && g.matchMedia('(display-mode: standalone)').matches;
+    return estIOS(nav) && (nav.standalone === true || mm);
+  }
+
+  const api = { MAX_TENTATIVES, SEUIL, coefTentative, disponible, ecouter, arreter, auto, definirAuto, dejaChoisi, estIOS, estIOSEcranAccueil };
   g.kvtVoix = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })();
