@@ -4011,6 +4011,7 @@ function htmlSensTraduction(sens) {
 }
 
 function renderTraductionQuizView(container) {
+  if (window.kvtVoix) window.kvtVoix.arreter();
   if (quizSession.index >= quizSession.queue.length) {
     const { points, maxPoints } = quizSession.totals;
     const dureeMs = dureeSessionMs(quizSession.totals);
@@ -4087,6 +4088,7 @@ function renderTraductionQuizView(container) {
           <div class="answer-input-wrap">
             <input id="answerInputTraduction" type="text" placeholder="Reponds en kanji ou en kana" style="margin-top:16px; width:280px; text-align:center; font-size:18px;"/>
           </div>
+          ${htmlVoixTraduction()}
         ` : quizSession.hardcore ? `
           <div class="quiz-feedback mid" style="margin-top:16px;">
             Reponse enregistree. Correction disponible a la fin de la session.
@@ -4095,7 +4097,11 @@ function renderTraductionQuizView(container) {
           <div class="back-reading">${escapeHtml(v.mot)} (${escapeHtml(v.lecture)})${registreBadge(v)} ${boutonAudioMot(v)}</div>
           ${htmlPhraseExemple(v)}
           <div class="quiz-feedback ${quizSession.lastResult.pct >= 0.99 ? 'good' : (quizSession.lastResult.pct >= 0.6 ? 'mid' : 'bad')}">
-            Ta reponse : "${escapeHtml(quizSession.lastAnswer) || '(vide)'}" -- ${quizSession.lastResult.points}/${DB.settings.pointsPerWord} points (${Math.round(quizSession.lastResult.pct * 100)}% de similarite)
+            ${quizSession.lastVoix
+              ? (quizSession.lastVoix.tentative <= window.kvtVoix.MAX_TENTATIVES
+                ? `Reconnu : "${escapeHtml(quizSession.lastAnswer)}" a la tentative ${quizSession.lastVoix.tentative} -- ${quizSession.lastResult.points}/${DB.settings.pointsPerWord} points`
+                : `Non reconnu apres ${window.kvtVoix.MAX_TENTATIVES} tentatives (dernier essai : "${escapeHtml(quizSession.lastAnswer) || '(vide)'}") -- 0/${DB.settings.pointsPerWord} points`)
+              : `Ta reponse : "${escapeHtml(quizSession.lastAnswer) || '(vide)'}" -- ${quizSession.lastResult.points}/${DB.settings.pointsPerWord} points (${Math.round(quizSession.lastResult.pct * 100)}% de similarite)`}
           </div>
         `}
       </div>
@@ -4115,12 +4121,14 @@ function renderTraductionQuizView(container) {
     // le 28/09/2026). Les kanji restent acceptes : un IME systeme actif
     // n'est pas touche pendant la composition (voir activerSaisieKanaDirecte).
     activerSaisieKanaDirecte(input, false);
-    const submit = (passer) => {
-      const val = finaliserKana(input.value, false);
-      if (passer !== true) { const refus = verifierSaisieJp(val);
+    const submit = (passer, forced) => {
+      if (window.kvtVoix) window.kvtVoix.arreter();
+      const val = forced ? forced.val : finaliserKana(input.value, false);
+      if (!forced && passer !== true) { const refus = verifierSaisieJp(val);
         if (refus) { quizSession.warning = refus; renderReview(); return; } }
       quizSession.warning = null;
-      const result = scoreTraductionAnswer(val, v);
+      const result = forced ? forced.result : scoreTraductionAnswer(val, v);
+      quizSession.lastVoix = forced ? forced.voix : null;
       quizSession.submitted = true;
       quizSession.lastAnswer = val;
       quizSession.lastResult = result;
@@ -4141,6 +4149,7 @@ function renderTraductionQuizView(container) {
       if (e.isComposing || e.keyCode === 229) return;
       submit();
     });
+    if (voixTraductionActive()) brancherVoixTraduction(v, (val, result, voix) => submit(false, { val, result, voix }));
   } else {
     const nextBtn = $('#btnNextTraduction');
     setTimeout(() => nextBtn.focus(), 0);
@@ -4148,6 +4157,8 @@ function renderTraductionQuizView(container) {
       quizSession.index++;
       quizSession.submitted = false;
       quizSession.warning = null;
+      quizSession.voixTentative = 1;
+      quizSession.lastVoix = null;
       renderReview();
     });
   }
@@ -4538,6 +4549,93 @@ function buildPratiqueCardsHtml(cardClass, restartClass) {
 function htmlIndiceCours(v, avecRappel) {
   if (!v || !v.sujet) return '';
   return `<div class="indice-cours"><div class="indice-cours__sujet">${escapeHtml(v.sujet)}${v.variante ? ' · ' + escapeHtml(v.variante) : ''}</div>${avecRappel && v.rappel ? `<div class="indice-cours__rappel">${escapeHtml(v.rappel)}</div>` : ''}</div>`;
+}
+
+// ---------- Reponse a voix haute (tests de traduction du cursus, 05/11/2026) ----------
+// On voit le mot en francais, on DIT le mot en japonais (reconnaissance ja-JP) ; ce qui est
+// compris (kanji ou kana) est compare comme une reponse tapee (scoreTraductionAnswer).
+const ICONE_MICRO = '<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>';
+
+// Pour l'instant : uniquement les tests de traduction du cursus, et seulement les semaines listees
+// ici (essai demande par Paul le 05/11/2026 : on commence par la semaine 1 du semestre 1 debutant).
+const VOIX_TRADUCTION_SEMAINES = ['l0-s1:1'];
+function voixTraductionActive() {
+  return !!(window.kvtVoix && window.kvtVoix.disponible() && quizSession && quizSession.mode === 'traduction'
+    && VOIX_TRADUCTION_SEMAINES.includes(quizSession.semesterId + ':' + quizSession.week));
+}
+
+function htmlVoixTraduction() {
+  if (!voixTraductionActive()) return '';
+  const max = window.kvtVoix.MAX_TENTATIVES;
+  return `<div class="voix-bloc">
+    <button type="button" id="btnMicTraduction" class="voix-micro" aria-pressed="false">${ICONE_MICRO}<span>Répondre à voix haute</span></button>
+    <div id="voixEtat" class="voix-etat" role="status" aria-live="polite">Dis le mot en japonais : les 3 premières tentatives valent le maximum de points (${max} tentatives au total).</div>
+    <label class="voix-auto"><input type="checkbox" id="voixAuto"${window.kvtVoix.auto() ? ' checked' : ''}> Lancer le micro automatiquement à chaque question</label>
+  </div>`;
+}
+
+function brancherVoixTraduction(v, soumettreVoix) {
+  const V = window.kvtVoix;
+  const btn = $('#btnMicTraduction');
+  const etat = $('#voixEtat');
+  if (!V || !btn || !etat) return;
+  const chk = $('#voixAuto');
+  const ppw = DB.settings.pointsPerWord;
+  let enCours = false, silences = 0;
+  if (!quizSession.voixTentative) quizSession.voixTentative = 1;
+  const maj = (msg, cls) => { etat.textContent = msg; etat.className = 'voix-etat' + (cls ? ' ' + cls : ''); };
+  const stop = () => { enCours = false; btn.classList.remove('ecoute'); btn.setAttribute('aria-pressed', 'false'); };
+  const textePoints = (t) => { const c = V.coefTentative(t); return c >= 1 ? 'maximum de points' : Math.round(c * 100) + ' % des points'; };
+  const lancer = () => {
+    if (quizSession.submitted) return;
+    const t = quizSession.voixTentative;
+    enCours = true; btn.classList.add('ecoute'); btn.setAttribute('aria-pressed', 'true');
+    maj('Je t’écoute… tentative ' + t + '/' + V.MAX_TENTATIVES + ' (' + textePoints(t) + ')', 'ecoute');
+    V.ecouter({
+      lang: 'ja-JP',
+      onResultat: (liste) => {
+        silences = 0;
+        const scores = liste.map(x => scoreTraductionAnswer(x, v).pct);
+        const best = Math.max(...scores);
+        const t0 = quizSession.voixTentative;
+        if (best >= V.SEUIL) {
+          stop();
+          const coef = V.coefTentative(t0);
+          soumettreVoix(liste[scores.indexOf(best)], { pct: coef, points: Math.round(coef * ppw) }, { tentative: t0 });
+          return;
+        }
+        quizSession.voixTentative = t0 + 1;
+        if (quizSession.voixTentative > V.MAX_TENTATIVES) {
+          stop();
+          soumettreVoix(liste[0], { pct: 0, points: 0 }, { tentative: quizSession.voixTentative });
+          return;
+        }
+        maj('J’ai entendu « ' + liste[0] + ' » : ce n’est pas ça. Réessaie (tentative ' + quizSession.voixTentative + '/' + V.MAX_TENTATIVES + ', ' + textePoints(quizSession.voixTentative) + ').', 'mauvais');
+        setTimeout(() => { if (enCours && !quizSession.submitted) lancer(); }, 900);
+      },
+      onErreur: (code) => {
+        if (code === 'no-speech') {
+          silences++;
+          if (silences < 2) { setTimeout(() => { if (enCours && !quizSession.submitted) lancer(); }, 300); return; }
+          stop(); maj('Je n’entends rien. Touche le micro pour réessayer, ou tape ta réponse.', 'mauvais');
+          return;
+        }
+        stop();
+        if (code === 'not-allowed' || code === 'service-not-allowed') maj('Le micro est bloqué pour ce site. Autorise-le dans ton navigateur, ou tape ta réponse.', 'mauvais');
+        else if (code === 'audio-capture') maj('Aucun micro détecté. Tape ta réponse.', 'mauvais');
+        else if (code === 'network') maj('Le service vocal du navigateur est injoignable (connexion ?). Tape ta réponse.', 'mauvais');
+        else maj('La reconnaissance vocale a échoué. Réessaie ou tape ta réponse.', 'mauvais');
+      }
+    });
+  };
+  btn.addEventListener('click', () => {
+    if (enCours) { V.arreter(); stop(); maj('Micro coupé. Touche-le pour reprendre, ou tape ta réponse.'); return; }
+    silences = 0;
+    if (!V.dejaChoisi()) { V.definirAuto(true); if (chk) chk.checked = true; } // 1er usage : on enchaine ensuite tout seul
+    lancer();
+  });
+  if (chk) chk.addEventListener('change', () => V.definirAuto(chk.checked));
+  if (V.auto() && quizSession.index >= 0) setTimeout(() => { if (!enCours && !quizSession.submitted && document.body.contains(btn)) lancer(); }, 400);
 }
 
 function renderPratiqueQuizView(container) {

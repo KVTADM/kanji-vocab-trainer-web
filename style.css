@@ -4226,3 +4226,15 @@ button.primary:focus-visible, button.secondary:focus-visible, button.danger:focu
   button.primary, button.secondary, button.danger, .kj-fiche, .kj-fiche *, .kvt-co, .kvt-co__box, .kvt-co__onglets > i { transition: none !important; animation: none !important; }
   .mv { opacity: 1; transform: none; transition: none; }
 }
+
+/* Reponse a voix haute (05/11/2026) */
+.voix-bloc { display: flex; flex-direction: column; align-items: center; gap: 8px; margin-top: 12px; }
+.voix-micro { display: inline-flex; align-items: center; gap: 8px; padding: 10px 18px; border-radius: 999px; border: 1px solid var(--border); background: transparent; color: var(--accent-bright); font: inherit; cursor: pointer; }
+.voix-micro:hover { border-color: var(--accent-bright); }
+.voix-micro.ecoute { background: var(--accent); color: #fff; border-color: var(--accent); animation: voix-pouls 1.4s ease-in-out infinite; }
+.voix-etat { font-size: 13px; color: var(--muted); max-width: 320px; text-align: center; min-height: 1.3em; }
+.voix-etat.mauvais { color: #e07a5f; }
+.voix-etat.ecoute { color: var(--accent-bright); }
+.voix-auto { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); cursor: pointer; }
+@keyframes voix-pouls { 0%, 100% { box-shadow: 0 0 0 0 rgba(91, 200, 245, .45); } 50% { box-shadow: 0 0 0 9px rgba(91, 200, 245, 0); } }
+@media (prefers-reduced-motion: reduce) { .voix-micro.ecoute { animation: none; } }

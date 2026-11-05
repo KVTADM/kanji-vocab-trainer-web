@@ -76,15 +76,16 @@
 #  - X-Frame-Options : le site ne peut pas être affiché dans la page d'un autre
 #    (détournement de clic).
 #  - Referrer-Policy : on n'envoie que le domaine aux sites tiers.
-#  - Permissions-Policy : caméra, micro, position, paiement navigateur coupés
-#    (KVT n'en utilise aucun).
+#  - Permissions-Policy : caméra, position, paiement navigateur coupés. Le micro est
+#    autorisé pour KVT seul (microphone=(self)) : réponse à voix haute dans les tests
+#    de traduction (05/11/2026) ; les cadres tiers (publicités) restent sans micro.
 [[headers]]
   for = "/*"
   [headers.values]
     X-Content-Type-Options = "nosniff"
     X-Frame-Options = "SAMEORIGIN"
     Referrer-Policy = "strict-origin-when-cross-origin"
-    Permissions-Policy = "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
+    Permissions-Policy = "camera=(), microphone=(self), geolocation=(), payment=(), usb=()"
 
 # Audio des mots (MP3 ElevenLabs, voix Kenzo) : mis en cache par le navigateur pour une semaine.
 # L'index.json reste a jour (revalidation a chaque fois).
