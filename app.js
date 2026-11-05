@@ -4604,6 +4604,13 @@ function lecturesConnuesVoix(motNorm) {
   }
   return voixIndexLectures.get(motNorm) || new Set();
 }
+// Lectures possibles d'un texte entendu : mots du vocabulaire + lectures d'un kanji seul (日 -> ひ, か, にち...).
+function lecturesPossiblesVoix(x) {
+  const out = new Set(lecturesConnuesVoix(x));
+  const kl = typeof window !== 'undefined' && window.KVT_KANJI_LECTURES;
+  if (kl && [...x].length === 1 && kl[x]) kl[x].split('/').map(normaliserVoix).filter(Boolean).forEach(l => out.add(l));
+  return out;
+}
 function voixCorrespond(alternatives, v) {
   const decoupe = str => String(str || '').split(/[\/,;]/).map(normaliserVoix).filter(Boolean);
   const lectures = new Set(decoupe(v.lecture));
@@ -4613,16 +4620,25 @@ function voixCorrespond(alternatives, v) {
     if (!a) continue;
     const sansFin = a.replace(/(ですね|でした|です|だよ|ね|よ)$/, '');
     if (cibles.includes(a) || cibles.includes(sansFin)) return i;
-    if ([a, sansFin].some(x => lectures.has(x) || [...lecturesConnuesVoix(x)].some(l => lectures.has(l)))) return i;
+    if ([a, sansFin].some(x => lectures.has(x) || [...lecturesPossiblesVoix(x)].some(l => lectures.has(l)))) return i;
+    // Mots tres courts (ひ, まえ...) : le moteur colle souvent une particule ou un son long ("まえに", "ひー", "日は").
+    const colle = a.replace(/(です|ね|よ|か|は|が|を|に|の|も|と|ー|っ|え|あ)$/, '');
+    if (colle !== a && colle && (cibles.includes(colle) || lectures.has(colle) || [...lecturesPossiblesVoix(colle)].some(l => lectures.has(l)))) return i;
     if (a.length >= 3 && cibles.some(c => c.length >= 3 && similarity(a, c) >= 0.85)) return i;
   }
   return -1;
 }
 // "passe" dit a voix haute (le moteur japonais l'entend comme パス / パッセ) ou "suivant" : on passe le mot.
 function voixEstPasse(alternatives) {
+  // Le moteur japonais transcrit "passe" de facons variables (パス, パッセ, バス, パース...) et
+  // "suivant" aussi (スイバン, スワン...) : on accepte toute la famille, et les mots japonais
+  // fiables "つぎ" (suivant) et "スキップ".
   return alternatives.some(t => {
-    const a = normaliserVoix(t);
-    return /^(ぱす|ぱっす|ぱっせ|ぱせ|ぱーす|ぱすう|すきっぷ|つぎ|次|pass?e?|pace|pas)$/.test(a);
+    const a = normaliserVoix(t).replace(/[ーっ]/g, '');
+    if (/^(pass?e?|pace|pas|suivant|next|skip)$/.test(a)) return true;
+    if (/^[ぱばぺぴ][あ]?[すせしずさ]$/.test(a)) return true;       // ぱす ぱせ ばす ぱさ ...
+    if (/^[すず][いうえわ]?[ばはぶぼわあ]ん$/.test(a)) return true;  // すいばん すわん ...
+    return /^(すきぷ|つぎ|次|つぎへ|ぱすする)$/.test(a);
   });
 }
 
@@ -4655,6 +4671,7 @@ function brancherVoixTraduction(v, soumettreVoix) {
     maj('Je t’écoute… tentative ' + t + '/' + V.MAX_TENTATIVES + ' (' + textePoints(t) + ')', 'ecoute');
     V.ecouter({
       lang: 'ja-JP',
+      phrases: [String(v.lecture || '').split(/[\/,;]/)[0].trim(), v.mot].filter(Boolean),
       onResultat: (liste) => {
         silences = 0;
         const t0 = quizSession.voixTentative;

@@ -43,7 +43,11 @@
     r.lang = (opts && opts.lang) || 'fr-FR';
     r.interimResults = false;
     r.continuous = false;
-    r.maxAlternatives = 5;
+    r.maxAlternatives = 10;
+    // Aide au moteur (Chrome recent) : les mots attendus sont favorises, ce qui aide surtout les mots tres courts.
+    try {
+      if (opts && opts.phrases && g.SpeechRecognitionPhrase && 'phrases' in r) r.phrases = opts.phrases.map(t => new g.SpeechRecognitionPhrase(t, 5));
+    } catch (e) { /* non pris en charge */ }
     let traite = false;
     const fin = (fn, arg) => { if (traite || r.__annule) return; traite = true; if (rec === r) rec = null; fn(arg); };
     r.onresult = (e) => {

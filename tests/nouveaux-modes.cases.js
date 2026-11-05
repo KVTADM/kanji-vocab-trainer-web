@@ -616,9 +616,11 @@ essai('Voix : kana/katakana, chiffres, homophone en kanji, "です", et le mot "
   if (voixCorrespond(['3日'], tr) !== 0) throw new Error('chiffre');
   if (voixCorrespond(['火'], hi) !== 0) throw new Error('homophone');
   if (voixCorrespond(['ひ'], hi) !== 0) throw new Error('kana seul');
+  if (voixCorrespond(['ひー'], hi) !== 0 || voixCorrespond(['日は'], hi) !== 0) throw new Error('son long / particule collee');
+  if (voixCorrespond(['まえに'], { mot: '前', lecture: 'まえ' }) !== 0 || voixCorrespond(['マエ'], { mot: '前', lecture: 'まえ' }) !== 0) throw new Error('まえ');
   if (voixCorrespond(['がっこう'], v) !== -1) throw new Error('mauvais mot accepte');
   if (voixCorrespond(['く'], { mot: '国', lecture: 'くに' }) !== -1) throw new Error('syllabe seule acceptee');
-  ['パス', 'ぱす', 'パッセ', 'passe', 'Pass', 'スキップ', '次'].forEach(t => { if (!voixEstPasse([t])) throw new Error('passe non reconnu : ' + t); });
+  ['パス', 'ぱす', 'パッセ', 'パース', 'バス', 'passe', 'Pass', 'スキップ', '次', 'つぎ', 'スイバン', 'スワン', 'suivant'].forEach(t => { if (!voixEstPasse([t])) throw new Error('passe non reconnu : ' + t); });
   if (voixEstPasse(['がくせい']) || voixEstPasse(['ぱんだ'])) throw new Error('faux passe');
   if (chiffresEnKanji('12月 20日 5') !== '十二月 二十日 五') throw new Error('nombres : ' + chiffresEnKanji('12月 20日 5'));
 });
