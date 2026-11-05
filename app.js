@@ -4566,12 +4566,12 @@ function htmlIndiceCours(v, avecRappel) {
 // compris (kanji ou kana) est compare comme une reponse tapee (scoreTraductionAnswer).
 const ICONE_MICRO = '<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>';
 
-// Pour l'instant : uniquement les tests de traduction du cursus, et seulement les semaines listees
-// ici (essai demande par Paul le 05/11/2026 : on commence par la semaine 1 du semestre 1 debutant).
-const VOIX_TRADUCTION_SEMAINES = ['l0-s1:1'];
+// Uniquement les tests de traduction du cursus. Essai commence par L0 semaine 1 (05/11/2026), puis etendu
+// a tout L0, L1 et L2 (a la demande de Paul). Pour ajouter L3 : ajouter ses semestres a la liste.
+const VOIX_TRADUCTION_SEMESTRES = ['l0-s1', 'l0-s2', 's1', 's2', 's3', 's4']; // L0 (debutant), L1 (S1-S2), L2 (S3-S4), toutes les semaines
 function voixTraductionActive() {
   return !!(window.kvtVoix && window.kvtVoix.disponible() && quizSession && quizSession.mode === 'traduction'
-    && VOIX_TRADUCTION_SEMAINES.includes(quizSession.semesterId + ':' + quizSession.week));
+    && VOIX_TRADUCTION_SEMESTRES.includes(quizSession.semesterId));
 }
 
 // Correspondance voix -> mot attendu (05/11/2026). Le moteur rend du texte "libre" : katakana au lieu de
@@ -4604,6 +4604,14 @@ function lecturesConnuesVoix(motNorm) {
   }
   return voixIndexLectures.get(motNorm) || new Set();
 }
+// Toutes les lectures du vocabulaire : si ce qu'on a entendu est LUI-MEME un autre mot connu
+// (反対に, 文化, 当然...), on ne le « corrige » pas vers le mot attendu.
+function estAutreMotConnuVoix(a, lectures) {
+  lecturesConnuesVoix('');
+  if (lectures.has(a)) return false;
+  for (const set of voixIndexLectures.values()) if (set.has(a)) return true;
+  return voixIndexLectures.has(a);
+}
 // Lectures possibles d'un texte entendu : mots du vocabulaire + lectures d'un kanji seul (日 -> ひ, か, にち...).
 function lecturesPossiblesVoix(x) {
   const out = new Set(lecturesConnuesVoix(x));
@@ -4614,17 +4622,18 @@ function lecturesPossiblesVoix(x) {
 function voixCorrespond(alternatives, v) {
   const decoupe = str => String(str || '').split(/[\/,;]/).map(normaliserVoix).filter(Boolean);
   const lectures = new Set(decoupe(v.lecture));
-  const cibles = [...new Set([...decoupe(v.mot), ...lectures])];
+  const cibles = [...new Set([...decoupe(chiffresEnKanji(v.mot)), ...lectures])];
   for (let i = 0; i < alternatives.length; i++) {
     const a = normaliserVoix(chiffresEnKanji(alternatives[i]));
     if (!a) continue;
-    const sansFin = a.replace(/(ですね|でした|です|だよ|ね|よ)$/, '');
+    const autreMot = estAutreMotConnuVoix(a, lectures);
+    const sansFin = autreMot ? a : a.replace(/(ですね|でした|です|だよ|ね|よ)$/, '');
     if (cibles.includes(a) || cibles.includes(sansFin)) return i;
     if ([a, sansFin].some(x => lectures.has(x) || [...lecturesPossiblesVoix(x)].some(l => lectures.has(l)))) return i;
     // Mots tres courts (ひ, まえ...) : le moteur colle souvent une particule ou un son long ("まえに", "ひー", "日は").
-    const colle = a.replace(/(です|ね|よ|か|は|が|を|に|の|も|と|ー|っ|え|あ)$/, '');
+    const colle = autreMot ? a : a.replace(/(です|ね|よ|か|は|が|を|に|の|も|と|ー|っ|え|あ)$/, '');
     if (colle !== a && colle && (cibles.includes(colle) || lectures.has(colle) || [...lecturesPossiblesVoix(colle)].some(l => lectures.has(l)))) return i;
-    if (a.length >= 3 && cibles.some(c => c.length >= 3 && similarity(a, c) >= 0.85)) return i;
+    if (!autreMot && a.length >= 3 && cibles.some(c => c.length >= 3 && similarity(a, c) >= 0.85)) return i;
   }
   return -1;
 }

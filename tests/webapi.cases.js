@@ -127,3 +127,15 @@ essai('remplace les phrases par le mot utile (S2 sem. 8/9/11/12, 03/11/2026) et 
   const data2 = await window.api.loadData();
   if (data2.vocab.find(v => v.id === 'v-mrhvk4v6u6uyv').mot !== '本堂') throw new Error('pas idempotent');
 });
+
+essai('東京の２３区 : la lecture sans chiffres (05/11/2026), idempotent', async () => {
+  fakeStockage.clear();
+  const base = donneeDeBase();
+  base.vocab.push({ id: 'v-mrhvk4v4d71wi', kanjiGroupId: 'kg-test-s3-a', mot: '東京の２３区', lecture: 'とうきょうの２３く', sens: 'x' });
+  fakeStockage.set('data', base);
+  const a = await window.api.loadData();
+  const l = d => d.vocab.find(v => v.id === 'v-mrhvk4v4d71wi').lecture;
+  if (l(a) !== 'とうきょうのにじゅうさんく') throw new Error(l(a));
+  const b = await window.api.loadData();
+  if (l(b) !== 'とうきょうのにじゅうさんく') throw new Error('pas idempotent');
+});

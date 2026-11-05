@@ -23,7 +23,7 @@ ok(sw.includes("'/voix.js'"), 'voix.js dans le cache hors ligne');
 ok(/microphone=\(self\)/.test(toml) && !/microphone=\(\)/.test(toml), 'le micro est autorise pour le site (Permissions-Policy)');
 ok(/brancherVoixTraduction\(v,/.test(app) && /htmlVoixTraduction\(\)/.test(app), 'le test de traduction du cursus branche la voix');
 ok(!/htmlVoixPratique|brancherVoixPratique/.test(app), 'plus de voix dans le mode Pratique (uniquement les tests de traduction du cursus)');
-ok(/VOIX_TRADUCTION_SEMAINES = \['l0-s1:1'\]/.test(app), 'essai limite a la semaine 1 du semestre 1 debutant');
+ok(/VOIX_TRADUCTION_SEMESTRES = \['l0-s1', 'l0-s2', 's1', 's2', 's3', 's4'\]/.test(app), 'voix active sur tout L0, L1 et L2 (et pas au-dela)');
 ok(/lang: 'ja-JP'/.test(app), 'reconnaissance du japonais');
 ok(/Réponse à voix haute/.test(fs.readFileSync(R + 'confidentialite/index.html', 'utf8')), 'politique de confidentialite mise a jour');
 process.exit(echecs ? 1 : 0);

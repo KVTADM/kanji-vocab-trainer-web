@@ -624,3 +624,11 @@ essai('Voix : kana/katakana, chiffres, homophone en kanji, "です", et le mot "
   if (voixEstPasse(['がくせい']) || voixEstPasse(['ぱんだ'])) throw new Error('faux passe');
   if (chiffresEnKanji('12月 20日 5') !== '十二月 二十日 五') throw new Error('nombres : ' + chiffresEnKanji('12月 20日 5'));
 });
+
+essai('Voix : un autre mot connu (反対に, 文化) n\'est pas accepte pour 反対 / 文 ; chiffres dans le mot (97億人)', () => {
+  DB.vocab = [{ id: '1', mot: '反対', lecture: 'はんたい', sens: 'x' }, { id: '2', mot: '反対に', lecture: 'はんたいに', sens: 'x' }, { id: '3', mot: '文', lecture: 'ぶん', sens: 'x' }, { id: '4', mot: '文化', lecture: 'ぶんか', sens: 'x' }];
+  if (voixCorrespond(['はんたいに'], { mot: '反対', lecture: 'はんたい' }) !== -1) throw new Error('反対に accepte pour 反対');
+  if (voixCorrespond(['ぶんか'], { mot: '文', lecture: 'ぶん' }) !== -1) throw new Error('文化 accepte pour 文');
+  if (voixCorrespond(['はんたい'], { mot: '反対', lecture: 'はんたい' }) !== 0) throw new Error('bon mot refuse');
+  if (voixCorrespond(['97億人'], { mot: '97億人', lecture: 'きゅうじゅうななおくにん' }) !== 0) throw new Error('chiffres');
+});

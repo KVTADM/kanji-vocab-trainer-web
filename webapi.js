@@ -664,6 +664,13 @@ const JLPT_N4_SEED = {"kanjiGroups":[{"id":"kg-hu66go90952pa","semesterId":"jlpt
         if (f && v.lecture === f.old) v.lecture = f.neuve;
       });
     }
+    // 東京の２３区 : la lecture contenait des chiffres (impossible a taper en kana et a dire) -> en kana
+    // (05/11/2026). Idempotent : seulement si l'ancienne lecture.
+    if (Array.isArray(data.vocab)) {
+      data.vocab.forEach(v => {
+        if (v.id === 'v-mrhvk4v4d71wi' && v.lecture === 'とうきょうの２３く') v.lecture = 'とうきょうのにじゅうさんく';
+      });
+    }
     // Verbes de base manquants au vocabulaire N5 (signale par Paul le
     // 14/09/2026) : certains verbes parmi les plus fondamentaux du N5
     // (書く, 来る, 行く...) n'avaient jamais eu leur propre entree de
