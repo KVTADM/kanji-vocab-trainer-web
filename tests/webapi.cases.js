@@ -139,3 +139,19 @@ essai('東京の２３区 : la lecture sans chiffres (05/11/2026), idempotent', 
   const b = await window.api.loadData();
   if (l(b) !== 'とうきょうのにじゅうさんく') throw new Error('pas idempotent');
 });
+
+essai('reglage toucheSuivant : valeur par defaut (flèche droite), valeur choisie conservee', async () => {
+  fakeStockage.clear();
+  const base = donneeDeBase();
+  fakeStockage.set('data', base);
+  const a = await window.api.loadData();
+  if (a.settings.toucheSuivant !== 'ArrowRight') throw new Error('defaut : ' + a.settings.toucheSuivant);
+  a.settings.toucheSuivant = 'KeyN';
+  await window.api.saveData(a);
+  const b = await window.api.loadData();
+  if (b.settings.toucheSuivant !== 'KeyN') throw new Error('non conservee : ' + b.settings.toucheSuivant);
+  b.settings.toucheSuivant = '';
+  await window.api.saveData(b);
+  const c = await window.api.loadData();
+  if (c.settings.toucheSuivant !== '') throw new Error('desactivation perdue : ' + c.settings.toucheSuivant);
+});

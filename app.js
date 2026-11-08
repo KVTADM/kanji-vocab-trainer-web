@@ -4561,6 +4561,26 @@ function htmlIndiceCours(v, avecRappel) {
   return `<div class="indice-cours"><div class="indice-cours__sujet">${escapeHtml(v.sujet)}${v.variante ? ' · ' + escapeHtml(v.variante) : ''}</div>${avecRappel && v.rappel ? `<div class="indice-cours__rappel">${escapeHtml(v.rappel)}</div>` : ''}</div>`;
 }
 
+// ---------- Touche "question suivante" configurable (08/11/2026) ----------
+// Un seul reglage (DB.settings.toucheSuivant = KeyboardEvent.code, '' = desactivee). La touche ne
+// sert qu'APRES avoir repondu (la reponse est affichee, il ne reste que le bouton "Mot suivant") :
+// aucun risque de la taper par erreur dans un champ.
+const TOUCHE_SUIVANT_DEFAUT = 'ArrowRight';
+function toucheSuivantValide(code) {
+  if (!code || typeof code !== 'string') return false;
+  return !/^(Escape|Tab|CapsLock|Shift|Control|Alt|Meta|OS|ContextMenu)/.test(code);
+}
+function libelleToucheSuivant(code) {
+  if (!code) return 'aucune (désactivée)';
+  const noms = { ArrowRight: '→ (flèche droite)', ArrowLeft: '← (flèche gauche)', ArrowUp: '↑ (flèche haut)', ArrowDown: '↓ (flèche bas)', Space: 'Espace', Enter: 'Entrée', NumpadEnter: 'Entrée (pavé numérique)', Backspace: 'Retour arrière', Delete: 'Suppr', Insert: 'Inser', Home: 'Début', End: 'Fin', PageUp: 'Page précédente', PageDown: 'Page suivante', NumpadAdd: '+ (pavé numérique)', NumpadSubtract: '- (pavé numérique)', NumpadMultiply: '* (pavé numérique)', NumpadDivide: '/ (pavé numérique)', NumpadDecimal: '. (pavé numérique)' };
+  if (noms[code]) return noms[code];
+  let m;
+  if ((m = /^Key([A-Z])$/.exec(code))) return m[1];
+  if ((m = /^Digit(\d)$/.exec(code))) return m[1];
+  if ((m = /^Numpad(\d)$/.exec(code))) return m[1] + ' (pavé numérique)';
+  return code;
+}
+
 // ---------- Reponse a voix haute (tests de traduction du cursus, 05/11/2026) ----------
 // On voit le mot en francais, on DIT le mot en japonais (reconnaissance ja-JP) ; ce qui est
 // compris (kanji ou kana) est compare comme une reponse tapee (scoreTraductionAnswer).
@@ -5635,6 +5655,19 @@ function renderSettings() {
       </p>
     </div>
     <div class="card">
+      <h3>Raccourci clavier</h3>
+      <p style="font-size:12px; color:var(--muted); line-height:1.6;">
+        Touche pour passer à la question suivante <strong>une fois que tu as répondu</strong>, dans tous les tests
+        (elle ne fait rien pendant que tu tapes ta réponse). Entrée fonctionne toujours en plus.
+      </p>
+      <div class="form-row" style="align-items:center; gap:10px; flex-wrap:wrap;">
+        <span id="toucheSuivantEtat">Touche actuelle : <strong>${escapeHtml(libelleToucheSuivant(s.toucheSuivant))}</strong></span>
+        <button class="secondary" id="btnToucheSuivant" type="button">Changer la touche</button>
+        <button class="secondary" id="btnToucheSuivantDefaut" type="button">Par défaut (→)</button>
+        <button class="secondary" id="btnToucheSuivantAucune" type="button">Désactiver</button>
+      </div>
+    </div>
+    <div class="card">
       <h3>Thème</h3>
       <div class="form-row">
         <label>Palette de couleurs
@@ -5704,6 +5737,23 @@ function renderSettings() {
     s.hardcoreMode = e.target.checked;
     await persist();
     showToast(s.hardcoreMode ? 'Mode hardcore activé' : 'Mode hardcore désactivé');
+  });
+
+  const majToucheSuivant = () => { $('#toucheSuivantEtat').innerHTML = 'Touche actuelle : <strong>' + escapeHtml(libelleToucheSuivant(s.toucheSuivant)) + '</strong>'; };
+  const fixerToucheSuivant = async (code) => { s.toucheSuivant = code; await persist(); majToucheSuivant(); showToast(code ? 'Touche enregistrée : ' + libelleToucheSuivant(code) : 'Raccourci désactivé'); };
+  $('#btnToucheSuivantDefaut').addEventListener('click', () => fixerToucheSuivant(TOUCHE_SUIVANT_DEFAUT));
+  $('#btnToucheSuivantAucune').addEventListener('click', () => fixerToucheSuivant(''));
+  $('#btnToucheSuivant').addEventListener('click', () => {
+    $('#toucheSuivantEtat').textContent = 'Appuie sur la touche voulue… (Échap pour annuler)';
+    const ecoute = (ev) => {
+      if (/^(Shift|Control|Alt|Meta|CapsLock)/.test(ev.code)) return; // attend une vraie touche
+      ev.preventDefault(); ev.stopPropagation();
+      document.removeEventListener('keydown', ecoute, true);
+      if (ev.code === 'Escape') { majToucheSuivant(); return; }
+      if (!toucheSuivantValide(ev.code) || ev.ctrlKey || ev.metaKey || ev.altKey) { majToucheSuivant(); showToast('Cette touche ne peut pas être utilisée'); return; }
+      fixerToucheSuivant(ev.code);
+    };
+    document.addEventListener('keydown', ecoute, true);
   });
 
   $('#setSpectralMode').addEventListener('change', async (e) => {
@@ -5868,6 +5918,22 @@ async function init() {
 }
 
 document.addEventListener('DOMContentLoaded', init);
+
+// Touche "question suivante" (reglage Reglages > Raccourci clavier).
+document.addEventListener('keydown', (e) => {
+  if (e.defaultPrevented || e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
+  const code = typeof DB !== 'undefined' && DB && DB.settings ? DB.settings.toucheSuivant : '';
+  if (!code || e.code !== code) return;
+  if (typeof quizSession === 'undefined' || !quizSession || !quizSession.submitted || currentView !== 'review') return;
+  const cible = e.target;
+  if (cible && /^(INPUT|TEXTAREA|SELECT)$/.test(cible.tagName)) return;
+  // Entree / Espace sur le bouton deja actif : le navigateur le declenche lui-meme (sinon on saute 2 mots).
+  if (cible && cible.tagName === 'BUTTON' && /^(Enter|NumpadEnter|Space)$/.test(code)) return;
+  const bouton = document.querySelector('#view-review [id^="btnNext"]');
+  if (!bouton) return;
+  e.preventDefault();
+  bouton.click();
+});
 
 
 // Bulles « i » : l'infobulle est un élément flottant (position: fixed) ajouté

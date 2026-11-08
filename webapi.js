@@ -150,6 +150,8 @@ const JLPT_N4_SEED = {"kanjiGroups":[{"id":"kg-hu66go90952pa","semesterId":"jlpt
     if (!Array.isArray(data.motsMasques)) data.motsMasques = [];
     if (typeof data.settings.hardcoreMode !== 'boolean') data.settings.hardcoreMode = false;
     if (typeof data.settings.spectralMode !== 'boolean') data.settings.spectralMode = false;
+    // Touche "question suivante" (08/11/2026) : KeyboardEvent.code, '' = desactivee ; defaut ->.
+    if (typeof data.settings.toucheSuivant !== 'string') data.settings.toucheSuivant = 'ArrowRight';
     if (!data.wordStats || typeof data.wordStats !== 'object') data.wordStats = {};
     if (!data.inProgress || typeof data.inProgress !== 'object') data.inProgress = {};
     // Mode "Kanji seul" (onyomi/kunyomi, 09/09/2026) : namespaces neufs et

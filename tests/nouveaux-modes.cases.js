@@ -632,3 +632,12 @@ essai('Voix : un autre mot connu (反対に, 文化) n\'est pas accepte pour 反
   if (voixCorrespond(['はんたい'], { mot: '反対', lecture: 'はんたい' }) !== 0) throw new Error('bon mot refuse');
   if (voixCorrespond(['97億人'], { mot: '97億人', lecture: 'きゅうじゅうななおくにん' }) !== 0) throw new Error('chiffres');
 });
+
+essai('Touche "question suivante" : touches valides, libelles lisibles', () => {
+  if (TOUCHE_SUIVANT_DEFAUT !== 'ArrowRight') throw new Error('defaut');
+  ['ArrowRight', 'Space', 'KeyN', 'Digit3', 'F2', 'Enter', 'Numpad5', 'Backspace'].forEach(c => { if (!toucheSuivantValide(c)) throw new Error(c + ' refusee'); });
+  ['', 'Escape', 'Tab', 'ShiftLeft', 'ControlRight', 'AltLeft', 'MetaLeft', 'CapsLock', null].forEach(c => { if (toucheSuivantValide(c)) throw new Error(c + ' acceptee'); });
+  if (libelleToucheSuivant('ArrowRight') !== '→ (flèche droite)' || libelleToucheSuivant('Space') !== 'Espace') throw new Error('libelle fleche/espace');
+  if (libelleToucheSuivant('KeyN') !== 'N' || libelleToucheSuivant('Digit3') !== '3' || libelleToucheSuivant('F2') !== 'F2') throw new Error('libelle lettre/chiffre/F2');
+  if (libelleToucheSuivant('') !== 'aucune (désactivée)') throw new Error('libelle vide');
+});
