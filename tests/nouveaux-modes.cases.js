@@ -633,11 +633,14 @@ essai('Voix : un autre mot connu (反対に, 文化) n\'est pas accepte pour 反
   if (voixCorrespond(['97億人'], { mot: '97億人', lecture: 'きゅうじゅうななおくにん' }) !== 0) throw new Error('chiffres');
 });
 
-essai('Touche "question suivante" : touches valides, libelles lisibles', () => {
+essai('Touche "question suivante" : toutes les touches permises (Maj/Ctrl/Echap/Tab inclus), libelles lisibles', () => {
   if (TOUCHE_SUIVANT_DEFAUT !== 'ArrowRight') throw new Error('defaut');
-  ['ArrowRight', 'Space', 'KeyN', 'Digit3', 'F2', 'Enter', 'Numpad5', 'Backspace'].forEach(c => { if (!toucheSuivantValide(c)) throw new Error(c + ' refusee'); });
-  ['', 'Escape', 'Tab', 'ShiftLeft', 'ControlRight', 'AltLeft', 'MetaLeft', 'CapsLock', null].forEach(c => { if (toucheSuivantValide(c)) throw new Error(c + ' acceptee'); });
+  ['ArrowRight', 'Space', 'KeyN', 'Digit3', 'F2', 'Enter', 'Numpad5', 'Backspace', 'Escape', 'Tab', 'Shift', 'Control', 'Alt', 'Meta', 'CapsLock', 'Backquote'].forEach(c => { if (!toucheSuivantValide(c)) throw new Error(c + ' refusee'); });
+  ['', 'Unidentified', 'DeadCircumflex', null, undefined].forEach(c => { if (toucheSuivantValide(c)) throw new Error(c + ' acceptee'); });
+  if (normaliserToucheSuivant('ShiftLeft') !== 'Shift' || normaliserToucheSuivant('ShiftRight') !== 'Shift' || normaliserToucheSuivant('ControlRight') !== 'Control' || normaliserToucheSuivant('MetaLeft') !== 'Meta' || normaliserToucheSuivant('AltRight') !== 'Alt') throw new Error('gauche/droite');
+  if (normaliserToucheSuivant('KeyN') !== 'KeyN' || normaliserToucheSuivant('ArrowLeft') !== 'ArrowLeft') throw new Error('touches normales modifiees');
   if (libelleToucheSuivant('ArrowRight') !== '→ (flèche droite)' || libelleToucheSuivant('Space') !== 'Espace') throw new Error('libelle fleche/espace');
   if (libelleToucheSuivant('KeyN') !== 'N' || libelleToucheSuivant('Digit3') !== '3' || libelleToucheSuivant('F2') !== 'F2') throw new Error('libelle lettre/chiffre/F2');
+  if (libelleToucheSuivant('Shift') !== 'Maj (Shift)' || libelleToucheSuivant('Escape') !== 'Échap') throw new Error('libelle Maj/Echap');
   if (libelleToucheSuivant('') !== 'aucune (désactivée)') throw new Error('libelle vide');
 });

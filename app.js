@@ -4566,13 +4566,17 @@ function htmlIndiceCours(v, avecRappel) {
 // sert qu'APRES avoir repondu (la reponse est affichee, il ne reste que le bouton "Mot suivant") :
 // aucun risque de la taper par erreur dans un champ.
 const TOUCHE_SUIVANT_DEFAUT = 'ArrowRight';
+// 08/11/2026 (v238) : toutes les touches sont permises, y compris Maj / Ctrl / Alt / Cmd SEULES
+// (gauche ou droite, memorisees sans le cote), Echap et Tab. Seules les combinaisons (Ctrl+N...) sont refusees.
+function normaliserToucheSuivant(code) {
+  return /^(Shift|Control|Alt|Meta)(Left|Right)$/.test(code || '') ? code.replace(/(Left|Right)$/, '') : code;
+}
 function toucheSuivantValide(code) {
-  if (!code || typeof code !== 'string') return false;
-  return !/^(Escape|Tab|CapsLock|Shift|Control|Alt|Meta|OS|ContextMenu)/.test(code);
+  return typeof code === 'string' && code.length > 0 && code !== 'Unidentified' && !/^Dead/.test(code);
 }
 function libelleToucheSuivant(code) {
   if (!code) return 'aucune (désactivée)';
-  const noms = { ArrowRight: '→ (flèche droite)', ArrowLeft: '← (flèche gauche)', ArrowUp: '↑ (flèche haut)', ArrowDown: '↓ (flèche bas)', Space: 'Espace', Enter: 'Entrée', NumpadEnter: 'Entrée (pavé numérique)', Backspace: 'Retour arrière', Delete: 'Suppr', Insert: 'Inser', Home: 'Début', End: 'Fin', PageUp: 'Page précédente', PageDown: 'Page suivante', NumpadAdd: '+ (pavé numérique)', NumpadSubtract: '- (pavé numérique)', NumpadMultiply: '* (pavé numérique)', NumpadDivide: '/ (pavé numérique)', NumpadDecimal: '. (pavé numérique)' };
+  const noms = { Shift: 'Maj (Shift)', Control: 'Ctrl', Alt: 'Alt / Option', Meta: 'Cmd / Windows', Escape: 'Échap', Tab: 'Tab', CapsLock: 'Verr. Maj', ArrowRight: '→ (flèche droite)', ArrowLeft: '← (flèche gauche)', ArrowUp: '↑ (flèche haut)', ArrowDown: '↓ (flèche bas)', Space: 'Espace', Enter: 'Entrée', NumpadEnter: 'Entrée (pavé numérique)', Backspace: 'Retour arrière', Delete: 'Suppr', Insert: 'Inser', Home: 'Début', End: 'Fin', PageUp: 'Page précédente', PageDown: 'Page suivante', NumpadAdd: '+ (pavé numérique)', NumpadSubtract: '- (pavé numérique)', NumpadMultiply: '* (pavé numérique)', NumpadDivide: '/ (pavé numérique)', NumpadDecimal: '. (pavé numérique)' };
   if (noms[code]) return noms[code];
   let m;
   if ((m = /^Key([A-Z])$/.exec(code))) return m[1];
@@ -5744,16 +5748,26 @@ function renderSettings() {
   $('#btnToucheSuivantDefaut').addEventListener('click', () => fixerToucheSuivant(TOUCHE_SUIVANT_DEFAUT));
   $('#btnToucheSuivantAucune').addEventListener('click', () => fixerToucheSuivant(''));
   $('#btnToucheSuivant').addEventListener('click', () => {
-    $('#toucheSuivantEtat').textContent = 'Appuie sur la touche voulue… (Échap pour annuler)';
-    const ecoute = (ev) => {
-      if (/^(Shift|Control|Alt|Meta|CapsLock)/.test(ev.code)) return; // attend une vraie touche
+    $('#toucheSuivantEtat').innerHTML = 'Appuie sur la touche voulue (une seule touche) <button class="secondary" id="btnToucheAnnuler" type="button">Annuler</button>';
+    let modSeule = null;
+    const fin = () => { document.removeEventListener('keydown', kd, true); document.removeEventListener('keyup', ku, true); };
+    // Maj / Ctrl / Alt / Cmd seuls : on les valide au RELACHEMENT, sans autre touche entre-temps.
+    const kd = (ev) => {
       ev.preventDefault(); ev.stopPropagation();
-      document.removeEventListener('keydown', ecoute, true);
-      if (ev.code === 'Escape') { majToucheSuivant(); return; }
-      if (!toucheSuivantValide(ev.code) || ev.ctrlKey || ev.metaKey || ev.altKey) { majToucheSuivant(); showToast('Cette touche ne peut pas être utilisée'); return; }
-      fixerToucheSuivant(ev.code);
+      if (ev.repeat) return;
+      if (/^(Shift|Control|Alt|Meta)/.test(ev.code)) { modSeule = ev.code; return; }
+      if (ev.ctrlKey || ev.metaKey || ev.altKey) { modSeule = null; showToast('Une seule touche à la fois (sans Ctrl / Alt / Cmd)'); return; }
+      modSeule = null;
+      if (!toucheSuivantValide(ev.code)) { showToast('Cette touche n\u2019est pas reconnue par le navigateur, essaie-en une autre'); return; }
+      fin(); fixerToucheSuivant(ev.code);
     };
-    document.addEventListener('keydown', ecoute, true);
+    const ku = (ev) => {
+      ev.preventDefault(); ev.stopPropagation();
+      if (modSeule && ev.code === modSeule) { const c = normaliserToucheSuivant(modSeule); fin(); fixerToucheSuivant(c); }
+    };
+    document.addEventListener('keydown', kd, true);
+    document.addEventListener('keyup', ku, true);
+    $('#btnToucheAnnuler').addEventListener('click', () => { fin(); majToucheSuivant(); });
   });
 
   $('#setSpectralMode').addEventListener('change', async (e) => {
@@ -5921,9 +5935,11 @@ document.addEventListener('DOMContentLoaded', init);
 
 // Touche "question suivante" (reglage Reglages > Raccourci clavier).
 document.addEventListener('keydown', (e) => {
-  if (e.defaultPrevented || e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
+  if (e.defaultPrevented || e.repeat) return;
   const code = typeof DB !== 'undefined' && DB && DB.settings ? DB.settings.toucheSuivant : '';
-  if (!code || e.code !== code) return;
+  if (!code || normaliserToucheSuivant(e.code) !== code) return;
+  const modifSeule = /^(Shift|Control|Alt|Meta)$/.test(code);
+  if (!modifSeule && (e.ctrlKey || e.metaKey || e.altKey)) return; // ne detourne pas les raccourcis du navigateur
   if (typeof quizSession === 'undefined' || !quizSession || !quizSession.submitted || currentView !== 'review') return;
   const cible = e.target;
   if (cible && /^(INPUT|TEXTAREA|SELECT)$/.test(cible.tagName)) return;
