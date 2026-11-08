@@ -1401,6 +1401,8 @@ function htmlBoutonPasser() {
   return '<div class="passer-wrap"><button class="secondary small btn-passer-sans-reponse" type="button">Je ne sais pas — voir la réponse</button></div>';
 }
 function brancherBoutonPasser(submit) {
+  // Touche "question suivante" (v239) : sans reponse, la touche passe la question (comme « Je ne sais pas »).
+  if (typeof window !== 'undefined') window.kvtPasserCourant = () => submit(true);
   const b = $('.btn-passer-sans-reponse');
   if (b) b.addEventListener('click', () => submit(true));
 }
@@ -4934,6 +4936,7 @@ function startPratiqueQuiz(theme, forceRestart) {
 }
 
 function renderReview() {
+  if (typeof window !== 'undefined') window.kvtPasserCourant = null;
   const container = $('#view-review');
   // Mode "Kanji seul" : vue entièrement séparée (renderKanjiQuizView), pour
   // ne jamais toucher aux branches existantes du quiz vocabulaire ci-dessous.
@@ -5934,21 +5937,47 @@ async function init() {
 document.addEventListener('DOMContentLoaded', init);
 
 // Touche "question suivante" (reglage Reglages > Raccourci clavier).
-document.addEventListener('keydown', (e) => {
-  if (e.defaultPrevented || e.repeat) return;
-  const code = typeof DB !== 'undefined' && DB && DB.settings ? DB.settings.toucheSuivant : '';
-  if (!code || normaliserToucheSuivant(e.code) !== code) return;
-  const modifSeule = /^(Shift|Control|Alt|Meta)$/.test(code);
-  if (!modifSeule && (e.ctrlKey || e.metaKey || e.altKey)) return; // ne detourne pas les raccourcis du navigateur
-  if (typeof quizSession === 'undefined' || !quizSession || !quizSession.submitted || currentView !== 'review') return;
+//  - reponse deja donnee : passe au mot suivant ;
+//  - pas encore de reponse : passe la question (0 point, correction affichee), meme si le curseur est dans le champ
+//    (pour les touches qui ne servent pas a taper : Maj, Ctrl, Alt, Cmd, Echap, Tab, F1-F12, Verr. Maj) ;
+//    une touche de saisie (lettre, Espace, Entree, fleches...) n'agit pas dans un champ, pour ne pas gener la frappe.
+// Maj / Ctrl / Alt / Cmd seuls agissent au RELACHEMENT, sans autre touche entre-temps (Ctrl+C, Maj+lettre ne declenchent rien).
+let kvtModifArme = false;
+function actionToucheSuivante(e) {
+  if (typeof quizSession === 'undefined' || !quizSession || currentView !== 'review') return false;
   const cible = e.target;
-  if (cible && /^(INPUT|TEXTAREA|SELECT)$/.test(cible.tagName)) return;
-  // Entree / Espace sur le bouton deja actif : le navigateur le declenche lui-meme (sinon on saute 2 mots).
-  if (cible && cible.tagName === 'BUTTON' && /^(Enter|NumpadEnter|Space)$/.test(code)) return;
-  const bouton = document.querySelector('#view-review [id^="btnNext"]');
-  if (!bouton) return;
-  e.preventDefault();
-  bouton.click();
+  if (quizSession.submitted) {
+    if (cible && /^(INPUT|TEXTAREA|SELECT)$/.test(cible.tagName)) return false;
+    const bouton = document.querySelector('#view-review [id^="btnNext"]');
+    if (!bouton) return false;
+    bouton.click();
+    return true;
+  }
+  if (typeof window.kvtPasserCourant !== 'function') return false;
+  const dansChamp = cible && /^(INPUT|TEXTAREA|SELECT)$/.test(cible.tagName);
+  const code = DB.settings.toucheSuivant;
+  const nePermetPasDeTaper = /^(Shift|Control|Alt|Meta|Escape|Tab|CapsLock|F\d{1,2})$/.test(code);
+  if (dansChamp && !nePermetPasDeTaper) return false;
+  window.kvtPasserCourant();
+  return true;
+}
+document.addEventListener('keydown', (e) => {
+  const code = typeof DB !== 'undefined' && DB && DB.settings ? DB.settings.toucheSuivant : '';
+  if (!code) return;
+  const touche = normaliserToucheSuivant(e.code);
+  const modifSeule = /^(Shift|Control|Alt|Meta)$/.test(code);
+  if (modifSeule) { kvtModifArme = !e.repeat && touche === code ? true : (touche === code ? kvtModifArme : false); return; }
+  if (e.defaultPrevented || e.repeat || touche !== code) return;
+  if (e.ctrlKey || e.metaKey || e.altKey) return; // ne detourne pas les raccourcis du navigateur
+  if (typeof quizSession !== 'undefined' && quizSession && quizSession.submitted && e.target && e.target.tagName === 'BUTTON' && /^(Enter|NumpadEnter|Space)$/.test(code)) return; // le navigateur declenche deja le bouton
+  if (actionToucheSuivante(e)) e.preventDefault();
+});
+document.addEventListener('keyup', (e) => {
+  const code = typeof DB !== 'undefined' && DB && DB.settings ? DB.settings.toucheSuivant : '';
+  if (!code || !/^(Shift|Control|Alt|Meta)$/.test(code) || normaliserToucheSuivant(e.code) !== code) return;
+  if (!kvtModifArme) return;
+  kvtModifArme = false;
+  actionToucheSuivante(e);
 });
 
 
