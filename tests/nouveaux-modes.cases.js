@@ -684,3 +684,16 @@ essai('Traductions claires (L0 a L2) : deux mots differents qui partagent une tr
   const pb = Object.entries(idx).filter(([, s]) => s.size > 1).map(([a, s]) => a + ' : ' + [...s].join(' / '));
   if (pb.length) throw new Error(pb.length + ' cas, ex. ' + pb.slice(0, 4).join(' ; '));
 });
+
+essai('Traductions a double sens precisees (鶏肉 = poulet la viande...) et pas de separateur dans une parenthese (L0 a L2)', () => {
+  const seed = JSON.parse(require('fs').readFileSync(__dirname + '/../seed-data.json', 'utf8'));
+  const s = id => seed.vocab.find(v => v.id === id).sens;
+  if (s('v-l0s2-w7-02-06') !== 'poulet (la viande)' || s('v-l0s2-w7-02-05') !== 'porc (la viande)') throw new Error('鶏肉 / 豚肉');
+  if (s('v-mrhvk4vh1muh8') !== 'manger, boire (honorifique)') throw new Error('召しあがる');
+  if (scoreSens('poulet', s('v-l0s2-w7-02-06')).pct < 0.99) throw new Error('poulet refuse');
+  const G = {}; seed.kanjiGroups.forEach(g => { G[g.id] = g; });
+  const pb = seed.vocab.filter(v => G[v.kanjiGroupId] && ['l0-s1', 'l0-s2', 's1', 's2', 's3', 's4'].includes(G[v.kanjiGroupId].semesterId)
+    && /\([^()]*[,\/;][^()]*\)/.test(v.sens)).map(v => v.mot + ' = ' + v.sens);
+  if (pb.length) throw new Error(pb.length + ' : ' + pb.slice(0, 4).join(' ; '));
+  if (scoreSens('liquide', 'Froid (au toucher : objet ou liquide)').pct > 0.6) throw new Error('le mot de la parenthese est accepte');
+});
