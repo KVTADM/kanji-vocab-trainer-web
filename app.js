@@ -4006,10 +4006,17 @@ function classeTailleSens(parts) {
   if (max > 22) return 'sens-trad--long';
   return '';
 }
+// Precision finale entre parentheses (nuance ajoutee le 15/11/2026 pour distinguer les mots proches) :
+// elle vaut pour tout le sens, on l'affiche donc sur sa propre ligne, plus discrete, sous les traductions.
+function separerPrecisionSens(sens) {
+  const m = /^(.*\S)\s*[(\uff08]([^()\uff08\uff09]*)[)\uff09]\s*$/.exec(String(sens || '').trim());
+  return m ? { base: m[1], precision: m[2].trim() } : { base: String(sens || '').trim(), precision: '' };
+}
 function htmlSensTraduction(sens) {
-  const parts = decouperSens(sens);
+  const { base, precision } = separerPrecisionSens(sens);
+  const parts = decouperSens(base);
   if (!parts.length) return '<div class="sens-trad"><div class="sens-trad-ligne">(sens manquant)</div></div>';
-  return `<div class="sens-trad ${classeTailleSens(parts)}" lang="fr">${parts.map(p => `<div class="sens-trad-ligne">${escapeHtml(p)}</div>`).join('')}</div>`;
+  return `<div class="sens-trad ${classeTailleSens(parts)}" lang="fr">${parts.map(p => `<div class="sens-trad-ligne">${escapeHtml(p)}</div>`).join('')}${precision ? `<div class="sens-trad-precision">(${escapeHtml(precision)})</div>` : ''}</div>`;
 }
 
 function renderTraductionQuizView(container) {

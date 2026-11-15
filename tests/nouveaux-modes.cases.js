@@ -644,3 +644,43 @@ essai('Touche "question suivante" : toutes les touches permises (Maj/Ctrl/Echap/
   if (libelleToucheSuivant('Shift') !== 'Maj (Shift)' || libelleToucheSuivant('Escape') !== 'Échap') throw new Error('libelle Maj/Echap');
   if (libelleToucheSuivant('') !== 'aucune (désactivée)') throw new Error('libelle vide');
 });
+
+essai('Precision de sens : separee de la traduction, non exigee a la saisie', () => {
+  const s = separerPrecisionSens('monter, se lever (aller plus haut : prix ou étage)');
+  if (s.base !== 'monter, se lever' || s.precision !== 'aller plus haut : prix ou étage') throw new Error(JSON.stringify(s));
+  if (separerPrecisionSens('réponse').precision !== '' || separerPrecisionSens('réponse').base !== 'réponse') throw new Error('sans parenthese');
+  const h = htmlSensTraduction('réponse, solution (à un exercice ou un problème)');
+  if (!/sens-trad-precision">\(à un exercice ou un problème\)</.test(h) || (h.match(/sens-trad-ligne/g) || []).length !== 2) throw new Error(h);
+  if (scoreSens('réponse', 'réponse (à une question ou une enquête)').pct < 0.99) throw new Error('la parenthese est exigee');
+  if (scoreSens('monter', 'monter, gravir (grimper pas à pas : escalier ou montagne)').pct < 0.99) throw new Error('alternative refusee');
+});
+
+essai('Traductions precisees : dans une meme semaine (L0 a L2), plus aucun sens strictement identique entre deux mots', () => {
+  const seed = JSON.parse(require('fs').readFileSync(__dirname + '/../seed-data.json', 'utf8'));
+  const G = {}; seed.kanjiGroups.forEach(g => { G[g.id] = g; });
+  const vus = {}; const pb = [];
+  seed.vocab.forEach(v => {
+    const g = G[v.kanjiGroupId];
+    if (!g || !['l0-s1', 'l0-s2', 's1', 's2', 's3', 's4'].includes(g.semesterId)) return;
+    const k = g.semesterId + ':' + g.week + ':' + v.sens.trim().toLowerCase();
+    if (vus[k] && vus[k] !== v.mot) pb.push(vus[k] + ' / ' + v.mot + ' = ' + v.sens);
+    vus[k] = v.mot;
+  });
+  if (pb.length) throw new Error(pb.slice(0, 5).join(' ; '));
+  const g = id => seed.vocab.find(v => v.id === id).sens;
+  if (g('v-l0s2-w6-03-01') !== 'réponse (à une question ou une enquête)' || g('v-l0s2-w6-03-04') !== 'réponse (mot courant)') throw new Error('回答 / 答え');
+  seed.vocab.forEach(v => { (v.sens.match(/\(([^)]*)\)/g) || []).forEach(p => { if (/^\([^)]*$/.test(p)) throw new Error('parenthese : ' + v.sens); }); });
+});
+
+essai('Traductions claires (L0 a L2) : deux mots differents qui partagent une traduction ont une precision entre parentheses', () => {
+  const seed = JSON.parse(require('fs').readFileSync(__dirname + '/../seed-data.json', 'utf8'));
+  const G = {}; seed.kanjiGroups.forEach(g => { G[g.id] = g; });
+  const idx = {};
+  seed.vocab.forEach(v => {
+    const g = G[v.kanjiGroupId];
+    if (!g || !['l0-s1', 'l0-s2', 's1', 's2', 's3', 's4'].includes(g.semesterId) || v.sens.includes('(')) return;
+    v.sens.split(/[\/,;]/).map(normaliserSens).filter(Boolean).forEach(a => { (idx[a] = idx[a] || new Set()).add(v.mot); });
+  });
+  const pb = Object.entries(idx).filter(([, s]) => s.size > 1).map(([a, s]) => a + ' : ' + [...s].join(' / '));
+  if (pb.length) throw new Error(pb.length + ' cas, ex. ' + pb.slice(0, 4).join(' ; '));
+});

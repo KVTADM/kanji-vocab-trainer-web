@@ -155,3 +155,17 @@ essai('reglage toucheSuivant : valeur par defaut (flèche droite), valeur choisi
   const c = await window.api.loadData();
   if (c.settings.toucheSuivant !== '') throw new Error('desactivation perdue : ' + c.settings.toucheSuivant);
 });
+
+essai('precisions de sens (15/11/2026) : ajoutees sur un compte existant, sens personnalise respecte, idempotent', async () => {
+  fakeStockage.clear();
+  const base = donneeDeBase();
+  base.vocab.push({ id: 'v-l0s2-w6-03-01', kanjiGroupId: 'kg-test-s3-a', mot: '回答', lecture: 'かいとう', sens: 'réponse' });
+  base.vocab.push({ id: 'v-l0s2-w6-03-04', kanjiGroupId: 'kg-test-s3-a', mot: '答え', lecture: 'こたえ', sens: 'ma traduction perso' });
+  fakeStockage.set('data', base);
+  const a = await window.api.loadData();
+  const s = (d, id) => d.vocab.find(v => v.id === id).sens;
+  if (s(a, 'v-l0s2-w6-03-01') !== 'réponse (à une question ou une enquête)') throw new Error(s(a, 'v-l0s2-w6-03-01'));
+  if (s(a, 'v-l0s2-w6-03-04') !== 'ma traduction perso') throw new Error('sens personnalise ecrase');
+  const b = await window.api.loadData();
+  if (s(b, 'v-l0s2-w6-03-01') !== 'réponse (à une question ou une enquête)') throw new Error('pas idempotent');
+});

@@ -4238,3 +4238,6 @@ button.primary:focus-visible, button.secondary:focus-visible, button.danger:focu
 .voix-auto { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); cursor: pointer; }
 @keyframes voix-pouls { 0%, 100% { box-shadow: 0 0 0 0 rgba(91, 200, 245, .45); } 50% { box-shadow: 0 0 0 9px rgba(91, 200, 245, 0); } }
 @media (prefers-reduced-motion: reduce) { .voix-micro.ecoute { animation: none; } }
+
+/* Precision de sens (nuance entre parentheses) sous la traduction, mode Traduction (15/11/2026) */
+.sens-trad-precision { font-size: 15px; font-weight: 400; color: var(--muted); margin-top: 8px; line-height: 1.4; }
