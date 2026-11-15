@@ -690,6 +690,7 @@ essai('Traductions a double sens precisees (鶏肉 = poulet la viande...) et pas
   const s = id => seed.vocab.find(v => v.id === id).sens;
   if (s('v-l0s2-w7-02-06') !== 'poulet (la viande)' || s('v-l0s2-w7-02-05') !== 'porc (la viande)') throw new Error('鶏肉 / 豚肉');
   if (s('v-mrhvk4vh1muh8') !== 'manger, boire (honorifique)') throw new Error('召しあがる');
+  if (s('v-l0s2-w7-01-03') !== 'entrée (porte ou accès pour entrer : contraire de 出口)' || scoreSens('entrée', s('v-l0s2-w7-01-03')).pct < 0.99) throw new Error('入口');
   if (scoreSens('poulet', s('v-l0s2-w7-02-06')).pct < 0.99) throw new Error('poulet refuse');
   const G = {}; seed.kanjiGroups.forEach(g => { G[g.id] = g; });
   const pb = seed.vocab.filter(v => G[v.kanjiGroupId] && ['l0-s1', 'l0-s2', 's1', 's2', 's3', 's4'].includes(G[v.kanjiGroupId].semesterId)

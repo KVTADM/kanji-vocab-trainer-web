@@ -707,6 +707,15 @@ const JLPT_N4_SEED = {"kanjiGroups":[{"id":"kg-hu66go90952pa","semesterId":"jlpt
         if (f && v.sens === f.old) v.sens = f.neuf;
       });
     }
+    // Suite (15/11/2026, Paul : « entrée » de 入口 = la porte, pas le plat ni l'action d'entrer) : autres
+    // traductions a double sens (place, cuisine, rayon, feu, timbre, poste, cheminee...). Idempotent.
+    const SENS_DOUBLE_SENS_15_11_B = {"v-l0s1-w7-09-05":{"old":"entrée","neuf":"entrée (porte ou accès pour entrer : contraire de 出口)"},"v-l0s2-w7-01-03":{"old":"entrée","neuf":"entrée (porte ou accès pour entrer : contraire de 出口)"},"v-mrhvk4vif5skn":{"old":"entrée d'une maison","neuf":"entrée d'une maison (vestibule où l'on se déchausse)"},"v-l0s2-w2-07-03":{"old":"place","neuf":"place (espace public dégagé)"},"v-l0s2-w3-07-04":{"old":"place","neuf":"place (espace public dégagé)"},"v-l0s2-w2-10-02":{"old":"cuisine","neuf":"cuisine (la pièce de la maison)"},"v-l0s2-w10-05-05":{"old":"rayon","neuf":"rayon (d'un magasin)"},"v-l0s2-w1-06-04":{"old":"feu","neuf":"feu (flamme)"},"v-l0s2-w6-10-06":{"old":"timbre","neuf":"timbre (de la poste)"},"v-mrhvk4v4us9rp":{"old":"Mode / Épidémie","neuf":"Mode / Épidémie (ce qui se répand : tendance ou maladie)"},"v-mrhvk4uw2fqw1":{"old":"Courrier, poste","neuf":"Courrier, poste (le service postal)"},"v-mrhvk4vt2ny4r":{"old":"cheminée","neuf":"cheminée (conduit qui évacue la fumée)"}};
+    if (Array.isArray(data.vocab)) {
+      data.vocab.forEach(v => {
+        const f = SENS_DOUBLE_SENS_15_11_B[v.id];
+        if (f && v.sens === f.old) v.sens = f.neuf;
+      });
+    }
     // Verbes de base manquants au vocabulaire N5 (signale par Paul le
     // 14/09/2026) : certains verbes parmi les plus fondamentaux du N5
     // (書く, 来る, 行く...) n'avaient jamais eu leur propre entree de
