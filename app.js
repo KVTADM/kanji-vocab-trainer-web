@@ -2411,6 +2411,14 @@ function renderDashboard() {
     const weekModal = modalSemaineOuverte.week;
     const vocabModalTous = getVocabForWeek(modalSemaineOuverte.semesterId, weekModal);
     const savedModal = getValidInProgress(modalSemaineOuverte.semesterId, weekModal);
+    // Reprise aussi pour Traduction et Double reponse (19/11/2026, Paul : « ca supprime le travail deja fait ») :
+    // avant, ces deux modes repartaient toujours de zero depuis cette fenetre, ce qui effacait la session en cours.
+    const savedTradModal = getValidTraductionInProgress(modalSemaineOuverte.semesterId, weekModal);
+    const savedDoubleModal = getValidDoubleInProgress(modalSemaineOuverte.semesterId, weekModal);
+    const modeDefautModal = dashboardTable === 'trad' ? 'traduction' : 'vocab';
+    const reprisesModal = [['vocab', 'Vocabulaire', savedModal], ['traduction', 'Traduction', savedTradModal], ['double', 'Double réponse', savedDoubleModal]]
+      .filter(r => r[2]).sort((a, b) => (b[0] === modeDefautModal) - (a[0] === modeDefautModal));
+    const savedParMode = { vocab: savedModal, traduction: savedTradModal, double: savedDoubleModal };
     const entryModal = getScoreEntry(modalSemaineOuverte.semesterId, weekModal);
     const filtreGroupeCocheModal = reviewVerbeFilter === 'tous' || reviewVerbeFilter === 'kanji_groupe';
     const filtreSimpleCocheModal = reviewVerbeFilter === 'tous' || reviewVerbeFilter === 'simple';
@@ -2429,12 +2437,13 @@ function renderDashboard() {
             </div>
             <button type="button" class="secondary small" id="btnVoirVocabModalSemaine" style="margin-bottom:12px;">Voir tout le vocabulaire de cette semaine</button>
           ` : ''}
-          ${savedModal ? `
+          ${reprisesModal.length ? `
+            ${reprisesModal.map(([mode, lib, sv]) => `
             <div class="modal-reprise">
-              <div>Session en cours : ${savedModal.index}/${savedModal.queue.length} mots · ${savedModal.totals.points} pts gagnés</div>
-              <div style="font-size:12px; color:var(--muted); margin-top:2px;">Type : ${escapeHtml(libelleFiltreMots(savedModal.verbeFilter))}</div>
-              <button class="primary" id="btnContinuerModalSemaine" style="margin-top:8px;">Continuer cette session</button>
-            </div>
+              <div>${escapeHtml(lib)} en cours : ${sv.index}/${sv.queue.length} mots · ${sv.totals.points} pts gagnés</div>
+              <div style="font-size:12px; color:var(--muted); margin-top:2px;">Type : ${escapeHtml(libelleFiltreMots(sv.verbeFilter))}</div>
+              <button class="primary btn-continuer-modal" data-reprise-mode="${mode}" ${mode === 'vocab' ? 'id="btnContinuerModalSemaine"' : ''} style="margin-top:8px;">Continuer ${reprisesModal.length > 1 ? 'en ' + escapeHtml(lib) : 'cette session'}</button>
+            </div>`).join('')}
             <div class="modal-separateur">Ou recommencer avec d'autres réglages :</div>
           ` : entryModal ? `
             <div style="font-size:13px; color:var(--muted); margin-bottom:10px;">
@@ -2482,7 +2491,7 @@ function renderDashboard() {
             </div>
           </div>
           <div style="font-size:13px; color:var(--muted); margin:10px 0;">${countModal} mot(s) avec ce choix.</div>
-          <button class="primary" id="btnDemarrerModalSemaine" ${countModal === 0 ? 'disabled' : ''}>${savedModal ? 'Recommencer' : 'Démarrer'}</button>
+          <button class="primary" id="btnDemarrerModalSemaine" ${countModal === 0 ? 'disabled' : ''}>${savedParMode[modeDefautModal] ? 'Recommencer' : 'Démarrer'}</button>
         </div>
       </div>
     `;
@@ -2620,6 +2629,11 @@ function renderDashboard() {
   // sur le fond (jamais sur la boîte elle-même, d'où le test sur e.target).
   if (modalSemaineOuverte) {
     const fermerModal = () => { modalSemaineOuverte = null; renderDashboard(); };
+    const savedParMode = {
+      vocab: getValidInProgress(modalSemaineOuverte.semesterId, modalSemaineOuverte.week),
+      traduction: getValidTraductionInProgress(modalSemaineOuverte.semesterId, modalSemaineOuverte.week),
+      double: getValidDoubleInProgress(modalSemaineOuverte.semesterId, modalSemaineOuverte.week)
+    };
     $('#btnFermerModalSemaine').addEventListener('click', fermerModal);
     $('#modalSemaineBackdrop').addEventListener('click', (e) => {
       if (e.target.id === 'modalSemaineBackdrop') fermerModal();
@@ -2653,6 +2667,15 @@ function renderDashboard() {
     };
     $('#chkModalMotsGroupe').addEventListener('change', recalculerFiltreMotsModal);
     $('#chkModalMotsSimple').addEventListener('change', recalculerFiltreMotsModal);
+    $$('.btn-continuer-modal').forEach(b => b.addEventListener('click', () => {
+      if (b.dataset.repriseMode === 'vocab') return; // gere juste en dessous
+      const { semesterId, week } = modalSemaineOuverte;
+      modalSemaineOuverte = null;
+      // Pas de forceRestart : la session sauvegardee est retrouvee telle quelle (file, filtre, points, reponses).
+      if (b.dataset.repriseMode === 'traduction') startTraductionQuiz(semesterId, week, false);
+      else startDoubleQuiz(semesterId, week, false);
+      switchView('review');
+    }));
     const btnContinuerModal = $('#btnContinuerModalSemaine');
     if (btnContinuerModal) {
       btnContinuerModal.addEventListener('click', () => {
@@ -2674,8 +2697,7 @@ function renderDashboard() {
     const btnDemarrerModal = $('#btnDemarrerModalSemaine');
     $$('input[name="modalMode"]').forEach(input => {
       input.addEventListener('change', () => {
-        const repriseVocabActive = input.value === 'vocab' && !!savedModal;
-        btnDemarrerModal.textContent = repriseVocabActive ? 'Recommencer' : 'Démarrer';
+        btnDemarrerModal.textContent = savedParMode[input.value] ? 'Recommencer' : 'Démarrer';
       });
     });
     btnDemarrerModal.addEventListener('click', () => {
