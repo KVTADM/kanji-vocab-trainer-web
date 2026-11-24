@@ -160,7 +160,7 @@ if (typeof document !== 'undefined') {
 // Furigana : place la lecture de chaque suite de kanji au-dessus d'elle. Les kana de la phrase servent
 // de reperes dans la lecture complete ; l'alignement retenu est celui qui donne des longueurs de lecture
 // plausibles (environ deux kana par kanji). Renvoie null si l'alignement echoue (on affiche alors la lecture).
-function furiganaPhrase(phrase, lecture) {
+function furiganaPhrase(phrase, lecture, plage) {
   if (!phrase || !lecture) return null;
   const enHira = s => s.replace(/[ァ-ヶ]/g, c => String.fromCharCode(c.charCodeAt(0) - 0x60));
   const RUN = /[一-鿿々〻ヵヶ0-9A-Za-z０-９Ａ-Ｚａ-ｚ]/;
@@ -204,7 +204,52 @@ function furiganaPhrase(phrase, lecture) {
   const parts = new Array(n);
   let p = L;
   for (let i = n; i > 0; i--) { const q = choix[i][p]; parts[i - 1] = lec.slice(q, p).join(''); p = q; }
-  return morceaux.map((m, i) => m.type === 'run' ? `<ruby>${escapeHtml(m.t)}<rt>${escapeHtml(parts[i])}</rt></ruby>` : escapeHtml(m.t)).join('');
+  // Mot etudie mis en evidence (24/11/2026) : les morceaux qui recouvrent la plage [debut, fin[ (en caracteres)
+  // sont entoures d'un seul <mark> ; un groupe de kanji n'est jamais coupe (sa lecture en ruby reste entiere).
+  let pos = 0;
+  const html = morceaux.map((m, i) => {
+    const deb = pos; pos += [...m.t].length;
+    return { h: m.type === 'run' ? `<ruby>${escapeHtml(m.t)}<rt>${escapeHtml(parts[i])}</rt></ruby>` : escapeHtml(m.t), dans: !!plage && deb < plage[1] && pos > plage[0] };
+  });
+  return envelopperMotEtudie(html);
+}
+function envelopperMotEtudie(morceaux) {
+  let out = '', ouvert = false;
+  morceaux.forEach(({ h, dans }) => {
+    if (dans && !ouvert) { out += '<mark class="phrase-exemple__mot">'; ouvert = true; }
+    if (!dans && ouvert) { out += '</mark>'; ouvert = false; }
+    out += h;
+  });
+  return out + (ouvert ? '</mark>' : '');
+}
+// Ou se trouve le mot etudie dans sa phrase d'exemple ? Renvoie [debut, fin[ en caracteres, ou null.
+// On cherche le mot tel quel, puis son radical pour un verbe ou un adjectif conjugue (食べる -> 食べました :
+// radical 食 + les kana d'okurigana qui suivent a l'identique, soit 食べ), puis sa lecture en kana.
+function plageMotDansPhrase(phrase, v) {
+  const s = String(phrase || '');
+  if (!s || !v) return null;
+  const essais = [];
+  String(v.mot || '').replace(/[〜～\s]/g, '').split(/[、,\/／]/).filter(Boolean).forEach(m => {
+    essais.push({ c: m, oku: '' });
+    const radical = m.replace(/[ぁ-ゖ]+$/, '');
+    if (radical && radical !== m && /[一-鿿々]/.test(radical)) essais.push({ c: radical, oku: m.slice(radical.length) });
+    // verbe ecrit en kana (ころがる -> ころがります) : on retire la derniere syllabe
+    if (/^[ぁ-ゖ]{3,}$/.test(m)) essais.push({ c: m.slice(0, -1), oku: '' });
+  });
+  String(v.lecture || '').split(/\s*\/\s*/).forEach(l => {
+    l = l.replace(/[〜～\s]/g, '');
+    if ([...l].length >= 2) essais.push({ c: l, oku: '' });
+  });
+  for (const { c, oku } of essais) {
+    const i = s.indexOf(c);
+    if (i < 0) continue;
+    const debut = [...s.slice(0, i)].length;
+    let fin = debut + [...c].length;
+    const suite = [...s.slice(i + c.length)], o = [...oku];
+    for (let k = 0; k < o.length && suite[k] === o[k]; k++) fin++;
+    return [debut, fin];
+  }
+  return null;
 }
 
 // Phrase d'exemple d'un mot (cursus L0), affichee apres la reponse. Donnees
@@ -213,8 +258,10 @@ function htmlPhraseExemple(v) {
   const tous = (typeof window !== 'undefined' && window.KVT_PHRASES) || null;
   const p = tous && v && tous[v.id];
   if (!p) return '';
-  const furi = furiganaPhrase(p[0], p[1]);
-  return `<div class="phrase-exemple"><div class="phrase-exemple__jp"><span class="phrase-exemple__texte">${furi || escapeHtml(p[0])}</span>${boutonAudio(p[0], 'Écouter la phrase')}</div><div class="phrase-exemple__sous">${furi ? '' : `<span class="phrase-exemple__lecture">${escapeHtml(p[1])}</span>`}<span class="phrase-exemple__tr">${escapeHtml(p[2])}</span></div></div>`;
+  const plage = plageMotDansPhrase(p[0], v);
+  const furi = furiganaPhrase(p[0], p[1], plage);
+  const brut = plage ? envelopperMotEtudie([...p[0]].map((c, k) => ({ h: escapeHtml(c), dans: k >= plage[0] && k < plage[1] }))) : escapeHtml(p[0]);
+  return `<div class="phrase-exemple"><div class="phrase-exemple__jp"><span class="phrase-exemple__texte">${furi || brut}</span>${boutonAudio(p[0], 'Écouter la phrase')}</div><div class="phrase-exemple__sous">${furi ? '' : `<span class="phrase-exemple__lecture">${escapeHtml(p[1])}</span>`}<span class="phrase-exemple__tr">${escapeHtml(p[2])}</span></div></div>`;
 }
 
 function registreBadge(v) {

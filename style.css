@@ -4241,3 +4241,10 @@ button.primary:focus-visible, button.secondary:focus-visible, button.danger:focu
 
 /* Precision de sens (nuance entre parentheses) sous la traduction, mode Traduction (15/11/2026) */
 .sens-trad-precision { font-size: 15px; font-weight: 400; color: var(--muted); margin-top: 8px; line-height: 1.4; }
+
+/* Phrase d'exemple un peu plus grande et mot etudie mis en evidence (24/11/2026, demande de Paul) */
+.phrase-exemple__jp { font-size: 18px; }
+.phrase-exemple__sous .phrase-exemple__lecture,
+.phrase-exemple__sous .phrase-exemple__tr { font-size: 13px; }
+.phrase-exemple__mot { background: none; color: var(--warn-bright); font-weight: 700; text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 0.3em; text-decoration-color: color-mix(in srgb, var(--warn-bright) 55%, transparent); }
+.phrase-exemple__mot rt { color: var(--warn-bright); font-weight: 400; }

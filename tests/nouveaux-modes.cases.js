@@ -698,3 +698,15 @@ essai('Traductions a double sens precisees (鶏肉 = poulet la viande...) et pas
   if (pb.length) throw new Error(pb.length + ' : ' + pb.slice(0, 4).join(' ; '));
   if (scoreSens('liquide', 'Froid (au toucher : objet ou liquide)').pct > 0.6) throw new Error('le mot de la parenthese est accepte');
 });
+
+essai('Phrase d\'exemple : le mot etudie est retrouve et mis en evidence (conjugaisons, kana, furigana)', () => {
+  const t = (ph, v) => { const p = plageMotDansPhrase(ph, v); return p ? [...ph].slice(p[0], p[1]).join('') : null; };
+  if (t('鶏肉と野菜を食べます。', { mot: '鶏肉', lecture: 'とりにく' }) !== '鶏肉') throw new Error('mot tel quel');
+  if (t('毎朝パンを食べました。', { mot: '食べる', lecture: 'たべる' }) !== '食べ') throw new Error('verbe conjugue');
+  if (t('この山は高くないです。', { mot: '高い', lecture: 'たかい' }) !== '高') throw new Error('adjectif');
+  if (t('ボールが坂をころがります。', { mot: 'ころがる', lecture: 'ころがる' }) !== 'ころが') throw new Error('verbe en kana');
+  if (t('私と妹は仲が良いです。', { mot: '仲良し', lecture: 'なかよし' }) !== null) throw new Error('faux positif');
+  const h = furiganaPhrase('鶏肉が好きです。', 'とりにくがすきです。', [0, 2]);
+  if (!/^<mark class="phrase-exemple__mot"><ruby>鶏肉<rt>とりにく<\/rt><\/ruby><\/mark>が/.test(h)) throw new Error(h);
+  if (/<mark/.test(furiganaPhrase('鶏肉が好きです。', 'とりにくがすきです。'))) throw new Error('mark sans plage');
+});

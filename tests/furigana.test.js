@@ -6,7 +6,8 @@ const fs = require('fs');
 const R = __dirname + '/../';
 const app = fs.readFileSync(R + 'app.js', 'utf8');
 const a = app.indexOf('function furiganaPhrase');
-const code = app.slice(a, app.indexOf('\n}\n', a) + 3);
+// furiganaPhrase + envelopperMotEtudie (mise en evidence du mot etudie, 24/11/2026)
+const code = app.slice(a, app.indexOf('function plageMotDansPhrase', a));
 const escapeHtml = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
 const furiganaPhrase = new Function('escapeHtml', code + '; return furiganaPhrase;')(escapeHtml);
 global.window = {};
